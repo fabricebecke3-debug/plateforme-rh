@@ -2778,7 +2778,7 @@ try{const m=await fetch('manifest.webmanifest',{cache:'no-store'});if(!m.ok)thro
 try{const g=await navigator.serviceWorker.getRegistration();r.push(g?'✅ sw.js actif':'❌ sw.js non actif : ajoutez sw.js sur Netlify puis rechargez avec Ctrl+Maj+R');}catch(e){r.push('❌ Service worker indisponible (navigation privée ?)');}
 alert('Diagnostic d’installation\n\n'+r.join('\n')+'\n\nSi tout est ✅ : menu ⋮ de Chrome → « Enregistrer et partager » → « Installer la page en tant qu’application » (ou « Créer un raccourci » en cochant « Ouvrir dans une fenêtre »). Edge : menu ⋯ → Applications → « Installer ce site en tant qu’application ». Si elle est déjà installée, cherchez-la dans le menu Démarrer.');}
 $('inst').onclick=async()=>{if(_dip){_dip.prompt();await _dip.userChoice;_dip=null;}else if(_ios)alert('iPhone / iPad : ouvrez cette page dans Safari, touchez Partager (carré avec une flèche), puis « Sur l’écran d’accueil ».');else await installDiag();};
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+//if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 
 /* ============ EXPORTS EXCEL PRÉSENTABLES ============ */
