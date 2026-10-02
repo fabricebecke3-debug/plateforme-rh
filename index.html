@@ -4,7 +4,7 @@
 <title>TOTAL EMPLOI RH — ACC</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin><link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin><script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<meta name="referrer" content="no-referrer"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="PLATEFORME RH"><meta name="theme-color" content="#1f5fbf"><link rel="preconnect" href="https://cbaepeugbemwmclgfnxz.supabase.co">
+<meta name="referrer" content="no-referrer"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="PLATEFORME RH"><meta name="theme-color" content="#1f5fbf"><link rel="manifest" href="manifest.webmanifest"><link rel="preconnect" href="https://cbaepeugbemwmclgfnxz.supabase.co">
 <style>
 #as:not([style*="none"])~footer{display:none!important}
 :root{--bg:#f5f6f8;--card:#fff;--tx:#1b2430;--mu:#6b7686;--bd:#e2e6ec;--ac:#1f5fbf;--ok:#1e8e4e;--wa:#c98a00;--er:#c62f2f;--cd:#5b3fc4;--pk:#d63384;--tl:#0d9488}
@@ -704,7 +704,16 @@ async function printDossier(url,nom){
   toast('Ce format ne s’imprime pas directement : téléchargement du fichier…');
   await downloadDossier(url,nom);
 }
-function notifyOnce(al,c){if(_nt||(!al&&!c))return;_nt=1;const m=al+' contrat(s) à échéance, '+c+' CNPS en retard';toast('🔔 '+m);try{if('Notification' in window){const n=()=>new Notification('TERH — Alertes RH',{body:m});if(Notification.permission==='granted')n();else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>p==='granted'&&n());}}catch(e){}}
+async function showNotif(title,body){
+  if(!('Notification' in window))return 'unsupported';
+  let p=Notification.permission;
+  if(p==='default')p=await Notification.requestPermission();
+  if(p!=='granted')return p;
+  const o={body,icon:'icon-192.png',badge:'icon-192.png',tag:'terh-alertes',renotify:true};
+  try{const g=await navigator.serviceWorker.getRegistration();if(g){await g.showNotification(title,o);return 'granted';}}catch(e){}
+  try{new Notification(title,o);return 'granted';}catch(e){return 'error';}
+}
+function notifyOnce(al,c){if(_nt||(!al&&!c))return;_nt=1;const m=al+' contrat(s) à échéance, '+c+' CNPS en retard';toast('🔔 '+m);showNotif('TERH — Alertes RH',m).catch(()=>{});}
 setInterval(()=>{const n=new Date();n.setHours(0,0,0,0);if(n.getTime()!==T.getTime()){T.setTime(n.getTime());bumpEN();if(MY_USER)refreshCurrent();}},60000);
 setInterval(()=>{if(MY_USER&&document.querySelector('#v-p.on')&&$('pane-usr').style.display!=='none')listUsers();},30000);
 
@@ -1178,19 +1187,38 @@ document.addEventListener('click',e=>{
 $('rcfin').onclick=async()=>{if(!CAN.params())return;const l=E.filter(r=>r.t==='TEMPORAIRE'&&!r.darret&&r.deb&&r.fin!==calcFin(r.deb));if(!l.length){toast('Toutes les fins CTT sont déjà à jour');return;}if(!confirm(l.length+' contrat(s) CTT seront recalculés (début + 12 mois − 1 jour). Continuer ?'))return;try{for(const r of l)await updateEmp(r.id,{...r,fin:calcFin(r.deb)});toast(l.length+' contrat(s) mis à jour');await loadAll();}catch(e){toast('Erreur : '+e.message);}};
 
 /* ============ ALERTES EMAIL AUTOMATIQUES ============ */
-async function autoMail(){if(MY_ROLE!=='admin'&&MY_ROLE!=='super_owner')return;
-  if(!CAN.edit()||PARAMS.last_mail===LD(T))return;
+const MAILLOG=(m)=>{try{localStorage.setItem('terh_mail_diag',JSON.stringify({t:new Date().toISOString(),m}));}catch(e){}};
+async function autoMail(){
+  if(MY_ROLE!=='admin'&&MY_ROLE!=='super_owner'&&!isOwnerUser())return MAILLOG('Pas d’envoi auto : rôle '+MY_ROLE+' (admin ou propriétaire requis)');
+  if(!CAN.edit())return MAILLOG('Pas d’envoi auto : permission de modification absente');
+  if(PARAMS.last_mail===LD(T))return MAILLOG('Déjà envoyé aujourd’hui ('+PARAMS.last_mail+')');
   const th=+PARAMS.alert_jours||30,a=alerts(th),c=EN().filter(r=>r.cnpsRetard);
-  if(!a.length&&!c.length)return;
+  if(!a.length&&!c.length)return MAILLOG('Rien à signaler : aucun email nécessaire');
   const dest=parseAlertRecipients();
-  if(!dest.length){console.warn('autoMail : aucun destinataire configuré');return;}
+  if(!dest.length){MAILLOG('Aucun destinataire configuré');toast('📧 Alertes email non envoyées : aucun destinataire (Paramètres → Destinataires)');return;}
   try{
-    const {error}=await db.functions.invoke('alertes-email',{body:{manual:false,auto:true,to:dest,jours:th,
+    const {data,error}=await db.functions.invoke('alertes-email',{body:{manual:false,auto:true,to:dest,jours:th,
       contrats:a.map(r=>({nom:r.n,poste:r.p,type:r.tLabel,debut:F(r.deb),fin:F(r.finEffective),jours_restants:r.jr,statut:r.sc,tel:r.tel})),
       cnps_retard:c.map(r=>({nom:r.n,poste:r.p,embauche:F(r.deb),tel:r.tel})),discipline:DISC.map(x=>{const r=E.find(e=>String(e.id)===String(x.employee_id));return{nom:r?.n||'—',poste:r?.p||'',date:F(x.date),motif:x.motif||'',statut:x.status||'',sanction:x.sanction||'En attente'};})}});
     if(error)throw error;
-    await saveParam('last_mail',LD(T));toast('📧 Alertes envoyées automatiquement');
-  }catch(e){console.warn('Envoi auto',e);}
+    if(data&&data.sent===0)throw new Error((data.erreurs||[]).join(' ; ')||'aucun email parti (fournisseur Brevo/Resend ?)');
+    PARAMS.last_mail=LD(T);
+    try{await saveParam('last_mail',LD(T));}catch(e){console.warn('last_mail non enregistré',e);}
+    MAILLOG('Envoyé à '+(data?.sent??dest.length)+' destinataire(s)');toast('📧 Alertes envoyées automatiquement');
+  }catch(e){const d=await errDetail(e);console.warn('Envoi auto',e);MAILLOG('ÉCHEC : '+d);toast('❌ Alertes email non envoyées : '+d);}
+}
+async function alertDiag(){
+  const r=[],th=+PARAMS.alert_jours||30;
+  r.push(location.protocol==='https:'?'✅ Site en https':'❌ Pas en https : notifications et installation impossibles');
+  r.push('Rôle : '+MY_ROLE+(MY_ROLE==='admin'||MY_ROLE==='super_owner'||isOwnerUser()?' ✅':' ❌ (seuls admin/propriétaire envoient l’email auto)'));
+  const d=parseAlertRecipients();r.push(d.length?'✅ Destinataires : '+d.join(', '):'❌ Aucun destinataire (Paramètres → Destinataires)');
+  r.push('Contrats à échéance sous '+th+' j : '+alerts(th).length+' · CNPS en retard : '+EN().filter(x=>x.cnpsRetard).length);
+  r.push('Dernier envoi auto réussi : '+(PARAMS.last_mail||'jamais'));
+  try{const l=JSON.parse(localStorage.getItem('terh_mail_diag'));if(l)r.push('Dernier essai ('+l.t.slice(0,16).replace('T',' ')+') : '+l.m);}catch(e){}
+  r.push('page Notifications navigateur : '+(('Notification' in window)?Notification.permission==='granted'?'✅ autorisées':Notification.permission==='denied'?'❌ bloquées → cadenas 🔒 de la barre d’adresse → Notifications → Autoriser':'⚠️ pas encore autorisées (bouton 🔔)':'❌ non supportées'));
+  try{const g=await navigator.serviceWorker.getRegistration();r.push(g?'✅ sw.js actif':'❌ sw.js non actif (notifications mobiles impossibles)');}catch(e){r.push('❌ Service worker indisponible');}
+  try{const {error}=await db.functions.invoke('alertes-email',{body:{ping:true,manual:true,to:[]}});r.push(error?'❌ Fonction alertes-email : '+await errDetail(error):'✅ Fonction alertes-email joignable');}catch(e){r.push('❌ Fonction alertes-email : '+(e.message||e));}
+  alert('Diagnostic des alertes\n\n'+r.join('\n'));
 }
 
 /* ============ LISTE ============ */
@@ -2056,7 +2084,7 @@ db.auth.onAuthStateChange((event,session)=>{
     $('as').style.display='none';$('app').style.display='block';
     $('aload').style.display='';
     try{await loadMyRole(session);await Promise.all([loadMyProfile(session),loadAll()]);}catch(err){console.warn(err);toast('Chargement incomplet : utilisez 🔄 pour actualiser');}
-    startRT();autoMail();idleReset();
+    startRT();try{notifyOnce(alerts(+PARAMS.alert_jours||30).length,EN().filter(r=>r.cnpsRetard).length);}catch(e){console.warn('notif',e);}autoMail();idleReset();
     /* DIAGNOSTIC TEMPORAIRE — retiré après intégration */
     diagSuperOwner().catch(e=>console.error('[diagSuperOwner]', e));
   }else{
@@ -2742,11 +2770,12 @@ async function pushAll(){const t=alertText(),o=[];
   if(PARAMS.ntfy_topic){try{const r=await fetch('https://ntfy.sh/'+encodeURIComponent(PARAMS.ntfy_topic.trim()),{method:'POST',body:t,headers:{Title:'TERH - Alertes RH',Priority:'high',Tags:'bell'}});o.push(r.ok?'✅ ntfy':'❌ ntfy ('+r.status+')');}catch(e){o.push('❌ ntfy');}}
   if(PARAMS.tg_token&&PARAMS.tg_chat){try{const r=await fetch('https://api.telegram.org/bot'+PARAMS.tg_token.trim()+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:PARAMS.tg_chat.trim(),text:t})});o.push(r.ok?'✅ Telegram':'❌ Telegram ('+r.status+')');}catch(e){o.push('❌ Telegram');}}
   return o;}
-OWX.al=async()=>`<div class="c"><h2>🔔 Alertes gratuites (sans serveur ni abonnement)</h2><p class="muted"><b>ntfy.sh</b> : installez l’app ntfy (Android/iOS) et abonnez-vous à un nom de sujet secret et unique, puis saisissez-le ici. <b>Telegram</b> : créez un bot avec @BotFather (jeton), écrivez-lui, puis indiquez votre identifiant de discussion. <b>WhatsApp</b> : ouvre une discussion avec le message prérempli (gratuit, envoi manuel). Les clés sont enregistrées pour l’entreprise ouverte et ne sont visibles que des administrateurs.</p><div class="fm"><label>ntfy — nom du sujet<input id="al_n" value="${esc(PARAMS.ntfy_topic||'')}" placeholder="terh-acc-x7k2q9"></label><label>Telegram — jeton du bot<input id="al_tk" type="password" value="${esc(PARAMS.tg_token||'')}"></label><label>Telegram — identifiant de discussion<input id="al_tc" value="${esc(PARAMS.tg_chat||'')}"></label><label>WhatsApp — numéro (avec indicatif)<input id="al_w" value="${esc(PARAMS.wa_num||'')}" placeholder="237694903300"></label></div><label style="display:block;margin:8px 0"><input type="checkbox" id="al_a"${PARAMS.auto_push==='1'?' checked':''}> Envoi automatique chaque jour (à la première ouverture de la plateforme par un administrateur)</label><div class="f"><button class="p" id="al_s">💾 Enregistrer</button><button class="s" id="al_t">📨 Envoyer maintenant (ntfy + Telegram)</button><button class="s" id="al_wb">💬 WhatsApp</button><button class="s" id="al_nb">🔔 Notifications du navigateur</button><button class="s" id="al_m">✉️ Email (mon logiciel de messagerie)</button></div><pre class="muted" style="white-space:pre-wrap">${esc(alertText())}</pre></div>`;
+OWX.al=async()=>`<div class="c"><h2>🔔 Alertes gratuites (sans serveur ni abonnement)</h2><p class="muted"><b>ntfy.sh</b> : installez l’app ntfy (Android/iOS) et abonnez-vous à un nom de sujet secret et unique, puis saisissez-le ici. <b>Telegram</b> : créez un bot avec @BotFather (jeton), écrivez-lui, puis indiquez votre identifiant de discussion. <b>WhatsApp</b> : ouvre une discussion avec le message prérempli (gratuit, envoi manuel). Les clés sont enregistrées pour l’entreprise ouverte et ne sont visibles que des administrateurs.</p><div class="fm"><label>ntfy — nom du sujet<input id="al_n" value="${esc(PARAMS.ntfy_topic||'')}" placeholder="terh-acc-x7k2q9"></label><label>Telegram — jeton du bot<input id="al_tk" type="password" value="${esc(PARAMS.tg_token||'')}"></label><label>Telegram — identifiant de discussion<input id="al_tc" value="${esc(PARAMS.tg_chat||'')}"></label><label>WhatsApp — numéro (avec indicatif)<input id="al_w" value="${esc(PARAMS.wa_num||'')}" placeholder="237694903300"></label></div><label style="display:block;margin:8px 0"><input type="checkbox" id="al_a"${PARAMS.auto_push==='1'?' checked':''}> Envoi automatique chaque jour (à la première ouverture de la plateforme par un administrateur)</label><div class="f"><button class="p" id="al_s">💾 Enregistrer</button><button class="s" id="al_t">📨 Envoyer maintenant (ntfy + Telegram)</button><button class="s" id="al_wb">💬 WhatsApp</button><button class="s" id="al_nb">🔔 Notifications du navigateur</button><button class="s" id="al_m">✉️ Email (mon logiciel de messagerie)</button><button class="s" id="al_dg">🩺 Diagnostic des alertes</button></div><pre class="muted" style="white-space:pre-wrap">${esc(alertText())}</pre></div>`;
 OWP.al=()=>{$('al_s').onclick=async()=>{try{await saveParam('ntfy_topic',$('al_n').value.trim());await saveParam('tg_token',$('al_tk').value.trim());await saveParam('tg_chat',$('al_tc').value.trim());await saveParam('wa_num',$('al_w').value.replace(/\D/g,''));await saveParam('auto_push',$('al_a').checked?'1':'');toast('Réglages enregistrés');}catch(e){toast('Erreur : '+e.message+' (clé de paramètre non autorisée par la base ?)');}};
   $('al_t').onclick=async()=>{const o=await pushAll();toast(o.length?o.join(' · '):'Renseignez ntfy ou Telegram puis enregistrez');};
   $('al_wb').onclick=()=>{const n=(PARAMS.wa_num||$('al_w').value||'').replace(/\D/g,'');window.open('https://wa.me/'+n+'?text='+encodeURIComponent(alertText()),'_blank');};
-  $('al_nb').onclick=()=>{if(!('Notification' in window)){toast('Non supporté');return;}Notification.requestPermission().then(p=>{if(p==='granted')new Notification('TERH — Alertes RH',{body:alertText()});else toast('Notifications refusées');});};
+  $('al_nb').onclick=async()=>{const p=await showNotif('TERH — Alertes RH',alertText());if(p==='unsupported')toast('Notifications non supportées par ce navigateur');else if(p==='denied')toast('Notifications bloquées : cadenas 🔒 de la barre d’adresse → Notifications → Autoriser');else if(p!=='granted')toast('Notifications non autorisées');};
+  $('al_dg').onclick=alertDiag;
   $('al_m').onclick=()=>{location.href='mailto:'+(parseAlertRecipients().join(',')||'')+'?subject='+encodeURIComponent('Alertes RH — '+(PARAMS.soc||''))+'&body='+encodeURIComponent(alertText());};};
 setInterval(async()=>{try{if(!_uid||!(isOwnerUser()||MY_ROLE==='admin')||PARAMS.auto_push!=='1'||!(PARAMS.ntfy_topic||PARAMS.tg_token))return;const d=LD(new Date());if(PARAMS.last_push===d)return;PARAMS.last_push=d;await saveParam('last_push',d);await pushAll();}catch(e){}},60000);
 
@@ -2778,7 +2807,7 @@ try{const m=await fetch('manifest.webmanifest',{cache:'no-store'});if(!m.ok)thro
 try{const g=await navigator.serviceWorker.getRegistration();r.push(g?'✅ sw.js actif':'❌ sw.js non actif : ajoutez sw.js sur Netlify puis rechargez avec Ctrl+Maj+R');}catch(e){r.push('❌ Service worker indisponible (navigation privée ?)');}
 alert('Diagnostic d’installation\n\n'+r.join('\n')+'\n\nSi tout est ✅ : menu ⋮ de Chrome → « Enregistrer et partager » → « Installer la page en tant qu’application » (ou « Créer un raccourci » en cochant « Ouvrir dans une fenêtre »). Edge : menu ⋯ → Applications → « Installer ce site en tant qu’application ». Si elle est déjà installée, cherchez-la dans le menu Démarrer.');}
 $('inst').onclick=async()=>{if(_dip){_dip.prompt();await _dip.userChoice;_dip=null;}else if(_ios)alert('iPhone / iPad : ouvrez cette page dans Safari, touchez Partager (carré avec une flèche), puis « Sur l’écran d’accueil ».');else await installDiag();};
-//if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(g=>{g.update().catch(()=>{});}).catch(e=>console.warn('sw.js',e)));
 
 
 /* ============ EXPORTS EXCEL PRÉSENTABLES ============ */
