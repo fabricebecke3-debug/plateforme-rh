@@ -4000,25 +4000,31 @@ addEventListener('online',()=>refresh(false));
 /* ===== 5. VOIX : conversation (écoute → réponse parlée → écoute) ===== */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition,TTS=window.speechSynthesis;
 let rec=null,listening=false,convo=false,speaking=false,voiceTurn=false,autoSpeak=false,lastSpoken='',retry=0;
+const vLang=()=>{const l=lsGet('terh_vlang','');if(l)return l;return (document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1')?'en-US':(UI.lang||'fr-FR');};
+const guessLang=t=>{const en=(String(t).match(/\b(the|and|is|are|you|your|with|for|this|that|of|to|in|it|on|have|will|can|what|how)\b/gi)||[]).length,fr=(String(t).match(/\b(le|la|les|des|et|est|sont|vous|votre|pour|avec|dans|une|un|que|qui|pas|du|au|ce|cette|sur)\b/gi)||[]).length;return en>fr+1?'en-US':'fr-FR';};
+const pickVoice=L=>{const vs=(TTS&&TTS.getVoices()||[]).filter(x=>x.lang&&x.lang.toLowerCase().startsWith(L.slice(0,2).toLowerCase()));return vs.find(x=>/natural|online/i.test(x.name))||vs.find(x=>/google/i.test(x.name))||vs.find(x=>x.lang.toLowerCase()===L.toLowerCase())||vs[0];};
+let _wl=null;async function getWake(){try{if('wakeLock' in navigator&&!_wl){_wl=await navigator.wakeLock.request('screen');_wl.addEventListener('release',()=>{_wl=null;});}}catch(e){}}
+function relWake(){try{_wl&&_wl.release();}catch(e){}_wl=null;}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&convo)getWake();});
 function micUI(){const m=$('amic');if(m){m.classList.toggle('on3',convo||listening);m.textContent=convo?'⏹':(listening?'⏺️':'🎤');}}
 function startRec(){
   if(!SR){say('Reconnaissance vocale non supportée : utilisez Chrome, Edge ou Safari récent.');convo=false;micUI();return;}
   if(listening||speaking)return;
-  rec=new SR();rec.lang=((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1')?'en-US':(UI.lang||'fr-FR'));rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;
+  rec=new SR();rec.lang=vLang();rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;
   rec.onstart=()=>{listening=true;micUI();};
   rec.onresult=e=>{let f='',i='';for(const r of e.results){if(r.isFinal)f+=r[0].transcript;else i+=r[0].transcript;}
     $('ai').value=f||i;if(f){retry=0;voiceTurn=true;try{rec.stop();}catch(x){}setTimeout(()=>window.askAI(),60);}};
   rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){convo=false;say('Micro bloqué : cadenas 🔒 → Autorisations → Micro → Autoriser, puis recliquez 🎤');}else if(e.error==='network')say('Reconnaissance vocale : réseau indisponible');};
-  rec.onend=()=>{listening=false;micUI();if(convo&&!speaking&&!voiceTurn&&retry++<40)setTimeout(startRec,300);};
+  rec.onend=()=>{listening=false;micUI();if(convo&&!speaking&&!voiceTurn){retry++;setTimeout(startRec,retry>40?1500:300);}};
   try{rec.start();}catch(e){}
 }
-function stopVoice(){convo=false;voiceTurn=false;try{rec&&rec.stop();}catch(e){}try{TTS&&TTS.cancel();}catch(e){}speaking=false;listening=false;micUI();}
+function stopVoice(){convo=false;relWake();voiceTurn=false;try{rec&&rec.stop();}catch(e){}try{TTS&&TTS.cancel();}catch(e){}speaking=false;listening=false;micUI();}
 function speak(t){
   if(!TTS)return;TTS.cancel();
   t=String(t).replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').replace(/[•*_#`→]/g,' ').replace(/\s+/g,' ').slice(0,1600);
   const parts=t.match(/[^.!?:;\n]+[.!?:;]*/g)||[t];speaking=true;try{rec&&rec.stop();}catch(e){}
-  const v=TTS.getVoices().find(x=>((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1')?/^en/i:/^fr/i).test(x.lang));
-  parts.forEach((p,k)=>{if(!p.trim())return;const u=new SpeechSynthesisUtterance(p.trim());u.lang=((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1')?'en-US':'fr-FR');u.rate=+(UI.rate||1.02);if(v)u.voice=v;
+  const L=guessLang(t),v=pickVoice(L);
+  parts.forEach((p,k)=>{if(!p.trim())return;const u=new SpeechSynthesisUtterance(p.trim());u.lang=L;u.rate=+(UI.rate||1.02);if(v)u.voice=v;
     if(k===parts.length-1)u.onend=u.onerror=()=>{speaking=false;voiceTurn=false;retry=0;if(convo)setTimeout(startRec,400);};TTS.speak(u);});
 }
 function wireVoice(){
@@ -4026,7 +4032,10 @@ function wireVoice(){
   const m2=m.cloneNode(true);m2._v3=1;m.replaceWith(m2);
   if(s){const s2=s.cloneNode(true);s.replaceWith(s2);s2.onclick=()=>{autoSpeak=!autoSpeak;s2.textContent=autoSpeak?'🔊':'🔇';if(!autoSpeak)TTS&&TTS.cancel();say(autoSpeak?'Lecture vocale activée':'Lecture vocale désactivée');};}
   m2.title='Conversation vocale : parlez, je réponds à voix haute';m2.style.display='';
-  m2.onclick=async()=>{if(convo||listening){stopVoice();return;}await ensurePerms();convo=true;autoSpeak=true;const sp=$('aspk');if(sp)sp.textContent='🔊';micUI();startRec();};
+  if(!$('alang')){const lb=document.createElement('button');lb.id='alang';lb.type='button';lb.className=m2.className;lb.style.cssText=m2.style.cssText;lb.style.display='';const lt=()=>{lb.textContent=vLang().startsWith('en')?'🇬🇧 EN':'🇫🇷 FR';lb.title='Langue de la voix : '+(vLang().startsWith('en')?'English':'Français')+' (cliquer pour changer)';};lt();
+    lb.onclick=()=>{lsSet('terh_vlang',vLang().startsWith('en')?'fr-FR':'en-US');lt();toast(vLang().startsWith('en')?'🎤 Voice: English':'🎤 Voix : français');if(convo||listening){try{rec&&rec.stop();}catch(e){}}};
+    m2.insertAdjacentElement('afterend',lb);}
+  m2.onclick=async()=>{if(convo||listening){stopVoice();return;}await ensurePerms();convo=true;autoSpeak=true;getWake();const sp=$('aspk');if(sp)sp.textContent='🔊';micUI();startRec();};
   const box=$('amg');let st=null;
   if(box)new MutationObserver(()=>{clearTimeout(st);st=setTimeout(()=>{const last=[...box.children].reverse().find(d=>/flex-start/.test(d.style.cssText));if(!last)return;
     const t=last.textContent.trim();if(!t||/^(⏳|❌|⚠)/.test(t)||t===lastSpoken)return;if(voiceTurn||convo||autoSpeak){lastSpoken=t;speak(t);}},1200);}).observe(box,{childList:true,subtree:true,characterData:true});
@@ -4058,7 +4067,7 @@ window.askAI=async function(){
 function openPaie(tab,cb){const b=$('npaie');if(b&&b.style.display!=='none'){b.click();if(tab&&tab!=='sim'){setTimeout(()=>{const t=Q('[data-pt="'+tab+'"]');if(t)t.click();setTimeout(()=>cb&&cb(),150);},150);}else cb&&setTimeout(cb,150);}else say('Menu Paie non disponible pour votre rôle');}
 try{HELP.unshift(
  ['Conversation vocale',/vocal|micro|parler|voix|ecoute/,'🎤 Dans l\'assistant, appuyez sur 🎤 : parlez, la réponse est lue à voix haute puis l\'écoute reprend. ⏹ ou « stop » arrête. Commandes : « ouvre la paie », « ouvre la DIPE », « retour », « propose-moi des idées ».'],
- ['DIPE depuis les bulletins',/dipe|declaration cnps|bulletin/,'📤 Paie → Saisie & états → « DIPE depuis bulletins » : (1) facultatif : chargez votre ANCIEN DIPE (.txt) ou modèle Excel ; (2) choisissez les bulletins PDF/photos/Word ; (3) « Lire » ; (4) corrigez les cases rouges ; (5) « Télécharger le DIPE » ou « État depuis les bulletins ». Le N° CNPS manquant est complété depuis la fiche employé quand le nom correspond.']);}catch(e){}
+ ['DIPE depuis les bulletins',/dipe|declaration cnps|(lire|scanner|importer|charger|televerser).{0,25}bulletin/,'📤 Paie → Saisie & états → « DIPE depuis bulletins » : (1) facultatif : chargez votre ANCIEN DIPE (.txt) ou modèle Excel ; (2) choisissez les bulletins PDF/photos/Word ; (3) « Lire » ; (4) corrigez les cases rouges ; (5) « Télécharger le DIPE » ou « État depuis les bulletins ». Le N° CNPS manquant est complété depuis la fiche employé quand le nom correspond.']);}catch(e){}
 
 /* ===== 7. OPTIONS PROPRIÉTAIRE ÉTENDUES + préférences d'affichage ===== */
 let UI=lsGet('terh_ui_v3',{});
