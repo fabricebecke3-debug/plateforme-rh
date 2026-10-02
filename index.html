@@ -1068,8 +1068,10 @@ async function loadMyProfile(s){
   const {data}=await db.from('user_profiles').select('*').eq('user_id',s.user.id).maybeSingle();
   let n=data?.display_name;
   if(!n){n=(s.user.email||'').split('@')[0];try{await db.from('user_profiles').upsert({user_id:s.user.id,display_name:n,last_seen:new Date().toISOString()});}catch(e){}}
-  $('mn').textContent=n;
-  startHb();
+const el = $('mn');
+if (el) {
+    el.textContent = n;
+}  startHb();
 }
 function startHb(){if(hb)clearInterval(hb);const tick=async()=>{if(!MY_USER)return;try{await db.from('user_profiles').upsert({user_id:MY_USER.id,last_seen:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}};tick();hb=setInterval(tick,30000);}
 function applyPerms(){
