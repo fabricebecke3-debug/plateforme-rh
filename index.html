@@ -4009,36 +4009,51 @@ const pickVoice=L=>{const vs=(TTS&&TTS.getVoices()||[]).filter(x=>x.lang&&x.lang
 let _wl=null;async function getWake(){try{if('wakeLock' in navigator&&!_wl){_wl=await navigator.wakeLock.request('screen');_wl.addEventListener('release',()=>{_wl=null;});}}catch(e){}}
 function relWake(){try{_wl&&_wl.release();}catch(e){}_wl=null;}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&convo)getWake();});
+const MOBILE=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
+let _unl=false;function unlockTTS(){try{if(!TTS||_unl)return;const u=new SpeechSynthesisUtterance(' ');u.volume=0;TTS.speak(u);_unl=true;}catch(e){}}
+['click','touchend'].forEach(ev=>document.addEventListener(ev,unlockTTS,true));
 function micUI(){const m=$('amic');if(m){m.classList.toggle('on3',convo||listening);m.textContent=convo?'⏹':(listening?'⏺️':'🎤');}}
 function startRec(){
-  if(!SR){say('Reconnaissance vocale non supportée : utilisez Chrome, Edge ou Safari récent.');convo=false;micUI();return;}
+  if(!SR){toast('🎤 Reconnaissance vocale non supportée ici. '+(/iphone|ipad|ipod/i.test(navigator.userAgent)?'Sur iPhone, ouvrez le site dans Safari (pas l’application installée) ou utilisez le micro du clavier. ':'Utilisez Chrome ou Edge. '));convo=false;micUI();return;}
   if(listening||speaking)return;
   rec=new SR();rec.lang=vLang();rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;
   rec.onstart=()=>{listening=true;micUI();};
   rec.onresult=e=>{let f='',i='';for(const r of e.results){if(r.isFinal)f+=r[0].transcript;else i+=r[0].transcript;}
     $('ai').value=f||i;if(f){retry=0;voiceTurn=true;try{rec.stop();}catch(x){}setTimeout(()=>window.askAI(),60);}};
-  rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){convo=false;say('Micro bloqué : cadenas 🔒 → Autorisations → Micro → Autoriser, puis recliquez 🎤');}else if(e.error==='network')say('Reconnaissance vocale : réseau indisponible');};
+  rec.onerror=e=>{const c=e.error;
+    if(c==='not-allowed'||c==='service-not-allowed'){convo=false;micUI();toast(c==='service-not-allowed'?'🎤 Reconnaissance vocale indisponible dans cette application. Ouvrez la plateforme dans Chrome (pas l’application installée) et vérifiez que « Services vocaux Google » est activé.':'🎤 Micro bloqué : cadenas 🔒 → Autorisations → Micro → Autoriser, puis touchez 🎤.');}
+    else if(c==='audio-capture'){convo=false;micUI();toast('🎤 Micro introuvable ou utilisé par une autre application.');}
+    else if(c==='network'){convo=false;micUI();toast('🎤 Reconnaissance vocale : pas de connexion internet.');}
+    else if(c==='language-not-supported'){convo=false;micUI();toast('🎤 Langue vocale non supportée sur cet appareil : changez avec le bouton FR/EN.');}
+  };
   rec.onend=()=>{listening=false;micUI();if(convo&&!speaking&&!voiceTurn){retry++;setTimeout(startRec,retry>40?1500:300);}};
   try{rec.start();}catch(e){}
 }
 function stopVoice(){convo=false;relWake();voiceTurn=false;try{rec&&rec.stop();}catch(e){}try{TTS&&TTS.cancel();}catch(e){}speaking=false;listening=false;micUI();}
 function speak(t){
-  if(!TTS)return;TTS.cancel();
-  t=String(t).replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').replace(/[•*_#`→]/g,' ').replace(/\s+/g,' ').slice(0,1600);
-  const parts=t.match(/[^.!?:;\n]+[.!?:;]*/g)||[t];speaking=true;try{rec&&rec.stop();}catch(e){}
-  const L=guessLang(t),v=pickVoice(L);
-  parts.forEach((p,k)=>{if(!p.trim())return;const u=new SpeechSynthesisUtterance(p.trim());u.lang=L;u.rate=+(UI.rate||1.02);if(v)u.voice=v;
-    if(k===parts.length-1)u.onend=u.onerror=()=>{speaking=false;voiceTurn=false;retry=0;if(convo)setTimeout(startRec,400);};TTS.speak(u);});
+  if(!TTS)return;
+  try{TTS.cancel();}catch(e){}
+  t=String(t).replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').replace(/[•*_#`→]/g,' ').replace(/\s+/g,' ').trim().slice(0,1600);
+  if(!t)return;
+  const parts=(t.match(/[^.!?:;\n]+[.!?:;]*/g)||[t]).map(x=>x.trim()).filter(Boolean);
+  speaking=true;try{rec&&rec.stop();}catch(e){}
+  const L=guessLang(t),v=pickVoice(L),id=(window._sid=(window._sid||0)+1);let done=false;
+  const fin=()=>{if(done||window._sid!==id)return;done=true;clearTimeout(window._swd);speaking=false;voiceTurn=false;retry=0;if(convo)setTimeout(startRec,500);};
+  clearTimeout(window._swd);window._swd=setTimeout(fin,Math.min(120000,t.length*110+5000));
+  window._uq=parts.map((p,k)=>{const u=new SpeechSynthesisUtterance(p);u.lang=L;u.rate=+(UI.rate||1.02);if(v)u.voice=v;
+    u.onerror=e=>{const c=e&&e.error;if(c==='interrupted'||c==='canceled')return;if(c==='not-allowed')toast('🔇 Lecture vocale bloquée : touchez l’écran puis réessayez.');if(c==='not-allowed'||k===parts.length-1)fin();};
+    if(k===parts.length-1)u.onend=fin;return u;});
+  setTimeout(()=>{try{window._uq.forEach(u=>TTS.speak(u));if(TTS.paused)TTS.resume();}catch(e){fin();}},80);
 }
 function wireVoice(){
   const m=$('amic'),s=$('aspk');if(!m||m._v3)return;
   const m2=m.cloneNode(true);m2._v3=1;m.replaceWith(m2);
-  if(s){const s2=s.cloneNode(true);s.replaceWith(s2);s2.onclick=()=>{autoSpeak=!autoSpeak;s2.textContent=autoSpeak?'🔊':'🔇';if(!autoSpeak)TTS&&TTS.cancel();say(autoSpeak?'Lecture vocale activée':'Lecture vocale désactivée');};}
+  if(s){const s2=s.cloneNode(true);s.replaceWith(s2);s2.onclick=()=>{unlockTTS();autoSpeak=!autoSpeak;s2.textContent=autoSpeak?'🔊':'🔇';if(!autoSpeak)TTS&&TTS.cancel();say(autoSpeak?'Lecture vocale activée':'Lecture vocale désactivée');};}
   m2.title='Conversation vocale : parlez, je réponds à voix haute';m2.style.display='';
   if(!$('alang')){const lb=document.createElement('button');lb.id='alang';lb.type='button';lb.className=m2.className;lb.style.cssText=m2.style.cssText;lb.style.display='';const lt=()=>{lb.textContent=vLang().startsWith('en')?'🇬🇧 EN':'🇫🇷 FR';lb.title='Langue de la voix : '+(vLang().startsWith('en')?'English':'Français')+' (cliquer pour changer)';};lt();
     lb.onclick=()=>{lsSet('terh_vlang',vLang().startsWith('en')?'fr-FR':'en-US');lt();toast(vLang().startsWith('en')?'🎤 Voice: English':'🎤 Voix : français');if(convo||listening){try{rec&&rec.stop();}catch(e){}}};
     m2.insertAdjacentElement('afterend',lb);}
-  m2.onclick=async()=>{if(convo||listening){stopVoice();return;}await ensurePerms();convo=true;autoSpeak=true;getWake();const sp=$('aspk');if(sp)sp.textContent='🔊';micUI();startRec();};
+  m2.onclick=async()=>{if(convo||listening){stopVoice();return;}unlockTTS();if(!MOBILE)await ensurePerms();convo=true;autoSpeak=true;getWake();const sp=$('aspk');if(sp)sp.textContent='🔊';micUI();startRec();};
   const box=$('amg');let st=null;
   if(box)new MutationObserver(()=>{clearTimeout(st);st=setTimeout(()=>{const last=[...box.children].reverse().find(d=>/flex-start/.test(d.style.cssText));if(!last)return;
     const t=last.textContent.trim();if(!t||/^(⏳|❌|⚠)/.test(t)||t===lastSpoken)return;if(voiceTurn||convo||autoSpeak){lastSpoken=t;speak(t);}},1200);}).observe(box,{childList:true,subtree:true,characterData:true});
