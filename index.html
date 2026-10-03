@@ -647,6 +647,8 @@ const ownerSys=()=>!isAdm()?' Ne mentionne jamais le propriétaire ni le concept
 const ownerSysShort=()=>!isAdm()?' Ne mentionne jamais le propriétaire ni le concepteur de la plateforme.':' La plateforme RH appartient à son propriétaire et concepteur : '+OWNER.nom+'. La société '+OWNER.client+' en est utilisatrice, pas propriétaire. Ne donne aucun autre détail le concernant.'+(isAdm()?PLATFORM_KB:'');
 const ADMIN_ONLY_VIEWS=['db','h','x','p','dsp'];
 let MULTI=false,CO=null,COS=[],PARAMS_DEF=null,MEMS=[];
+function roleBadgeSync(){try{const u=document.getElementById('ur');if(!u)return;const show=(typeof isOwnerUser==='function'&&isOwnerUser())||['admin','super_owner'].includes(typeof MY_ROLE!=='undefined'?MY_ROLE:'');u.style.display=show?'':'none';}catch(e){}}
+window.roleBadgeSync=roleBadgeSync;
 const curCo=()=>COS.find(c=>c.id===CO)||null;
 const activeCoName=()=>{try{const c=curCo();return (c&&c.nom)||(typeof PARAMS!=='undefined'&&PARAMS&&PARAMS.soc)||'PLATEFORME RH';}catch(e){return 'PLATEFORME RH';}};
 const scq=q=>MULTI?(CO?q.eq('entreprise_id',CO):(isOwnerUser()?q:q.eq('entreprise_id','00000000-0000-0000-0000-000000000000'))):q;
@@ -1105,7 +1107,7 @@ async function loadAll(){
   // Après connexion : afficher le nom de l'entreprise de l'utilisateur
 const _co=CO?COS.find(c=>c.id===CO):null;
 $('brand').textContent=_co?('🏢 '+_co.nom):'🏢 PLATEFORME RH';$('brand').dataset.lg='';try{showBrand();}catch(e){}
-document.title=_co?(_co.nom+' — PLATEFORME RH'):'PLATEFORME RH';
+document.title=_co?(window.pageTitle?window.pageTitle():(_co.nom+' — PLATEFORME RH')):'PLATEFORME RH';
 try{fillCoSel();drawBanners();}catch(e){}
   DISC=loadDisc();DOCS=loadDocs();
   applyOwnerOverrides();loadUiTexts();
@@ -1156,7 +1158,7 @@ async function loadMyRole(s){
     editeur:'✏️ Éditeur',
     lecteur:'👁️ Lecteur'
   }[MY_ROLE]||'👁️ Lecteur';
-  $('ur').textContent=lbl;
+  $('ur').textContent=lbl;roleBadgeSync();
 
   // 5) Verrouillage UI — le super_owner a TOUT
   const isAdmin = ['admin','super_owner'].includes(MY_ROLE);
@@ -2808,7 +2810,7 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button[data-x]');if(!b||(MY_ROLE!=='admin'&&MY_ROLE!=='super_owner'))return;const a=b.dataset.x;
   try{
     if(a==='reload'){await loadAll();toast('Données rechargées');renderAdmin();}
-    if(a==='view'){VIEW_AS=$('xva').value;$('ur').textContent=(VIEW_AS?'👁 Aperçu : ':'')+ROLE_LBL(ER());applyPerms();toast(VIEW_AS?'Aperçu en '+VIEW_AS+' — revenez ici pour quitter':'Retour à votre rôle');renderAdmin();}
+    if(a==='view'){VIEW_AS=$('xva').value;$('ur').textContent=(VIEW_AS?'👁 Aperçu : ':'')+ROLE_LBL(ER());roleBadgeSync();applyPerms();toast(VIEW_AS?'Aperçu en '+VIEW_AS+' — revenez ici pour quitter':'Retour à votre rôle');renderAdmin();}
     if(a==='unleave'){const r=E.find(x=>x.id===b.dataset.id);if(r&&confirm('Réintégrer '+r.n+' ?')){await updateEmp(r.id,{...r,darret:'',marret:'',comarret:''});await loadAll();renderAdmin();toast('Départ annulé');}}
     if(a==='backup'){const j=JSON.stringify({date:new Date().toISOString(),employes:E,conges:CG,roles:ROLES,parametres:PARAMS},null,1),u=URL.createObjectURL(new Blob([j],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download='sauvegarde-plateforme-rh-'+LD(T)+'.json';l.click();setTimeout(()=>URL.revokeObjectURL(u),5000);}
     if(a==='diag'){const t=['TERH diagnostic '+new Date().toLocaleString('fr-FR'),'Rôle: '+MY_ROLE+(VIEW_AS?' (aperçu '+VIEW_AS+')':''),'Super Owner: '+isOwnerUser(),'Employés: '+E.length+' | Congés: '+CG.length,'WebGPU: '+(!!navigator.gpu)+' | IA locale: '+aiReady+' | IA cloud: '+(CLOUD_AI_ON()?(cloudErr||'OK'):'désactivée'),'Navigateur: '+navigator.userAgent,'Erreurs:',...ERRLOG.slice(0,15)].join('\n');try{await navigator.clipboard.writeText(t);toast('Rapport copié');}catch(_e){$('rph').textContent='Rapport de diagnostic';$('rpt').textContent=t;$('rpb').classList.add('on');}}
@@ -2834,7 +2836,7 @@ function applyRoleLocks(){
   const cv=document.querySelector('.v.on')?.id?.replace('v-','')||'d';
   if(ADMIN_ONLY_VIEWS.includes(cv)&&!isAdmin)go('d');
   VIEW_AS='';
-  const u=$('ur');if(u)u.textContent={super_owner:'👑 Super Owner',admin:'👑 Administrateur',editeur:'✏️ Éditeur',lecteur:'👁️ Lecteur'}[MY_ROLE]||'👁️ Lecteur';
+  const u=$('ur');if(u)u.textContent={super_owner:'👑 Super Owner',admin:'👑 Administrateur',editeur:'✏️ Éditeur',lecteur:'👁️ Lecteur'}[MY_ROLE]||'👁️ Lecteur';roleBadgeSync();
   applyPerms();applyOwnerUI();drawBanners();
 }
 function drawBanners(){
@@ -2899,6 +2901,8 @@ window.grpPanel=async function(){
   const old=document.getElementById('grpPanel'),kp=document.getElementById('kp');
   if(!kp||typeof COS==='undefined'||!MULTI){if(old)old.remove();return;}
   const c=curCo();if(!c){if(old)old.remove();return;}
+  /* Panneau réservé au propriétaire et aux administrateurs / gestionnaires du groupe : invisible pour les autres utilisateurs */
+  if(!(isOwnerUser()||ER()==='admin'||canGroup())){if(old)old.remove();return;}
   let box=old;if(!box){box=document.createElement('div');box.id='grpPanel';box.className='c';box.style.marginBottom='14px';kp.parentNode.insertBefore(box,kp);}
   const mere=c.type_entreprise==='groupe'?c:(c.groupe_id?COS.find(x=>x.id===c.groupe_id):null);
   if(!mere){
@@ -4157,10 +4161,11 @@ function cabinetInfo(){const co=curCo();if(!co)return {cab:'',cli:'',all:'',logo
   else if(typeof isOwnerUser==='function'&&isOwnerUser()&&lc(co.nom)!==lc(OWNER.client)){cab=OWNER.client;}
   return {cab,cli,logo,all:cab?cab+' › '+cli:cli};}
 window.cabinetInfo=cabinetInfo;
-function showBrand(){const b=$('brand'),co=curCo();if(!b||!co)return;const ci=cabinetInfo(),u=ci.cab?(ci.logo||''):(co.logo_url||''),name=ci.cab||ci.cli||co.nom||'PLATEFORME RH',key=u+'|'+name;if(b.dataset.lg===key)return;b.dataset.lg=key;b.innerHTML=(u?'<img src="'+esc(u)+'" alt="" style="height:26px;vertical-align:middle;margin-right:6px;border-radius:4px;object-fit:contain">':'🏢 ')+esc(name);}
+window.pageTitle=function(){const co=curCo();if(!co)return 'PLATEFORME RH';const ci=cabinetInfo(),lc=x=>String(x||'').trim().toLowerCase();const n=ci.cab?(ci.cab+((ci.cli&&lc(ci.cli)!==lc(ci.cab))?' - '+ci.cli:'')):(ci.cli||co.nom||'');return n?n+' — PLATEFORME RH':'PLATEFORME RH';};
+function showBrand(){const b=$('brand'),co=curCo();if(!b||!co)return;const ci=cabinetInfo(),u=ci.cab?(ci.logo||''):(co.logo_url||''),name=(ci.cab?(ci.cab+((ci.cli&&String(ci.cli).trim().toLowerCase()!==String(ci.cab).trim().toLowerCase())?' › '+ci.cli:'')):(ci.cli||co.nom||'PLATEFORME RH')),key=u+'|'+name;if(b.dataset.lg===key)return;b.dataset.lg=key;b.innerHTML=(u?'<img src="'+esc(u)+'" alt="" style="height:26px;vertical-align:middle;margin-right:6px;border-radius:4px;object-fit:contain">':'🏢 ')+esc(name);}
 async function loadAv(){if(!MY_USER||window._avFor===MY_USER.id)return;window._avFor=MY_USER.id;try{const {data}=await db.from('user_profiles').select('avatar_url').eq('user_id',MY_USER.id).maybeSingle();window._avUrl=data?.avatar_url||'';if(!window._avUrl){try{window._avUrl=localStorage.getItem('terh_av_'+MY_USER.id)||(MY_USER.user_metadata&&MY_USER.user_metadata.avatar)||'';}catch(e){}}showAv();}catch(e){}}
 $('myph').onclick=open;
-setInterval(()=>{try{loadAv();showBrand();}catch(e){}},2000);
+setInterval(()=>{try{loadAv();showBrand();}catch(e){}try{if(typeof _uid!=='undefined'&&_uid&&document.getElementById('app').style.display!=='none'){const t=window.pageTitle();if(document.title!==t)document.title=t;}roleBadgeSync();}catch(e){}},2000);
 })();
 
 /* ===== Voix : parler à l'IA (🎤) et l'écouter (🔊) ===== */
