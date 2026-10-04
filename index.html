@@ -2256,7 +2256,9 @@ window.TERH_MFA=(function(){
   async function factors(){const {data,error}=await M().listFactors();if(error)throw error;return {verified:(data&&data.totp)||[],all:(data&&data.all)||[]};}
   async function verify(factorId,code){const ch=await M().challenge({factorId});if(ch.error)throw ch.error;const v=await M().verify({factorId,challengeId:ch.data.id,code:String(code).replace(/\s/g,'')});if(v.error)throw v.error;return true;}
   /* Porte d'entrée : si l'utilisateur a une 2FA active et que la session n'est qu'en niveau 1, on exige le code avant de charger l'application. */
+  const MFA_REQUIRED=false; /* false = plus d'écran « Vérification en deux étapes » à la connexion ; mettre true pour le réactiver */
   async function gate(){
+    if(!MFA_REQUIRED){close();return true;}
     if(_gateP)return _gateP;
     _gateP=(async()=>{
       try{
