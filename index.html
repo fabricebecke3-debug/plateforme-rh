@@ -181,7 +181,8 @@ button,select,input:not([type=checkbox]):not([type=radio]):not([type=range]),tex
 .tw{border-radius:10px}
 table{min-width:760px}#v-l table{min-width:1300px}
 th,td{padding:7px 8px;font-size:12px}
-td:first-child,th:first-child{position:sticky;left:0;background:var(--card);z-index:1}
+td:first-child,th:first-child{position:sticky;left:0;background:var(--card);z-index:1;width:32vw;min-width:32vw;max-width:32vw;white-space:normal;overflow-wrap:anywhere;font-size:12px}
+td button,td .btn{padding:4px 7px;font-size:11px}
 .admin-hero{padding:14px;gap:12px}.admin-hero h1{font-size:18px}.admin-hero-kpis{width:100%;grid-template-columns:repeat(2,1fr)}
 .dest-box{padding:12px}
 #sg-list{grid-template-columns:1fr!important}
@@ -194,11 +195,11 @@ td:first-child,th:first-child{position:sticky;left:0;background:var(--card);z-in
 nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #coBanner{padding-left:max(16px,env(safe-area-inset-left))!important;padding-right:max(16px,env(safe-area-inset-right))!important}
 @media(max-width:700px){
- nav b{display:inline-block!important;flex:0 0 auto;max-width:52vw;font-size:13px;margin-right:6px;position:sticky;left:0;background:var(--card);z-index:2;padding:4px 6px 4px 0}
+ nav b{display:inline-block!important;flex:0 0 auto;max-width:44vw;font-size:13px;margin-right:6px;position:static;background:transparent;padding:4px 6px 4px 0}
  #coBanner{font-size:13px;gap:6px!important;padding-top:6px!important;padding-bottom:6px!important}
  #coBanner>span{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
- #coBanner select{flex:1 1 100%;max-width:100%!important;width:100%}
- #coBanner [data-v-grp]{margin-left:0!important}
+ #coBanner select{flex:1 1 55%;max-width:100%!important;width:auto;min-width:0}
+ #coBanner [data-v-grp]{margin-left:0!important;flex:0 0 auto}
  footer{padding-left:12px!important;padding-right:12px!important;overflow-wrap:anywhere}
 }
 @media all and (display-mode:standalone),all and (display-mode:fullscreen){
@@ -2937,7 +2938,7 @@ window.grpPanel=async function(){
   if(!kp||typeof COS==='undefined'||!MULTI){if(old)old.remove();return;}
   const c=curCo();if(!c){if(old)old.remove();return;}
   /* Panneau réservé au propriétaire et aux administrateurs / gestionnaires du groupe : invisible pour les autres utilisateurs */
-  if(!(isOwnerUser()||ER()==='admin'||canGroup())){if(old)old.remove();return;}
+  if(true){if(old)old.remove();return;}
   let box=old;if(!box){box=document.createElement('div');box.id='grpPanel';box.className='c';box.style.marginBottom='14px';kp.parentNode.insertBefore(box,kp);}
   const mere=c.type_entreprise==='groupe'?c:(c.groupe_id?COS.find(x=>x.id===c.groupe_id):null);
   if(!mere){
@@ -4268,7 +4269,7 @@ function showAv(){const i=$('myav');if(!i)return;if(window._avUrl){i.src=window.
 /* Cabinet (ex. TOTAL EMPLOI RH) et son client (ex. ACC) : l'en-tête montre « cabinet › client », le pied de page nomme toujours le cabinet */
 function cabinetInfo(){const co=curCo();if(!co)return {cab:'',cli:'',all:'',logo:''};const lc=x=>String(x||'').trim().toLowerCase();let cab='',cli=co.nom||'',logo='';
   const pool=(window.__ALLCOS&&window.__ALLCOS.length)?window.__ALLCOS:(typeof COS!=='undefined'?COS:[]);
-  const par=co.groupe_id?pool.find(x=>x.id===co.groupe_id):null;
+  let par=co.groupe_id?pool.find(x=>x.id===co.groupe_id):null;if(!par&&co.groupe_id&&co.type_entreprise!=='groupe')par={nom:OWNER.societe,logo_url:''};
   if(par&&par.nom){cab=par.nom;logo=par.logo_url||'';}
   else if(co.client&&lc(co.client)!==lc(co.nom)){cab=co.nom;cli=co.client;logo=co.logo_url||'';}
   else if(co.type_entreprise==='groupe'){cab=co.nom;cli=(co.client&&lc(co.client)!==lc(co.nom))?co.client:co.nom;logo=co.logo_url||'';}
