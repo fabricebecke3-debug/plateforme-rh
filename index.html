@@ -682,6 +682,24 @@ window.roleBadgeSync=roleBadgeSync;
 const curCo=()=>COS.find(c=>c.id===CO)||null;
 const activeCoName=()=>{try{const c=curCo();return (c&&c.nom)||(typeof PARAMS!=='undefined'&&PARAMS&&PARAMS.soc)||'PLATEFORME RH';}catch(e){return 'PLATEFORME RH';}};
 const scq=q=>MULTI?(CO?q.eq('entreprise_id',CO):(isOwnerUser()?q:q.eq('entreprise_id','00000000-0000-0000-0000-000000000000'))):q;
+/* Supabase renvoie au plus 1000 lignes par requête : lecture par pages pour ne rien perdre en silence.
+   mk() reconstruit la requête à chaque page ; sec = colonne unique de tri secondaire (ordre stable entre les pages).
+   En cas d'erreur de pagination : repli sur la requête simple d'origine (comportement précédent). */
+async function pgAll(mk,sec){
+  const SZ=1000;
+  try{
+    const out=[];
+    for(let from=0;from<200000;from+=SZ){
+      let q=mk();if(sec)q=q.order(sec,{ascending:true});
+      const r=await q.range(from,from+SZ-1);
+      if(r.error)throw r.error;
+      const rows=r.data||[];out.push(...rows);
+      if(rows.length<SZ)break;
+    }
+    return {data:out,error:null};
+  }catch(e){return await mk();}
+}
+window.pgAll=pgAll;
 /* Ecran bloquant : compte non rattache a une societe (aucune donnee chargee) */
 function TERH_noCo(on){let o=document.getElementById('terh-noco');if(!on){if(o)o.remove();return;}
  if(!o){o=document.createElement('div');o.id='terh-noco';o.style.cssText='position:fixed;inset:0;z-index:99999;background:var(--bg,#f5f7fb);color:var(--tx,#111);display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;overflow:auto';document.body.appendChild(o);}
@@ -1117,9 +1135,9 @@ async function loadAll(){
   let _fail=false,_errMsg='';let _fromCache=false;try{if(!E.length){const c=await Promise.race([TCACHE.get(TCACHE.key()),new Promise(ok=>setTimeout(()=>ok(null),600))]);if(c&&c.emp&&c.emp.length&&tok===loadTok){E=c.emp.map(toApp);CG=(c.cg||[]).map(x=>({id:x.id,employe_id:x.employe_id,n:(E.find(e=>e.id===String(x.employe_id))||{}).n||'—',poste:(E.find(e=>e.id===String(x.employe_id))||{}).p||'',deb:x.date_debut,fin:x.date_fin,type:x.type,statut:x.statut,com:x.commentaire||'',jours:x.date_debut&&x.date_fin?Math.round((P(x.date_fin)-P(x.date_debut))/day)+1:0}));_fromCache=true;bumpEN();try{refreshCurrent();}catch(e){}}}}catch(e){}
   const _slow=setTimeout(()=>{try{if(!_fromCache)TERH_loadBanner('⏳ Connexion lente au serveur… chargement en cours, patientez quelques secondes.',false);}catch(e){}},12000);const safe=async(label,p)=>{try{const r=await p;if(r.error){console.warn(label,r.error);if(label==='employes'){_fail=true;_errMsg=r.error.message||String(r.error);}return{data:[]};}return r;}catch(e){console.warn(label,e);if(label==='employes'){_fail=true;_errMsg=(e&&e.message)||String(e);}return{data:[]};}};
   const [emp,par,cg,usr]=await Promise.all([
-    safe('employes',MY_ROLE==='lecteur'?scq(db.from('employes_lecteur').select('*')).order('nom',{ascending:true}):scq(db.from('employes').select('*')).order('nom',{ascending:true})),
+    safe('employes',pgAll(()=>MY_ROLE==='lecteur'?scq(db.from('employes_lecteur').select('*')).order('nom',{ascending:true}):scq(db.from('employes').select('*')).order('nom',{ascending:true}),'id')),
     safe('parametres',(MY_ROLE==='admin'||MY_ROLE==='super_owner')?scq(db.from('parametres').select('*').not('cle','like','corpus%')):scq(db.from('parametres').select('*')).in('cle',PUBLIC_PARAMS)),
-    safe('conges',scq(db.from('conges').select('*')).order('date_debut',{ascending:false})),
+    safe('conges',pgAll(()=>scq(db.from('conges').select('*')).order('date_debut',{ascending:false}),'id')),
     safe('user_roles',(MY_ROLE==='admin'||MY_ROLE==='super_owner')?scq(db.from('user_roles').select('*')):Promise.resolve({data:[]}))
   ]);
   clearTimeout(_slow);
@@ -2525,7 +2543,8 @@ function sigInit(){sigRender();sigPrev();sigWarm(sigLoad()).then(sigRender);if(S
     if(v){if(ER()!=='super_owner'){toast('🔒 Validation réservée à la Direction');return;}const g=o.list.find(x=>x.id===v.dataset.sgVal);if(g){g.statut='valide';if(!o.def)o.def=g.id;sigAudit('validation',g.nom);sigSave(o);}}
     else if(d){o.def=d.dataset.sgDef;sigAudit('défaut',o.def);sigSave(o);}
     else{if(!confirm('Supprimer cette signature ?'))return;const g=o.list.find(x=>x.id===r.dataset.sgDel);try{db.storage.from('signatures').remove([g.path,g.cpath].filter(Boolean));}catch(er){}o.list=o.list.filter(x=>x.id!==r.dataset.sgDel);if(o.def===r.dataset.sgDel)o.def=o.list[0]?.id||null;sigAudit('suppression',g&&g.nom);sigSave(o);}});
-  $('sg-bak').onclick=async()=>{const out={date:new Date().toISOString(),tables:{}};for(const t of ['employes','conges','parametres','user_roles','historique']){try{const {data,error}=await db.from(t).select('*').limit(50000);if(!error)out.tables[t]=data;}catch(e){}}
+  $('sg-bak').onclick=async()=>{const out={date:new Date().toISOString(),tables:{}};out.erreurs={};for(const t of ['employes','conges','parametres','user_roles','historique']){try{const {data,error}=await pgAll(()=>db.from(t).select('*'),'id');if(error)out.erreurs[t]=error.message||String(error);else out.tables[t]=data;}catch(e){out.erreurs[t]=(e&&e.message)||String(e);}}
+    if(Object.keys(out.erreurs).length)toast('⚠ Sauvegarde incomplète : '+Object.keys(out.erreurs).join(', '));else delete out.erreurs;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:'application/json'}));a.download='sauvegarde-rh-'+new Date().toISOString().slice(0,10)+'.json';a.click();sigAudit('sauvegarde','export JSON');toast('✅ Sauvegarde téléchargée');};
 }
 document.querySelectorAll('#ptabs button').forEach(b=>b.addEventListener('click',()=>{
@@ -3764,7 +3783,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
   async function loadModule(k){
     const M = MODULES[k];
     let q = (typeof scq==='function') ? scq(db.from(M.table).select('*')) : db.from(M.table).select('*');
-    const r = await q.order('created_at',{ascending:false});
+    const r = await pgAll(()=>{ let qq = (typeof scq==='function') ? scq(db.from(M.table).select('*')) : db.from(M.table).select('*'); return qq.order('created_at',{ascending:false}); },'id');
     if(r.error){ console.warn('loadModule',k,r.error); MDATA[k]=[]; renderModule(k); return; }
     MDATA[k] = r.data||[];
     renderModule(k);
