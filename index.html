@@ -161,6 +161,11 @@ html,body{overscroll-behavior-y:contain}body{padding-left:env(safe-area-inset-le
 nav #tx_cnps,nav #tx_paie{font-size:0;padding:7px 9px}
 nav #tx_cnps::first-letter,nav #tx_paie::first-letter{font-size:15px}
 nav #tx_lang{font-size:12px;padding:3px 2px;width:auto;min-width:0;max-width:56px;border-radius:8px}
+
+.v,.c,.fm>*,.fm label,.o3 .g>*{min-width:0}
+.fm input,.fm select,.fm textarea,.o3 .g input,.o3 .g select{width:100%;max-width:100%;min-width:0;text-overflow:ellipsis}
+.v{overflow-x:clip}
+@media(max-width:700px){.fm,.o3 .g{grid-template-columns:minmax(0,1fr)!important}.w{padding:10px}}
 </style><style id="mobile-fix">
 @media(max-width:700px){
 html{-webkit-text-size-adjust:100%}
@@ -185,6 +190,30 @@ td:first-child,th:first-child{position:sticky;left:0;background:var(--card);z-in
 }
 @media(max-width:380px){nav button{padding:8px 9px;font-size:13px}.w{padding:8px 8px 86px}}
 </style>
+<style id="adapt-fix">
+nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#coBanner{padding-left:max(16px,env(safe-area-inset-left))!important;padding-right:max(16px,env(safe-area-inset-right))!important}
+@media(max-width:700px){
+ nav b{display:inline-block!important;flex:0 0 auto;max-width:52vw;font-size:13px;margin-right:6px;position:sticky;left:0;background:var(--card);z-index:2;padding:4px 6px 4px 0}
+ #coBanner{font-size:13px;gap:6px!important;padding-top:6px!important;padding-bottom:6px!important}
+ #coBanner>span{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
+ #coBanner select{flex:1 1 100%;max-width:100%!important;width:100%}
+ #coBanner [data-v-grp]{margin-left:0!important}
+ footer{padding-left:12px!important;padding-right:12px!important;overflow-wrap:anywhere}
+}
+@media all and (display-mode:standalone),all and (display-mode:fullscreen){
+ nav{padding-top:calc(6px + env(safe-area-inset-top))}
+ body{padding-bottom:env(safe-area-inset-bottom)}
+}
+</style>
+<style id="own-fix">
+.oacts{display:flex;flex-wrap:wrap;gap:4px;min-width:150px}
+.oacts button{margin:0!important}
+#v-own .tw table td{vertical-align:middle}
+@media(max-width:700px){#v-own .tw table{min-width:640px!important}.oacts{min-width:130px}#v-own .admin-tabs{overflow-x:auto;flex-wrap:nowrap}#v-own .admin-tabs button{white-space:nowrap;flex:0 0 auto}}
+</style>
+
+
 </head><body>
 
 <div id="as" class="as">
@@ -1077,6 +1106,10 @@ let loadTok=0;
 async function loadAll(){
   const tok=++loadTok;
   if(!MULTI||!COS.length||(isOwnerUser()&&!CO))await ensureCompanies();
+  else if(Date.now()-(window.__cosAt||0)>1500){/* relecture sûre : sans elle, une société modifiée reste affichée avec ses anciennes valeurs */
+    const _k={c:COS,o:CO,m:MULTI,a:window.__ALLCOS};try{await ensureCompanies();if(!COS.length&&_k.c.length){COS=_k.c;CO=_k.o;MULTI=_k.m;window.__ALLCOS=_k.a;}}catch(e){COS=_k.c;CO=_k.o;MULTI=_k.m;window.__ALLCOS=_k.a;}
+  }
+  window.__cosAt=Date.now();
   /* GARDE : un utilisateur (hors proprietaire) sans societe ne charge AUCUNE donnee */
   if(!isOwnerUser()&&(!MULTI||!CO||!MEMS.length||!COS.length)){E=[];CG=[];HIST=[];ROLES=[];DISC=[];try{bumpEN();}catch(e){}try{TERH_noCo(true);}catch(e){}return;}
   try{TERH_noCo(false);}catch(e){}
@@ -1091,7 +1124,7 @@ async function loadAll(){
   clearTimeout(_slow);
   if(tok!==loadTok)return;
   if(_fail&&E.length){toast('⚠ Actualisation impossible (réseau ?) : données précédentes conservées');try{TERH_loadBanner('⚠ Actualisation impossible : '+_errMsg+' — données précédentes conservées.',true);}catch(e){}return;}
-  try{if(_fail)TERH_loadBanner('⚠ Les données n\'ont pas pu être chargées : '+_errMsg+'. Si le message parle de droits (RLS / permission), exécutez corrections-supabase.sql dans Supabase.',true);else if(!(emp.data||[]).length)TERH_loadBanner('ℹ️ Le serveur a renvoyé 0 employé (rôle : '+MY_ROLE+', société : '+(curCo()?.nom||CO||'aucune')+'). Si c\'est anormal : mauvaise société sélectionnée ou droits d\'accès.',true);else TERH_loadBanner('',false);}catch(e){}
+  try{if(_fail)TERH_loadBanner('⚠ Les données n\'ont pas pu être chargées : '+_errMsg+'. Si le message parle de droits (RLS / permission), exécutez corrections-supabase.sql dans Supabase.',true);else if(!(emp.data||[]).length){if(['own','p','x','grp'].includes(window.__curV))TERH_loadBanner('',false);else TERH_loadBanner('ℹ️ Aucun employé dans « '+(curCo()?.nom||'cette société')+' » pour le moment. Si vous en attendiez : vérifiez la société choisie en haut de l\'écran, ou vos droits d\'accès.',true);}else TERH_loadBanner('',false);}catch(e){}
   E=(emp.data||[]).map(toApp);
   if(!_fail&&(emp.data||[]).length){try{TCACHE.set(TCACHE.key(),{emp:emp.data,cg:cg.data||[],t:Date.now()});}catch(e){}}
   CG=(cg.data||[]).map(c=>({id:c.id,employe_id:c.employe_id,n:(E.find(x=>x.id===String(c.employe_id))||{}).n||'—',poste:(E.find(x=>x.id===String(c.employe_id))||{}).p||'',deb:c.date_debut,fin:c.date_fin,type:c.type,statut:c.statut,com:c.commentaire||'',jours:c.date_debut&&c.date_fin?Math.round((P(c.date_fin)-P(c.date_debut))/day)+1:0}));
@@ -1219,7 +1252,7 @@ function applyPerms(){
   const scan=$('scanBlock');if(scan)scan.style.display=ce?'':'none';
   if(typeof window.applyModVisibility6==='function') setTimeout(()=>window.applyModVisibility6(),50);
 }
-function refreshCurrent(){const on=document.querySelector('.v.on');if(!on)return;const v=on.id.replace('v-','');if(v==='d')dash();else if(v==='l'){filt();list();}else if(v==='a'){alr();alrCnps();}else if(v==='dsp'){listDisc();}else if(v==='c'){fillCgEmp();listCg();}else if(v==='n')filt();else if(v==='h')loadHist();else if(v==='db')renderDB();else if(v==='p'){fillParamsUI();listUsers();}else if(v==='x')renderAdmin();else if(v==='own')renderOwner();}
+function refreshCurrent(){const on=document.querySelector('.v.on');if(!on)return;const v=on.id.replace('v-','');if(v==='d')dash();else if(v==='l'){filt();list();}else if(v==='a'){alr();alrCnps();}else if(v==='dsp'){listDisc();}else if(v==='c'){fillCgEmp();listCg();}else if(v==='n')filt();else if(v==='h')loadHist();else if(v==='db')renderDB();else if(v==='p'){if(!(window.TERH_editing&&TERH_editing())){fillParamsUI();listUsers();}}else if(v==='x'){if(!(window.TERH_editing&&TERH_editing()))renderAdmin();}else if(v==='own'){if(!window.__ownDraft&&!(window.TERH_editing&&TERH_editing()))renderOwner();}}
 
 /* ============ CRUD ============ */
 async function insertEmp(o){const {data,error}=await db.from('employes').insert(toDb(o)).select().single();if(error)throw error;bumpEN();return toApp(data);}
@@ -1237,7 +1270,7 @@ function dash(){
   const cgEnCours=CG.filter(c=>c.statut==='Approuvé'&&P(c.deb)<=T&&P(c.fin)>=T).length;
   const avecDossier=A.filter(r=>r.hasDoc).length;
 ('dt').textContent='Statuts calculés au '+T.toLocaleDateString('fr-FR');
-  $('bn').innerHTML=!E.length?'<div class="ban">Aucune donnée. Cliquez sur ⬆ Importer ou ajoutez un employé.</div>':(al||cnpsR)?`<div class="ban">⚠ ${al} contrat(s) à échéance et ${cnpsR} CNPS en retard. <a href="#" id="ga" style="color:var(--er);font-weight:700">Voir →</a></div>`:'';
+  $('bn').innerHTML=!E.length?'<div class="ban">Aucune donnée. Cliquez sur ⬆ Importer ou ajoutez un employé.</div>':(al||cnpsR)?`<div class="ban">⚠ ${(()=>{const L=alerts(90),ex=L.filter(r=>r.jr<0).length,pr=L.length-ex,t=[];if(ex)t.push(ex+' contrat'+(ex>1?'s':'')+' expiré'+(ex>1?'s':''));if(pr)t.push(pr+' contrat'+(pr>1?'s':'')+' expirant sous 90 jours');if(cnpsR)t.push(cnpsR+' CNPS en retard');return t.join(' · ');})()}. <a href="#" id="ga" style="color:var(--er);font-weight:700">Voir →</a></div>`:'';
   if($('ga'))$('ga').onclick=e=>{e.preventDefault();go('a');};
   if($('gdisc'))$('gdisc').onclick=e=>{e.preventDefault();go('dsp');};
   const kpi=[
@@ -2848,7 +2881,7 @@ function drawBanners(){
       b.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 16px;color:#fff;font-weight:700;background:'+colorOf(c);
       const pool=isOwnerUser()?COS:L;
       const sw=many?'<select id="coBanSel" title="Changer de société cliente" style="max-width:280px;font-weight:600">'+pool.map(x=>'<option value="'+esc(x.id)+'"'+(x.id===CO?' selected':'')+'>'+esc(coLabel(x))+'</option>').join('')+'</select>':'';
-      b.innerHTML='<span>🏢 Société active : '+esc(c.nom)+'</span>'+(ci.cab&&ci.cab!==c.nom?'<span style="opacity:.85;font-weight:500">· '+esc(ci.cab)+'</span>':'')+((isOwnerUser()||ER()==='admin')?'<span style="opacity:.85;font-weight:500">· Rôle : '+esc(roleLbl(ER()))+'</span>':'')+sw+(canGroup()?'<button class="s" data-v-grp style="margin-left:auto">📊 Vue groupe</button>':'');
+      b.innerHTML='<span>🏢 '+(ci.cab&&ci.cab.trim().toLowerCase()!==String(c.nom).trim().toLowerCase()?esc(ci.cab)+' › ':'')+'Société active : '+esc(c.nom)+'</span>'+((isOwnerUser()||ER()==='admin')?'<span style="opacity:.85;font-weight:500">· Rôle : '+esc(roleLbl(ER()))+'</span>':'')+sw+(canGroup()?'<button class="s" data-v-grp style="margin-left:auto">📊 Vue groupe</button>':'');
       document.body.classList.toggle('has-bansel',!!sw);
     }
   }
@@ -3059,7 +3092,7 @@ async function renderOwner(){
     </div>
     ${orphan?`<div class="ban">⚠ ${orphan} employé(s) sans entreprise. <button class="p" data-ow="adopt">Rattacher à « ${esc(curCo()?.nom||'—')} »</button></div>`:'<div class="aa-row ok">✅ Toutes les fiches sont rattachées à une entreprise.</div>'}
     <div class="c"><h2>Activité récente (audit global)</h2><div id="ovLast" class="muted">Chargement…</div></div>`;
-  if(OTAB==='co')body=`${COS.some(x=>x.type_entreprise==='groupe')?'':'<div class="ban">🏛 Aucune société mère définie. Dans le tableau ci-dessous, cliquez sur <b>🏛</b> en face de « TOTAL EMPLOI » pour la définir comme société mère, puis <b>➕ Client</b> pour lui rattacher ses sociétés clientes.</div>'}<div class="c" style="margin-bottom:14px"><h2>Entreprises clientes (${COS.length})</h2><div class="tw"><table style="min-width:760px"><thead><tr><th>Entreprise</th><th>Ville</th><th>Modèle</th><th>Employés</th><th>Statut</th><th></th></tr></thead><tbody>${orderCos(COS).map(c=>`<tr><td>${c.groupe_id&&COS.some(x=>x.id===c.groupe_id)?'<span class="muted">↳ </span>':''}<b>${esc(c.nom)}</b><br><span class="muted">Client : ${esc(c.client||'—')}${c.type_entreprise==='groupe'?' · 🏛 Société mère':''}${c.type_entreprise==='formation'?' · 🎓 Cabinet de formation':''}${({filiale:'Filiale',agence:'Agence / site',sous_traitant:'Sous-traitant',fournisseur:'Fournisseur',ong:'ONG / association',administration:'Administration',autre:'Autre'})[c.type_entreprise]?' · '+({filiale:'Filiale',agence:'Agence / site',sous_traitant:'Sous-traitant',fournisseur:'Fournisseur',ong:'ONG / association',administration:'Administration',autre:'Autre'})[c.type_entreprise]:''}${c.groupe_id?' · Groupe : '+esc((COS.find(x=>x.id===c.groupe_id)||{}).nom||'?'):''}</span></td><td>${esc(c.ville||'—')}</td><td>${esc(PRESETS[c.modele]?.l||c.modele||'—')}</td><td>${cnt[c.id]?.a||0} actifs / ${cnt[c.id]?.t||0}</td><td>${c.actif===false?'<span class="b ARRÊT">Désactivée</span>':'<span class="b VALIDE">Active</span>'}${c.id===CO?' <span class="b CDD">ouverte</span>':''}</td><td><button class="s" data-ow="open" data-id="${esc(c.id)}">Ouvrir</button><button class="s" data-ow="edit" data-id="${esc(c.id)}">✏️</button><button class="s" data-ow="mere" data-id="${esc(c.id)}" title="${c.type_entreprise==='groupe'?'Retirer le statut de société mère':'Définir comme société mère'}">🏛${c.type_entreprise==='groupe'?'✓':''}</button>${c.type_entreprise==='groupe'?`<button class="s" data-ow="addcli" data-id="${esc(c.id)}">➕ Client</button>`:''}<button class="s" data-ow="tog" data-id="${esc(c.id)}">${c.actif===false?'▶':'⏸'}</button>${attachBtn(c)}</td></tr>`).join('')}</tbody></table></div></div>
+  if(OTAB==='co')body=`<div class="ban" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">🏛 <b>Total Emploi RH</b> utilise la plateforme : société mère. ACC, FINEXS et toute société ajoutée sont ses sociétés clientes (personnel mis à disposition).</span><button class="p" data-ow="organize">🏛 Organiser automatiquement</button><button class="s" data-ow="dedupe" title="Supprime les sociétés vides en double (même nom, 0 employé)">🧹 Supprimer les doublons vides</button></div>${COS.some(x=>x.type_entreprise==='groupe')?'':'<div class="ban">🏛 Aucune société mère définie. Dans le tableau ci-dessous, cliquez sur <b>🏛</b> en face de « TOTAL EMPLOI » pour la définir comme société mère, puis <b>➕ Client</b> pour lui rattacher ses sociétés clientes.</div>'}<div class="c" style="margin-bottom:14px"><h2>Sociétés (${COS.length})</h2><div class="tw"><table style="min-width:760px"><thead><tr><th>Entreprise</th><th>Ville</th><th>Modèle</th><th>Employés</th><th>Statut</th><th></th></tr></thead><tbody>${orderCos(COS).map(c=>`<tr><td>${c.groupe_id&&COS.some(x=>x.id===c.groupe_id)?'<span class="muted">↳ </span>':''}<b>${esc(c.nom)}</b><br><span class="muted">Client : ${esc(c.client||'—')}${c.type_entreprise==='groupe'?' · 🏛 Société mère':''}${c.type_entreprise==='formation'?' · 🎓 Cabinet de formation':''}${({filiale:'Filiale',agence:'Agence / site',sous_traitant:'Sous-traitant',fournisseur:'Fournisseur',ong:'ONG / association',administration:'Administration',autre:'Autre'})[c.type_entreprise]?' · '+({filiale:'Filiale',agence:'Agence / site',sous_traitant:'Sous-traitant',fournisseur:'Fournisseur',ong:'ONG / association',administration:'Administration',autre:'Autre'})[c.type_entreprise]:''}${c.groupe_id?' · Groupe : '+esc((COS.find(x=>x.id===c.groupe_id)||{}).nom||'?'):''}</span></td><td>${esc(c.ville||'—')}</td><td>${esc(PRESETS[c.modele]?.l||c.modele||'—')}</td><td>${cnt[c.id]?.a||0} actifs / ${cnt[c.id]?.t||0}</td><td>${c.actif===false?'<span class="b ARRÊT">Désactivée</span>':'<span class="b VALIDE">Active</span>'}${c.id===CO?' <span class="b CDD">ouverte</span>':''}</td><td><div class="oacts"><button class="s" data-ow="open" data-id="${esc(c.id)}" title="Ouvrir cette société">Ouvrir</button><button class="s" data-ow="edit" data-id="${esc(c.id)}" title="Modifier cette société" aria-label="Modifier">✏️</button><button class="s" data-ow="mere" data-id="${esc(c.id)}" title="${c.type_entreprise==='groupe'?'Retirer le statut de société mère':'Définir comme société mère'}">🏛${c.type_entreprise==='groupe'?'✓':''}</button>${c.type_entreprise==='groupe'?`<button class="s" data-ow="addcli" data-id="${esc(c.id)}">➕ Client</button>`:''}<button class="s" data-ow="tog" data-id="${esc(c.id)}" title="${c.actif===false?'Réactiver':'Désactiver'} cette société" aria-label="Activer / désactiver">${c.actif===false?'▶':'⏸'}</button><button class="s" data-ow="del" data-id="${esc(c.id)}" title="Supprimer cette société" aria-label="Supprimer" style="color:var(--er)">🗑</button>${attachBtn(c)}</div></td></tr>`).join('')}</tbody></table></div></div>
     <div class="c"><h2 id="owft">Ajouter une entreprise cliente</h2><form id="owf" class="fm"><input type="hidden" id="owid"><label>Nom de l’entreprise *<input id="own_nom" required></label><label>Client / site<input id="own_client"></label><label>Ville<input id="own_ville"></label><label>Téléphone<input id="own_tel"></label><label>Email<input id="own_email" type="email"></label><label>Adresse<input id="own_adr"></label>${grpFields()}<label>Modèle<select id="own_mod">${Object.entries(PRESETS).map(([k,v])=>`<option value="${k}">${esc(v.l)}</option>`).join('')}</select></label><div style="align-self:end"><button class="p" type="submit">💾 Enregistrer</button> <button class="s" type="button" id="owreset">Nouvelle</button></div></form></div>`;
   if(OTAB==='us')body=await OWX.us();
   if(OTAB==='rol')body=await OWX.rol();
@@ -3086,13 +3119,91 @@ async function renderOwner(){
   if(OTAB==='gl')setTimeout(async()=>{try{const {data}=await db.from('historique').select('*').order('created_at',{ascending:false}).limit(10);const el=$('ovLast');if(el)el.innerHTML=(data||[]).map(h=>`<div style="padding:6px 0;border-bottom:1px solid var(--bd)"><b>${esc(h.operation)}</b> sur ${esc(h.table_name)} — ${esc(h.user_email||'?')} <span class="muted">${DT(h.created_at)}</span></div>`).join('')||'Aucune activité.';}catch(e){}},100);
 }
 function ownTxt(id,v){$(id).value=v||'';}
-async function saveCo(e){e.preventDefault();if(!isOwnerUser())return;const id=$('owid').value,m=$('own_mod').value,o={nom:$('own_nom').value.trim(),client:$('own_client').value.trim()||null,ville:$('own_ville').value.trim()||null,tel:$('own_tel').value.trim()||null,email:$('own_email').value.trim()||null,adresse:$('own_adr').value.trim()||null,modele:m};if(HASGRP()&&$('own_type')){o.type_entreprise=$('own_type').value;o.groupe_id=($('own_grp').value&&$('own_grp').value!==id)?$('own_grp').value:null;o.couleur=$('own_col').value||null;}if(!id)o.modules=PRESETS[m].m;try{const q=id?await db.from('entreprises').update(o).eq('id',id).select():await db.from('entreprises').insert(o).select().single();if(q.error)throw q.error;if(id&&(!q.data||!q.data.length))throw new Error('Aucune ligne modifiée : la base a refusé la mise à jour (droits RLS sur la table entreprises). Rien n\'a été enregistré.');if(!id&&q.data){CO=q.data.id;localStorage.setItem('terh_co',CO);}toast(id?'Entreprise modifiée':'Entreprise créée et ouverte');await loadAll();renderOwner();}catch(err){if((err.code==='23514'||/check constraint/i.test(err.message||''))&&o.type_entreprise&&!['client','groupe','formation'].includes(o.type_entreprise)){toast('La base n\'accepte pas encore ce type de société : exécutez le SQL « élargir les types » dans Supabase, puis réessayez.');return;}toast(/type_entreprise|groupe_id|couleur/.test(err.message||'')?'Colonnes « groupe » absentes : exécutez migration-groupe.sql dans Supabase (SQL Editor) puis réessayez.':'Erreur : '+err.message);}}
+async function saveCo(e){e.preventDefault();if(!isOwnerUser())return;const id=$('owid').value,m=$('own_mod').value,o={nom:$('own_nom').value.trim(),client:$('own_client').value.trim()||null,ville:$('own_ville').value.trim()||null,tel:$('own_tel').value.trim()||null,email:$('own_email').value.trim()||null,adresse:$('own_adr').value.trim()||null};if(m)o.modele=m;if(!o.nom){toast('Le nom de la société est obligatoire');return;}if(HASGRP()&&$('own_type')){o.type_entreprise=$('own_type').value;o.groupe_id=($('own_grp').value&&$('own_grp').value!==id)?$('own_grp').value:null;o.couleur=$('own_col').value||null;}if(!id)o.modules=(PRESETS[m]||PRESETS[Object.keys(PRESETS)[0]]).m;try{const q=id?await db.from('entreprises').update(o).eq('id',id).select():await db.from('entreprises').insert(o).select().single();if(q.error)throw q.error;if(id&&(!q.data||!q.data.length))throw new Error('Aucune ligne modifiée : la base a refusé la mise à jour (droits RLS sur la table entreprises). Rien n\'a été enregistré.');if(!id&&q.data){CO=q.data.id;localStorage.setItem('terh_co',CO);}window.__ownDraft=null;window.__cosAt=0;toast(id?'Entreprise modifiée':'Entreprise créée et ouverte');await loadAll();renderOwner();}catch(err){if((err.code==='23514'||/check constraint/i.test(err.message||''))&&o.type_entreprise&&!['client','groupe','formation'].includes(o.type_entreprise)){toast('La base n\'accepte pas encore ce type de société : exécutez le SQL « élargir les types » dans Supabase, puis réessayez.');return;}toast(/type_entreprise|groupe_id|couleur/.test(err.message||'')?'Colonnes « groupe » absentes : exécutez migration-groupe.sql dans Supabase (SQL Editor) puis réessayez.':'Erreur : '+err.message);}}
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('button[data-ot]');if(t&&isOwnerUser()){OTAB=t.dataset.ot;renderOwner();return;}
+  const og=e.target.closest&&e.target.closest('button[data-ow="organize"]');
+  if(og&&isOwnerUser()){
+    try{
+      let m=COS.find(x=>x.type_entreprise==='groupe')||COS.find(x=>/total\s*emploi/i.test(x.nom||''));
+      if(!m){toast('Aucune société « Total Emploi » trouvée : créez-la d\'abord avec le formulaire ci-dessous.');return;}
+      const autres=COS.filter(x=>x.id!==m.id&&!x.groupe_id&&x.type_entreprise!=='groupe');
+      if(!confirm('« '+m.nom+' » deviendra la société mère.'+(autres.length?'\nRattachées comme clientes : '+autres.map(x=>x.nom).join(', ')+'.':'\nToutes les autres sont déjà rattachées.')+'\nContinuer ?'))return;
+      if(m.type_entreprise!=='groupe'){const r=await db.from('entreprises').update({type_entreprise:'groupe'}).eq('id',m.id).select();if(r.error)throw r.error;if(!r.data||!r.data.length)throw new Error('Aucune ligne modifiée : la base a refusé la mise à jour (droits RLS sur la table entreprises).');}
+      for(const x of autres){const r=await db.from('entreprises').update({groupe_id:m.id,type_entreprise:x.type_entreprise||'client'}).eq('id',x.id).select();if(r.error)throw r.error;if(!r.data||!r.data.length)throw new Error('Aucune ligne modifiée pour « '+x.nom+' » : droits RLS refusés.');}
+      window.__cosAt=0;toast('✅ '+m.nom+' = société mère ; '+autres.length+' cliente(s) rattachée(s)');await loadAll();try{fillCoSel();drawBanners();showBrand();}catch(_){}renderOwner();
+    }catch(err){toast('Erreur : '+(err.message||err)+(/type_entreprise|groupe_id/.test(err.message||'')?' — exécutez migration-groupe.sql dans Supabase.':''));}
+    return;
+  }
+});
+
+/* --- Suppression d'une société et nettoyage des doublons --- */
+async function __delCompany(id){
+  const c=COS.find(x=>x.id===id);if(!c)return false;
+  /* détache les sociétés clientes de celle qu'on supprime */
+  let r=await db.from('entreprises').update({groupe_id:null}).eq('groupe_id',id);if(r.error&&!/groupe_id/.test(r.error.message||''))throw r.error;
+  for(const tb of ['conges','employes','parametres','user_roles','user_entreprises']){
+    r=await db.from(tb).delete().eq('entreprise_id',id);
+    if(r.error&&!(tb==='user_entreprises'&&/does not exist|relation|schema cache/i.test(r.error.message||'')))throw new Error(tb+' : '+r.error.message);
+  }
+  r=await db.from('entreprises').delete().eq('id',id).select();
+  if(r.error)throw r.error;
+  if(!r.data||!r.data.length)throw new Error('Aucune ligne supprimée : la base a refusé (droits RLS sur la table entreprises).');
+  return true;
+}
+async function __afterCoChange(msg){
+  window.__cosAt=0;try{localStorage.removeItem('terh_co_bad');}catch(e){}
+  CO=(COS.find(x=>x.id===CO)&&CO)||null;await ensureCompanies();await loadAll();
+  try{fillCoSel();drawBanners();showBrand();document.title=window.pageTitle();}catch(e){}
+  toast(msg);renderOwner();
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest&&e.target.closest('button[data-ow="del"],button[data-ow="dedupe"]');
+  if(!b||!isOwnerUser())return;
+  e.stopImmediatePropagation();
+  try{
+    const counts={};{const {data}=await db.from('employes').select('entreprise_id');(data||[]).forEach(x=>{counts[x.entreprise_id]=(counts[x.entreprise_id]||0)+1;});}
+    if(b.dataset.ow==='del'){
+      const c=COS.find(x=>x.id===b.dataset.id);if(!c)return;
+      if(COS.length<=1){toast('Impossible : il faut garder au moins une société.');return;}
+      const n=counts[c.id]||0,kids=COS.filter(x=>x.groupe_id===c.id).map(x=>x.nom);
+      if(n>0){
+        const t=prompt('SUPPRESSION DÉFINITIVE de « '+c.nom+' » : '+n+' employé(s), leurs congés et paramètres seront effacés.\nFaites d\'abord une sauvegarde (onglet Vue générale).\n\nTapez le nom exact pour confirmer :');
+        if(t!==c.nom){toast('Suppression annulée');return;}
+      }else if(!confirm('Supprimer « '+c.nom+' » (0 employé) ?'+(kids.length?'\nSes clientes ('+kids.join(', ')+') seront détachées.':'')))return;
+      await __delCompany(c.id);
+      if(CO===c.id){CO=null;localStorage.removeItem('terh_co');}
+      await __afterCoChange('Société supprimée');
+    }else{
+      const key=x=>String(x.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+      const groups={};COS.forEach(x=>{(groups[key(x)]=groups[key(x)]||[]).push(x);});
+      const plan=[],skipped=[];
+      Object.values(groups).filter(g=>g.length>1).forEach(g=>{
+        const score=x=>COS.filter(y=>y.groupe_id===x.id).length*1000+(counts[x.id]||0)+(x.type_entreprise==='groupe'?500:0)+(x.actif!==false?1:0);
+        g.sort((a,c)=>score(c)-score(a));const keep=g[0];
+        g.slice(1).forEach(x=>{if((counts[x.id]||0)>0)skipped.push(x.nom+' ('+counts[x.id]+' employés)');else plan.push({del:x,keep});});
+      });
+      if(!plan.length){toast(skipped.length?'Doublons avec employés non supprimés : '+skipped.join(', '):'Aucun doublon vide trouvé.');return;}
+      if(!confirm('Supprimer '+plan.length+' doublon(s) vide(s) (0 employé) :\n'+plan.map(x=>'• '+x.del.nom+(x.del.ville?' ('+x.del.ville+')':'')+(x.del.actif===false?' — désactivée':'')).join('\n')+(skipped.length?'\n\nConservés (ont des employés) : '+skipped.join(', '):'')+'\n\nLes sociétés clientes seront rattachées à la société conservée.'))return;
+      for(const x of plan){
+        const kids=COS.filter(y=>y.groupe_id===x.del.id);
+        for(const k of kids){const r=await db.from('entreprises').update({groupe_id:x.keep.id}).eq('id',k.id).select();if(r.error)throw r.error;}
+        await __delCompany(x.del.id);
+        if(CO===x.del.id){CO=x.keep.id;localStorage.setItem('terh_co',CO);}
+      }
+      await __afterCoChange(plan.length+' doublon(s) supprimé(s)');
+    }
+  }catch(err){toast('Erreur : '+(err.message||err));}
+},true);
+window.__ownSnap=function(){try{const f=document.getElementById('owf');if(!f)return;const d={};f.querySelectorAll('[id]').forEach(el=>{d[el.id]=el.type==='checkbox'?el.checked:el.value;});window.__ownDraft=d;}catch(e){}};
+window.__ownRestore=function(){try{const d=window.__ownDraft,f=document.getElementById('owf');if(!d||!f)return;Object.keys(d).forEach(k=>{const el=document.getElementById(k);if(!el||!f.contains(el))return;if(el.type==='checkbox')el.checked=!!d[k];else el.value=d[k];});}catch(e){}};
+['input','change'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#owf'))window.__ownSnap();},true));
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('button[data-ow="edit"]'))setTimeout(window.__ownSnap,0);if(e.target.id==='owreset')window.__ownDraft=null;},true);
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button[data-ot]');if(t&&isOwnerUser()){OTAB=t.dataset.ot;window.__ownDraft=null;renderOwner();return;}
   const b=e.target.closest('button[data-ow]');if(!b||!isOwnerUser())return;const a=b.dataset.ow,id=b.dataset.id;
   try{
     if(a==='open'){CO=id;localStorage.setItem('terh_co',CO);await loadAll();toast('Entreprise ouverte : '+curCo().nom);renderOwner();}
-    if(a==='edit'){const c=COS.find(x=>x.id===id);if(!c)return;$('owid').value=c.id;$('owft').textContent='Modifier « '+c.nom+' »';ownTxt('own_nom',c.nom);ownTxt('own_client',c.client);ownTxt('own_ville',c.ville);ownTxt('own_tel',c.tel);ownTxt('own_email',c.email);ownTxt('own_adr',c.adresse);if($('own_type')){$('own_type').value=c.type_entreprise||'client';$('own_grp').value=c.groupe_id||'';$('own_col').value=c.couleur||'#1f5fbf';}$('own_mod').value=c.modele||'interim';$('owf').scrollIntoView({behavior:'smooth'});}
+    if(a==='edit'){const c=COS.find(x=>x.id===id);if(!c)return;$('owid').value=c.id;$('owft').textContent='Modifier « '+c.nom+' »';ownTxt('own_nom',c.nom);ownTxt('own_client',c.client);ownTxt('own_ville',c.ville);ownTxt('own_tel',c.tel);ownTxt('own_email',c.email);ownTxt('own_adr',c.adresse);if($('own_type')){$('own_type').value=c.type_entreprise||'client';$('own_grp').value=c.groupe_id||'';$('own_col').value=c.couleur||'#1f5fbf';}$('own_mod').value=PRESETS[c.modele]?c.modele:Object.keys(PRESETS)[0];if(!PRESETS[c.modele])$('own_mod').dataset.unk='1';window.__ownSnap&&window.__ownSnap();$('owf').scrollIntoView({behavior:'smooth',block:'start'});$('own_nom').focus({preventScroll:true});}
     if(a==='tog'){const c=COS.find(x=>x.id===id);if(!c)return;if(!confirm((c.actif===false?'Réactiver ':'Désactiver ')+c.nom+' ? Les données sont conservées.'))return;const {error}=await db.from('entreprises').update({actif:c.actif===false}).eq('id',id);if(error)throw error;await loadAll();renderOwner();}
     if(a==='attach'){const c=COS.find(x=>x.id===id);if(!c)return;const gs=COS.filter(x=>x.type_entreprise==='groupe'&&x.id!==id);if(!gs.length){toast('Aucune société mère définie : cliquez d\'abord sur 🏛 en face de TOTAL EMPLOI RH');return;}let g=gs[0];if(gs.length>1){const n=prompt('Rattacher « '+c.nom+' » à quelle société mère ?\n'+gs.map((x,i)=>(i+1)+' = '+x.nom).join('\n'));g=gs[(parseInt(n,10)||0)-1];if(!g)return;}if(!confirm('Rattacher « '+c.nom+' » comme société cliente de « '+g.nom+' » ?'))return;const upd={groupe_id:g.id};if(!c.type_entreprise)upd.type_entreprise='client';const {data,error}=await db.from('entreprises').update(upd).eq('id',id).select();if(error)throw error;if(!data||!data.length)throw new Error('Aucune ligne modifiée : la base a refusé la mise à jour (droits RLS sur la table entreprises). Rien n\'a été enregistré.');toast('✅ « '+c.nom+' » est maintenant cliente de « '+g.nom+' »');await loadAll();if(document.querySelector('#v-own.on'))renderOwner();if(document.querySelector('#v-d.on'))dash();}
     if(a==='adopt'){if(!confirm('Rattacher les fiches sans entreprise à « '+curCo().nom+' » ?'))return;for(const tb of ['employes','conges','parametres']){const {error}=await db.from(tb).update({entreprise_id:CO}).is('entreprise_id',null);if(error)throw error;}toast('Fiches rattachées');await loadAll();renderOwner();}
@@ -4158,11 +4269,12 @@ function cabinetInfo(){const co=curCo();if(!co)return {cab:'',cli:'',all:'',logo
   const par=co.groupe_id?pool.find(x=>x.id===co.groupe_id):null;
   if(par&&par.nom){cab=par.nom;logo=par.logo_url||'';}
   else if(co.client&&lc(co.client)!==lc(co.nom)){cab=co.nom;cli=co.client;logo=co.logo_url||'';}
-  else if(typeof isOwnerUser==='function'&&isOwnerUser()&&lc(co.nom)!==lc(OWNER.client)){cab=OWNER.client;}
-  return {cab,cli,logo,all:cab?cab+' › '+cli:cli};}
+  else if(co.type_entreprise==='groupe'){cab=co.nom;cli=(co.client&&lc(co.client)!==lc(co.nom))?co.client:co.nom;logo=co.logo_url||'';}
+  if(cab&&lc(cab)===lc(cli)){cli=cab;}
+  return {cab,cli,logo,all:(cab&&lc(cab)!==lc(cli))?cab+' › '+cli:(cab||cli)};}
 window.cabinetInfo=cabinetInfo;
-window.pageTitle=function(){const co=curCo();if(!co)return 'PLATEFORME RH';const ci=cabinetInfo(),lc=x=>String(x||'').trim().toLowerCase();const n=ci.cab?(ci.cab+((ci.cli&&lc(ci.cli)!==lc(ci.cab))?' - '+ci.cli:'')):(ci.cli||co.nom||'');return n?n+' — PLATEFORME RH':'PLATEFORME RH';};
-function showBrand(){const b=$('brand'),co=curCo();if(!b||!co)return;const ci=cabinetInfo(),u=ci.cab?(ci.logo||''):(co.logo_url||''),name=(ci.cab?(ci.cab+((ci.cli&&String(ci.cli).trim().toLowerCase()!==String(ci.cab).trim().toLowerCase())?' › '+ci.cli:'')):(ci.cli||co.nom||'PLATEFORME RH')),key=u+'|'+name;if(b.dataset.lg===key)return;b.dataset.lg=key;b.innerHTML=(u?'<img src="'+esc(u)+'" alt="" style="height:26px;vertical-align:middle;margin-right:6px;border-radius:4px;object-fit:contain">':'🏢 ')+esc(name);}
+window.pageTitle=function(){const co=curCo();if(!co)return 'PLATEFORME RH';const ci=cabinetInfo(),lc=x=>String(x||'').trim().toLowerCase();const n=ci.cab?(ci.cab+((ci.cli&&lc(ci.cli)!==lc(ci.cab))?' - '+ci.cli:'')):(ci.cli||co.nom||'');return n?n+' - PLATEFORME RH':'PLATEFORME RH';};
+function showBrand(){const b=$('brand'),co=curCo();if(!b||!co)return;if(typeof UI!=='undefined'&&UI&&UI.brand)return;const ci=cabinetInfo(),u=ci.cab?(ci.logo||''):(co.logo_url||''),name=(ci.cab?(ci.cab+((ci.cli&&String(ci.cli).trim().toLowerCase()!==String(ci.cab).trim().toLowerCase())?' › '+ci.cli:'')):(ci.cli||co.nom||'PLATEFORME RH')),key=u+'|'+name;if(b.dataset.lg===key)return;b.dataset.lg=key;b.innerHTML=(u?'<img src="'+esc(u)+'" alt="" style="height:26px;vertical-align:middle;margin-right:6px;border-radius:4px;object-fit:contain">':'🏢 ')+esc(name);b.title=name;}
 async function loadAv(){if(!MY_USER||window._avFor===MY_USER.id)return;window._avFor=MY_USER.id;try{const {data}=await db.from('user_profiles').select('avatar_url').eq('user_id',MY_USER.id).maybeSingle();window._avUrl=data?.avatar_url||'';if(!window._avUrl){try{window._avUrl=localStorage.getItem('terh_av_'+MY_USER.id)||(MY_USER.user_metadata&&MY_USER.user_metadata.avatar)||'';}catch(e){}}showAv();}catch(e){}}
 $('myph').onclick=open;
 setInterval(()=>{try{loadAv();showBrand();}catch(e){}try{if(typeof _uid!=='undefined'&&_uid&&document.getElementById('app').style.display!=='none'){const t=window.pageTitle();if(document.title!==t)document.title=t;}roleBadgeSync();}catch(e){}},2000);
@@ -4417,7 +4529,7 @@ $('npaie').onclick=()=>open('sim');
 setInterval(()=>{try{load();applyW();autoMat();}catch(e){}},2000);
 })();
 </script>
-<footer style="text-align:center;color:var(--mu);font-size:11px;padding:14px 10px 70px">© 2026 Plateforme RH, propriété de NTSOH BECKE FABRICE IVAN · utilisée par <span id="ftco">TOTAL EMPLOI RH</span></footer>
+<footer style="text-align:center;color:var(--mu);font-size:11px;padding:14px 10px 70px">© 2026 Plateforme RH, propriété de NTSOH BECKE FABRICE IVAN · utilisée par <span id="ftco"></span></footer>
 <style id="terh-v3-css">
 .mb,#lt,#pym,#dpm,#dpm2{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .mx{max-height:calc(100dvh - 32px);overflow:auto;margin:16px auto!important}
@@ -4825,18 +4937,19 @@ function applyUI(){
   if(UI.font)document.body.style.fontSize=UI.font+'px';else document.body.style.fontSize='';
   if(UI.theme==='dark'||UI.theme==='light'){r.style.colorScheme=UI.theme;if(UI.theme==='dark'){['--bg:#12161c','--card:#1b2129','--tx:#e8ecf1','--mu:#93a0b1','--bd:#2c3540'].forEach(x=>{const [k,v]=x.split(':');r.style.setProperty(k,v);});}else{['--bg:#f5f6f8','--card:#fff','--tx:#1b2430','--mu:#6b7686','--bd:#e2e6ec'].forEach(x=>{const [k,v]=x.split(':');r.style.setProperty(k,v);});}}
   else{['--bg','--card','--tx','--mu','--bd'].forEach(k=>r.style.removeProperty(k));r.style.colorScheme='';}
-  if(UI.brand){const b=$('brand');if(b&&b.textContent!==UI.brand)b.textContent=UI.brand;}
+  if(UI.brand){const b=$('brand');if(b&&b.textContent!==UI.brand){b.textContent=UI.brand;b.dataset.lg='';}}
   QA('nav button[data-v],#npaie').forEach(b=>{const k=b.dataset.v||'paie';if(k==='own')return;if((UI.hide||[]).includes(k)&&!(isOwnerUser&&isOwnerUser()))b.style.setProperty('display','none','important');else if(b.style.display==='none'&&b.dataset.hid3){b.style.removeProperty('display');}if((UI.hide||[]).includes(k))b.dataset.hid3='1';else delete b.dataset.hid3;});
   armRefresh();
 }
-async function loadUI(){try{if(typeof CO!=='undefined'&&CO){const {data}=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle','ui_prefs_json').maybeSingle();if(data&&data.valeur){UI={...UI,...JSON.parse(data.valeur)};lsSet('terh_ui_v3',UI);}}}catch(e){}applyUI();}
-async function saveUI(){lsSet('terh_ui_v3',UI);try{if(typeof CO!=='undefined'&&CO)await db.from('parametres').upsert({cle:'ui_prefs_json',valeur:JSON.stringify(UI),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});}catch(e){say('Enregistré sur cet appareil (partage en ligne impossible : '+e.message+')');}applyUI();}
+async function loadUI(){try{if(typeof CO!=='undefined'&&CO){const k='terh_ui_v3_'+CO;UI=lsGet(k,{});try{const r=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle','ui_prefs_json').maybeSingle();if(r.data&&r.data.valeur){UI={...UI,...JSON.parse(r.data.valeur)};lsSet(k,UI);}}catch(e){}if(!UI.brand){const b=$('brand');if(b)b.dataset.lg='';}}}catch(e){}applyUI();}
+async function saveUI(){lsSet('terh_ui_v3_'+(typeof CO!=='undefined'&&CO?CO:''),UI);try{if(typeof CO!=='undefined'&&CO)await db.from('parametres').upsert({cle:'ui_prefs_json',valeur:JSON.stringify(UI),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});}catch(e){say('Enregistré sur cet appareil (partage en ligne impossible : '+e.message+')');}applyUI();}
 setInterval(()=>{if(appOn())applyUI();},2500);
 let uiLoaded='';setInterval(()=>{if(appOn()&&typeof CO!=='undefined'&&CO!==uiLoaded){uiLoaded=CO;loadUI();}},1500);
 const _ro=window.renderOwner;
 window.renderOwner=async function(){
   const r=await _ro.apply(this,arguments);
   try{ownerExtra();}catch(e){console.error(e);}
+  try{window.__ownRestore();}catch(e){}
   return r;
 };
 function ownerExtra(){
@@ -4846,7 +4959,7 @@ function ownerExtra(){
   d.innerHTML=`<h2>🎛 Personnalisation avancée de la plateforme ${typeof MULTI!=='undefined'&&MULTI?'':'<span class="b ENCOURS">mode simple</span>'}</h2>
   <p class="muted" style="font-size:12px">Ces réglages s'appliquent à l'entreprise active (et sont mémorisés sur cet appareil). ${typeof MULTI!=='undefined'&&MULTI?'':'Les onglets multi-entreprises n\'apparaissent pas : la table « entreprises » n\'est pas accessible à ce compte (vérifiez la base Supabase).'}</p>
   <div class="g">
-   <label>Nom affiché dans la barre<input id="u_brand" value="${ESC(UI.brand||'')}" placeholder="🏢 TERH — ACC"></label>
+   <label>Nom affiché dans la barre (vide = automatique : société mère › société cliente)<input id="u_brand" value="${ESC(UI.brand||'')}" placeholder="${ESC('🏢 '+((window.cabinetInfo&&cabinetInfo().all)||'TOTAL EMPLOI RH'))}"></label>
    <label>Couleur principale<input id="u_color" type="color" value="${ESC(UI.color||'#1f5fbf')}"></label>
    <label>Thème<select id="u_theme"><option value="">Automatique</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
    <label>Taille du texte (px)<input id="u_font" type="number" min="12" max="20" value="${ESC(UI.font||14)}"></label>
@@ -6345,7 +6458,7 @@ const RX=[
 [/🩺 (\d+) visite\(s\) médicale\(s\) expirée\(s\) à planifier\./g,'🩺 $1 medical visit(s) expired, to schedule.'],
 [/✅ J'ouvre « (.+?) »\. Dites « retour » pour revenir\./g,(m,k)=>'✅ Opening “'+(NAVEN[k]||k)+'”. Say “back” to return.'],
 [/^❌ IA locale : ([\s\S]*?) — utilisez 🩺 pour le diagnostic ou relancez le chat\./g,'❌ Local AI: $1 — use 🩺 for diagnostics or restart the chat.'],
-[/Utilisateur connecté : (.*?), rôle (Super Owner|Administrateur|Éditeur|Lecteur) sur PLATEFORME RH\./g,(m,n,r)=>'Signed-in user: '+n+', role '+(ROLEEN[r]||r)+' on the TOTAL EMPLOI RH platform.'],
+[/Utilisateur connecté : (.*?), rôle (Super Owner|Administrateur|Éditeur|Lecteur) sur PLATEFORME RH\./g,(m,n,r)=>'Signed-in user: '+n+', role '+(ROLEEN[r]||r)+' on the HR platform.'],
 [/La plateforme RH est la propriété de (.*?)\. Elle est utilisée par (.*?)\. Pour toute demande \(accès, bug, évolution\), contactez-le ou un administrateur\./g,'The HR platform is the property of $1. It is used by $2. For any request (access, bug, evolution), contact him or an administrator.'],
 [/☁️ (.+?) · chiffres globaux, sans noms/g,'☁️ $1 · overall figures, no names']
 ];
@@ -6495,11 +6608,13 @@ window.TERH_saveMyProfile=async function(fields){
 window.TERH_loadBanner=function(msg,retry){
   let b=document.getElementById('terhLoadBanner');
   if(!msg){if(b)b.remove();return;}
+  if(window.__bnDismiss===msg){if(b)b.remove();return;}
   if(!b){b=document.createElement('div');b.id='terhLoadBanner';b.setAttribute('data-notr','');
     b.style.cssText='position:sticky;top:0;z-index:9000;background:#5a3b0a;color:#fff;border:1px solid #f0b429;border-radius:8px;margin:8px;padding:10px 12px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
     const a=document.getElementById('app');if(a)a.insertBefore(b,a.firstChild);else document.body.prepend(b);}
-  b.innerHTML='<span style="flex:1;min-width:200px"></span>'+(retry?'<button class="s" type="button" id="terhLoadRetry">🔄 Réessayer</button>':'');
+  b.innerHTML='<span style="flex:1;min-width:200px"></span>'+(retry?'<button class="s" type="button" id="terhLoadRetry">🔄 Réessayer</button>':'')+'<button class="s" type="button" id="terhLoadClose" aria-label="Fermer" style="min-width:36px">✕</button>';
   b.firstChild.textContent=tr(msg);
+  const cl=document.getElementById('terhLoadClose');if(cl)cl.onclick=()=>{window.__bnDismiss=msg;b.remove();};
   const r=document.getElementById('terhLoadRetry');if(r)r.onclick=()=>{b.remove();try{loadAll();}catch(e){}};
 };
 
