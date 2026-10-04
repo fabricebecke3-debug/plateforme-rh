@@ -3,7 +3,7 @@
      la copie locale s'affiche aussitôt et la copie à jour est rangée pour la fois suivante.
    - Hors-ligne : copie locale en secours.
    - Jamais de cache pour Supabase ni pour les API (autre origine : données toujours à jour). */
-const V='terh-v6';
+const V='terh-v7';
 const SHELL=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'];
 const NAV_TIMEOUT=4000;
 self.addEventListener('install',e=>{
