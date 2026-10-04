@@ -2436,7 +2436,7 @@ const LOCAL_AI_OK=()=>{try{return localStorage.getItem('terh_ai_local')==='1';}c
 async function cloudDetail(e){let d=e.message||'erreur';try{if(e.context&&typeof e.context.json==='function'){const j=await e.context.json();d=(j.error||d)+(j.details?' ['+j.details.map(x=>x.provider+' : '+x.problem).join(' ; ')+']':'');}else if(e.context&&e.context.status)d+=' (HTTP '+e.context.status+')';}catch(_){}return d;}
 let cloudFail=0,cloudErr='';const CLOUD_AI_ON=()=>{try{return localStorage.getItem('terh_ai_cloud')!=='0';}catch(e){return true;}};const cloudReady=()=>CLOUD_AI_ON()&&Date.now()-cloudFail>300000;
 const ownerFacts=()=>{if(!isAdm())return '';try{const rc={};(ROLES||[]).forEach(r=>{rc[r.role]=(rc[r.role]||0)+1;});return ' Vue propriétaire/admin : '+(COS&&COS.length?COS.length+' société(s) ('+COS.map(c=>c.nom).join(', ')+')':'société unique')+'; société active : '+(curCo()?.nom||'—')+'; comptes utilisateurs par rôle : '+(Object.entries(rc).map(([k,v])=>k+' '+v).join(', ')||'n/a')+'; congés enregistrés : '+(CG||[]).length+' ('+(CG||[]).filter(c=>c.statut!=='Approuvé').length+' en attente ou refusés). Tu peux commenter, évaluer et proposer des améliorations de la plateforme à partir de ces éléments.';}catch(e){return '';}};
-const AI_DIRECT=' Tu peux aussi répondre aux questions de culture générale, de santé et d\'éducation (y compris l\'éducation sexuelle), de façon factuelle, sobre et respectueuse, pas seulement aux sujets RH. Réponds toujours directement et complètement : ne pose PAS de question de clarification (sauf si la demande est impossible à traiter sans elle), ne réoriente pas la conversation, ne propose pas de reformuler, ne dis jamais que tu manques d\'informations sur la plateforme.';
+const AI_DIRECT=' Faits sur cette plateforme (ne dis JAMAIS le contraire) : la conversation avec l\'assistant est enregistrée automatiquement dans le compte de l\'utilisateur et se retrouve sur son téléphone et son ordinateur (mise à jour toutes les 10 secondes environ, même compte, même société) ; sous chaque réponse, des boutons permettent de Copier, de créer un document Word, un PDF, un classeur Excel ou un fichier texte ; l\'utilisateur n\'a donc rien à faire de technique (ni API, ni export manuel). Si quelque chose ne s\'affiche pas, conseille de recharger la page (Ctrl+Maj+R) et de vérifier qu\'il est connecté au même compte et à la même société sur les deux appareils. Réponds toujours sur la plateforme elle-même, sans parler de « serveur de chat » ni d\'environnements séparés. Tu peux aussi répondre aux questions de culture générale, de santé et d\'éducation (y compris l\'éducation sexuelle), de façon factuelle, sobre et respectueuse, pas seulement aux sujets RH. Réponds toujours directement et complètement : ne pose PAS de question de clarification (sauf si la demande est impossible à traiter sans elle), ne réoriente pas la conversation, ne propose pas de reformuler, ne dis jamais que tu manques d\'informations sur la plateforme.';
 function ctxAgg(){const A=EN().filter(r=>r.sc!=='ARRÊT'),n=k=>A.filter(r=>r.t===k).length;return ownerSysShort()+ownerFacts()+AI_DIRECT+' '+`Effectif actif ${A.length} (${A.filter(r=>r.g==='F').length} femmes) : CDI ${n('CDI')}, CDD ${n('CDD')}, CTT ${n('TEMPORAIRE')}, occasionnels ${n('OCCASIONNEL')}. Contrats expirés ou à échéance sous 90 j : ${alerts(90).length}. CNPS en retard : ${A.filter(r=>r.cnpsRetard).length}. Visites médicales expirées : ${A.filter(r=>r.sv==='EXPIRÉE').length}. Suivi disciplinaire : ${DISC.length} dossier(s), ${DISC.filter(x=>x.status==='Demande d’explication').length} demande(s) en attente, ${DISC.filter(x=>x.sanction&&x.sanction!=='En attente').length} sanction(s).`;}
 function aiFacts(q,full){const f=[],RG={super_owner:'tous les droits (entreprises, utilisateurs, rôles, paramètres, discipline, historique, base de données, suppression)',admin:'tous les droits (paramètres, utilisateurs, discipline, historique, base de données, suppression)',editeur:'ajout/modification des employés, import Excel, congés, alertes ; pas de suppression, discipline ni paramètres',lecteur:'consultation seulement'};
   try{const h=helpAnswer(q);if(h)f.push('Aide plateforme : '+h);const c=companyAnswer(q);if(c)f.push('Informations société : '+c);f.push('Propriétaire et concepteur de la plateforme : '+OWNER.nom+', '+OWNER.titre+', '+OWNER.ville+'. '+OWNER.bio+(isAdm()?' Contact : '+OWNER.tel+' · '+OWNER.email+'.':' (coordonnées privées : ne pas les communiquer).')+((typeof webLine==='function'&&webLine('owner'))?' Infos web : '+webLine('owner'):''));}catch(e){}
@@ -2591,6 +2591,7 @@ const HELP=[
 ['Tableau de bord',/tableau|dashboard|indicateur|personnalis/,'Le tableau de bord résume l\'effectif, contrats, CNPS, visites, congés, dossiers en ligne. Admin : ✏️ Personnaliser (ordre, largeur, masquer, couleur, titre).'],
 ['Mot de passe / connexion',/mot de passe|connexion|connecter|oubli/,'Sur l\'écran de connexion : « Mot de passe oublié ? ». Un admin peut aussi envoyer un lien 🔑 ou un lien magique ✨ depuis Paramètres → Utilisateurs.'],
 ['Super Owner — diagnostic',/super owner|proprietaire|whoami|diag/,'Ouvrez la console (F12) et tapez diagSuperOwner() : le diagnostic vérifie la session, l\'utilisateur et le retour de whoami(). Le badge 👑 SUPER OWNER s\'affiche en haut à côté du nom de l\'application quand la reconnaissance est réussie.'],
+['Conversation, copie et export',/synchro|telephone|ordinateur|conversation|historique|copier|word|pdf|excel|export|bouton/,'• Votre conversation avec l\'assistant est enregistrée automatiquement dans votre compte et s\'affiche sur tous vos appareils (téléphone et ordinateur), avec le même compte et la même société. Mise à jour : environ 10 secondes, ou dès que vous revenez sur la fenêtre.\n• Sous chaque réponse : 📋 Copier, 📄 Word, 📕 PDF, 📊 Excel, 📝 Texte. Le bouton 📋 de la barre copie la dernière réponse (appui long = toute la conversation).\n• Rien à configurer. Si un appareil n\'est pas à jour : rechargez (Ctrl+Maj+R) et vérifiez le compte. Les comptes Lecteur n\'ont pas l\'export.'],
 ['Problème ? Que faire',/probleme|bug|ne marche|erreur|bloqu/,'1) Notez le message rouge affiché. 2) Rechargez la page. 3) Prévenez un admin : il dispose de la console 👑 Admin (diagnostic, données à corriger, journal d\'erreurs, rapport à copier, assistant IA admin).']
 ];
 function helpAnswer(q){
@@ -2808,7 +2809,7 @@ async function adminAI(mode){
     try{
       const out2=await aiEngine.chat.completions.create({
         messages:[
-          {role:'system',content:'Tu es l\'assistant administrateur de PLATEFORME RH.'+ownerSysShort()+' Tu analyses un diagnostic déjà établi et tu ajoutes UNIQUEMENT une section « 💡 Recommandations de l\'IA » avec 3 à 5 actions concrètes, priorisées, sans inventer de données. Réponds en français, ton professionnel et direct.'},
+          {role:'system',content:'Tu es l\'assistant administrateur de PLATEFORME RH.'+ownerSysShort()+' Tu analyses un diagnostic déjà établi et tu ajoutes UNIQUEMENT une section « 💡 Recommandations de l\'IA » avec 3 à 5 actions concrètes, priorisées, sans inventer de données. Réponds en français, ton professionnel et direct. N\'utilise jamais d\'astérisques ni de Markdown : texte simple, listes avec des tirets.'},
           {role:'user',content:'Diagnostic :\n'+rapport+'\n\nContexte : '+JSON.stringify(ctx)}
         ],temperature:0.2,max_tokens:600
       });
@@ -2816,7 +2817,7 @@ async function adminAI(mode){
       if(add)rapport+='\n\n'+add;
     }catch(e){rapport+='\n\n⚠️ IA locale indisponible pour l\'enrichissement : '+e.message;}
   }else{rapport+='\n\n💡 Astuce : chargez l\'assistant IA (bouton 🤖 en haut) pour obtenir des recommandations personnalisées supplémentaires.';}
-  txt.textContent=rapport;
+  txt.textContent=window.TERH_mdPlain?window.TERH_mdPlain(rapport):rapport;
 }
 function buildScanReport(ctx){
   const L=[];
@@ -6749,21 +6750,25 @@ const tr=s=>{try{return isEN()&&window.TERH_trText?window.TERH_trText(String(s))
   const bubbles=()=>[...document.querySelectorAll('#amg > div')];
   const isUser=d=>/flex-end/.test(d.style.cssText);
   const skip=t=>!t||/^(⏳|❌|⚠)/.test(t);
-  let tm=null;
+  let tm=null,lastSeen='';
+  const TOOLS_RX=/\s*📋\s*Copier\s*📄\s*Word\s*📕\s*PDF\s*📊\s*Excel\s*📝\s*Texte\s*$/;
+  const bodyTxt=d=>{if(d.dataset.raw)return d.dataset.raw.trim();const c=d.cloneNode(true);c.querySelectorAll('.aitools').forEach(x=>x.remove());return (c.textContent||'').replace(TOOLS_RX,'').trim();};
   async function save(){
     if(noTable||!MY_USER)return;
     let pend=null;const rows=[],marks=[];
     for(const d of bubbles()){
-      if(d.dataset.s)continue;const t=(d.textContent||'').trim();
+      if(d.dataset.s)continue;const t=bodyTxt(d);
       if(d.dataset.fr||d.dataset.en){d.dataset.s='1';continue;}
       if(isUser(d)){pend=d;continue;}
       if(skip(t))continue;
-      if(pend){const u=(pend.textContent||'').trim();if(u){rows.push({user_id:MY_USER.id,entreprise_id:CO||null,role:'user',content:u.slice(0,20000)},{user_id:MY_USER.id,entreprise_id:CO||null,role:'assistant',content:t.slice(0,20000)});}marks.push(pend);pend=null;}
+      if(pend){const u=bodyTxt(pend);if(u){rows.push({user_id:MY_USER.id,entreprise_id:CO||null,role:'user',content:u.slice(0,20000)},{user_id:MY_USER.id,entreprise_id:CO||null,role:'assistant',content:t.slice(0,20000)});}marks.push(pend);pend=null;}
       marks.push(d);
     }
     marks.forEach(d=>d.dataset.s='1');
     if(!rows.length)return;
-    try{const {error}=await db.from('ai_conversations').insert(rows);if(error){if(/ai_conversations|relation|schema cache/i.test(error.message))noTable=true;console.warn('[IA] historique non enregistré :',error.message);}}catch(e){console.warn(e);}
+    try{for(const r of rows){const {data:ins,error}=await db.from('ai_conversations').insert(r).select('created_at');
+      if(error){if(/ai_conversations|relation|schema cache/i.test(error.message))noTable=true;console.warn('[IA] historique non enregistré :',error.message);break;}
+      const c=ins&&ins[0]&&ins[0].created_at;if(c&&c>lastSeen)lastSeen=c;}}catch(e){console.warn(e);}
   }
   const box=document.getElementById('amg');
   if(box)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(save,1800);}).observe(box,{childList:true,subtree:true,characterData:true});
@@ -6771,16 +6776,37 @@ const tr=s=>{try{return isEN()&&window.TERH_trText?window.TERH_trText(String(s))
   async function loadHist(){
     const k=key();if(loadedFor===k||noTable||!MY_USER)return;loadedFor=k;
     try{
-      let q=db.from('ai_conversations').select('role,content').eq('user_id',MY_USER.id).order('created_at',{ascending:false}).limit(20);
+      let q=db.from('ai_conversations').select('role,content,created_at').eq('user_id',MY_USER.id).order('created_at',{ascending:false}).limit(20);
       q=CO?q.eq('entreprise_id',CO):q.is('entreprise_id',null);
       const {data,error}=await q;if(error){if(/ai_conversations|relation|schema cache/i.test(error.message))noTable=true;return;}
       if(key()!==k||!data||!data.length)return;
       if(bubbles().some(d=>isUser(d)))return;
       const rows=data.reverse();document.getElementById('amg').innerHTML='';
-      rows.forEach(r=>{const d=addMsg(r.role==='user'?'user':'assistant',r.content);if(d){d.dataset.s='1';d.dataset.h='1';}});
-      aiHistory=rows.slice(-8).map(r=>({role:r.role,content:r.content}));
+      rows.forEach(r=>{const d=addMsg(r.role==='user'?'user':'assistant',String(r.content||'').replace(TOOLS_RX,''));if(d){d.dataset.s='1';d.dataset.h='1';}});
+      aiHistory=rows.slice(-8).map(r=>({role:r.role,content:String(r.content||'').replace(TOOLS_RX,'')}));
+      lastSeen=rows[rows.length-1].created_at||lastSeen;
     }catch(e){console.warn(e);}
   }
+  /* synchronisation téléphone <-> ordinateur : récupère les nouveaux messages écrits sur un autre appareil */
+  let syncing=false;
+  async function syncHist(){
+    if(syncing||noTable||!MY_USER||!lastSeen||document.hidden)return;
+    const b=document.getElementById('amg');if(!b)return;
+    const last=b.lastElementChild;if(last&&/^⏳/.test((last.textContent||'').trim()))return;
+    syncing=true;const k=key();
+    try{
+      let q=db.from('ai_conversations').select('role,content,created_at').eq('user_id',MY_USER.id).gt('created_at',lastSeen).order('created_at',{ascending:true}).limit(50);
+      q=CO?q.eq('entreprise_id',CO):q.is('entreprise_id',null);
+      const {data,error}=await q;if(error||key()!==k||!data||!data.length)return;
+      data.forEach(r=>{const t=String(r.content||'').replace(TOOLS_RX,'');const d=addMsg(r.role==='user'?'user':'assistant',t);if(d)d.dataset.s='1';
+        try{aiHistory.push({role:r.role,content:t});}catch(e){}
+        if(r.created_at>lastSeen)lastSeen=r.created_at;});
+      try{aiHistory=aiHistory.slice(-8);}catch(e){}
+    }catch(e){console.warn(e);}finally{syncing=false;}
+  }
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncHist();});
+  window.addEventListener('focus',syncHist);
+  setInterval(syncHist,10000);
   const ab=document.getElementById('aib');if(ab)ab.addEventListener('click',()=>setTimeout(loadHist,80));
 
   if(box&&!document.getElementById('aclr')){
@@ -6901,16 +6927,17 @@ window.TERH_makeDoc=makeDoc;
 /* ---------- boutons sous chaque réponse de l'IA ---------- */
 function isAI(d){return d&&d.parentNode&&d.parentNode.id==='amg'&&/flex-start/.test(d.style.cssText);}
 async function copyTxt(t){try{await navigator.clipboard.writeText(t);T('📋 Réponse copiée');}catch(e){try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();T('📋 Réponse copiée');}catch(x){T('Copie impossible : sélectionnez le texte puis Ctrl+C');}}}
+function rawOf(d){return d.dataset.raw?d.dataset.raw:textOf(d);}
 function textOf(d){const c=d.cloneNode(true);c.querySelectorAll('.aitools').forEach(x=>x.remove());return c.textContent.trim();}
-function decorate(d){if(!isAI(d)||d.dataset.tools==='1')return;const t=textOf(d);if(!t||/^(⏳|❌|⚠)/.test(t)||t.length<15||d.dataset.h)return;
+function decorate(d){if(!isAI(d)||d.dataset.tools==='1')return;const t=textOf(d);if(!t||/^(⏳|❌|⚠)/.test(t)||t.length<15)return;
  d.dataset.tools='1';d.style.userSelect='text';d.style.webkitUserSelect='text';
  const bar=document.createElement('div');bar.className='aitools';bar.setAttribute('data-notx','1');
  const btn=(l,tt,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.title=tt;b.onclick=e=>{e.stopPropagation();fn();};bar.appendChild(b);};
  btn('📋 Copier','Copier cette réponse',()=>copyTxt(textOf(d)));
- btn('📄 Word','Créer un document Word (.docx)',()=>makeDoc(textOf(d),'docx'));
- btn('📕 PDF','Créer un PDF',()=>makeDoc(textOf(d),'pdf'));
- btn('📊 Excel','Créer un classeur Excel (.xlsx)',()=>makeDoc(textOf(d),'xlsx'));
- btn('📝 Texte','Enregistrer en .txt',()=>makeDoc(textOf(d),'txt'));
+ btn('📄 Word','Créer un document Word (.docx)',()=>makeDoc(rawOf(d),'docx'));
+ btn('📕 PDF','Créer un PDF',()=>makeDoc(rawOf(d),'pdf'));
+ btn('📊 Excel','Créer un classeur Excel (.xlsx)',()=>makeDoc(rawOf(d),'xlsx'));
+ btn('📝 Texte','Enregistrer en .txt',()=>makeDoc(rawOf(d),'txt'));
  d.appendChild(bar);}
 const css=document.createElement('style');css.textContent=`
 #ai{min-height:24px!important;height:auto;max-height:110px!important;overflow-y:auto}
@@ -6921,6 +6948,49 @@ const css=document.createElement('style');css.textContent=`
 .aitools button:hover{opacity:1;border-color:var(--ac)}
 body.viewer-lock .aitools{display:none}`;document.head.appendChild(css);
 const amg=()=>$('amg');
+
+/* ---------- affichage propre des réponses de l'IA : plus de ** ni de # visibles ---------- */
+(function(){
+  const E=x=>x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const MDRX=/\*\*|__\S|^\s{0,3}#{1,6}\s|^\s*[*+-]\s+\S|`|^\s*\|.*\|\s*$|(^|[^\w*])\*[^*\s][^*\n]*\*(?![\w*])/m;
+  function lines(raw,html){
+    const out=[];
+    for(let l of String(raw).replace(/\r/g,'').split('\n')){
+      if(/^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(l)&&/-/.test(l))continue;          /* ligne de séparation de tableau */
+      if(/^\s*([-*_])\1{2,}\s*$/.test(l)){out.push('');continue;}              /* trait horizontal */
+      let m;
+      if((m=l.match(/^\s{0,3}#{1,6}\s+(.*)$/))){out.push(html?'<b style="font-size:1.06em">'+m[1]+'</b>':m[1]);continue;}
+      if((m=l.match(/^(\s*)[*+-]\s+(.*)$/))){l=m[1]+'• '+m[2];}
+      if(/^\s*\|.*\|\s*$/.test(l)){l=l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim()).join('  |  ');}
+      out.push(l);
+    }
+    return out;
+  }
+  function inline(t,html){
+    if(html){
+      t=t.replace(/\*\*\*([^*\n]+?)\*\*\*/g,'<b><i>$1</i></b>').replace(/\*\*([^*\n]+?)\*\*/g,'<b>$1</b>').replace(/__([^_\n]+?)__/g,'<b>$1</b>')
+         .replace(/(^|[^\w*])\*([^*\s][^*\n]*?)\*(?![\w*])/g,'$1<i>$2</i>').replace(/`([^`\n]+)`/g,'<code>$1</code>');
+    }else{
+      t=t.replace(/\*\*\*([^*\n]+?)\*\*\*/g,'$1').replace(/\*\*([^*\n]+?)\*\*/g,'$1').replace(/__([^_\n]+?)__/g,'$1')
+         .replace(/(^|[^\w*])\*([^*\s][^*\n]*?)\*(?![\w*])/g,'$1$2').replace(/`([^`\n]+)`/g,'$1');
+    }
+    return t.replace(/\*\*/g,'');
+  }
+  window.TERH_mdHtml=raw=>{const L=lines(E(String(raw)),true);return inline(L.join('\n'),true);};
+  window.TERH_mdPlain=raw=>inline(lines(String(raw),false).join('\n'),false).replace(/\n{3,}/g,'\n\n');
+  window.TERH_hasMd=t=>MDRX.test(t);
+  function fmt(d){
+    if(!isAI(d)||d.children.length)return;
+    const t=d.textContent;if(!t)return;
+    if(/^(⏳|❌|⚠|🌐)/.test(t)){delete d.dataset.raw;return;}
+    if(MDRX.test(t)){d.dataset.raw=t;d.innerHTML=window.TERH_mdHtml(t);}
+    else delete d.dataset.raw;
+  }
+  function start(){const b=document.getElementById('amg');if(!b||b._fm)return;b._fm=1;let tm=null;
+    const run=()=>{[...b.children].forEach(fmt);};
+    new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(run,60);}).observe(b,{childList:true,subtree:true,characterData:true});run();}
+  setInterval(start,1000);
+})();
 function watch(){const b=amg();if(!b||b._tw)return;b._tw=1;let tm=null;
  new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(()=>{[...b.children].forEach(d=>{if(d.dataset.tools==='1'){const t=d.querySelector('.aitools');const body=textOf(d);if(!t)d.dataset.tools='';}decorate(d);});},700);}).observe(b,{childList:true,subtree:true,characterData:true});}
 setInterval(watch,1500);
@@ -6934,7 +7004,7 @@ window.TERH_wantsDoc=q=>DOCRX.test(q)&&VERB.test(q);
 window.TERH_styleDirective=function(q){let voice=false;try{voice=!!(voiceTurn||convo);}catch(e){}
  let s='Parle comme une vraie personne, chaleureuse et naturelle, qui tutoie ou vouvoie comme l\'utilisateur ; tiens compte de tout ce qui a été dit avant ; ne répète pas la question ; pas de formules robotiques.';
  if(voice)s+=' Ceci est une conversation vocale : réponds en 1 à 3 phrases courtes, sans liste, sans symboles ni Markdown, comme au téléphone, puis relance brièvement si utile.';
- else s+=' Réponds de façon claire et directe ; ne fais des listes que si elles aident.';
+ else s+=' Réponds de façon claire et directe ; ne fais des listes que si elles aident. N\'écris jamais d\'astérisques ni de symboles Markdown (** , __ , #) : texte simple, listes avec des tirets, titres en MAJUSCULES ou suivis de deux-points.';
  if(window.TERH_wantsDoc(q))s+=' L\'utilisateur demande un DOCUMENT : rédige directement le document complet et prêt à l\'emploi (titre en "# ", sections en "## ", listes avec "- ", tableaux Markdown avec |), sans introduction ni explication autour ; termine par une seule phrase disant qu\'il peut le télécharger en Word, PDF, Excel ou texte avec les boutons sous la réponse.';
  return s;};
 /* création automatique du fichier quand le format est cité dans la demande */
@@ -6943,7 +7013,7 @@ let lastQ='';const ow=window.askAI;
 window.askAI=async function(){try{const v=($('ai').value||'').trim();if(v){lastQ=v;try{window.TERH_cutSpeech&&window.TERH_cutSpeech();}catch(e){}}}catch(e){}
  const q=lastQ,f=wantedFmt(q),want=window.TERH_wantsDoc(q);const n0=amg().children.length;
  const r=await ow.apply(this,arguments);
- if(want&&f){let tries=0;const iv=setInterval(()=>{tries++;const L=[...amg().children].slice(n0).reverse().find(d=>isAI(d)&&!/^(⏳|❌|⚠)/.test(textOf(d)));const sb=$('asend');if(L&&textOf(L).length>40&&sb&&!sb.disabled){clearInterval(iv);setTimeout(()=>{makeDoc(textOf(L),f);},900);}if(tries>240)clearInterval(iv);},1000);}
+ if(want&&f){let tries=0;const iv=setInterval(()=>{tries++;const L=[...amg().children].slice(n0).reverse().find(d=>isAI(d)&&!/^(⏳|❌|⚠)/.test(textOf(d)));const sb=$('asend');if(L&&textOf(L).length>40&&sb&&!sb.disabled){clearInterval(iv);setTimeout(()=>{makeDoc(rawOf(L),f);},900);}if(tries>240)clearInterval(iv);},1000);}
  return r;};
 })();
 
