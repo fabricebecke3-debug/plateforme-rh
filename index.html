@@ -75,7 +75,8 @@ tr:hover td{background:color-mix(in srgb,var(--ac) 4%,var(--card))}
 #lt{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);overflow:auto;z-index:10;padding:16px}
 #lt.on{display:block}
 .ctl{max-width:800px;margin:0 auto 10px;background:var(--card);border-radius:12px;padding:12px;display:flex;gap:8px;flex-wrap:wrap}
-.paper{width:210mm;min-height:297mm;margin:0 auto;background:#fff;color:#000;padding:150px 22mm 110px 22mm;font:13pt/1.42 'Times New Roman',Times,serif;box-sizing:border-box;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.paper{position:relative;width:210mm;min-height:297mm;margin:0 auto;background:#fff;color:#000;padding:150px 22mm 110px 22mm;font:13pt/1.42 'Times New Roman',Times,serif;box-sizing:border-box;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.pcover{position:absolute;top:8mm;left:0;right:0;text-align:center;pointer-events:none}.pcover img{max-width:80%;max-height:32mm;object-fit:contain}
 .paper h3{text-align:center;text-decoration:underline;text-underline-offset:8px;text-decoration-thickness:2px;margin:0 0 26px 0;font-size:19pt;font-weight:900;letter-spacing:2px}
 .paper p{margin:0 0 11px 0;text-align:justify;line-height:1.5}
 .paper.cert{font:14pt/1.15 'Times New Roman',Times,serif;letter-spacing:1pt}
@@ -383,10 +384,11 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   <h1>⚙️ Paramètres</h1>
   <div class="tabs" id="ptabs">
     <button data-t="soc" class="on">🏢 Société</button>
-    <button data-t="let">📝 Lettre</button><button data-t="de">⚖️ Modèle DE</button><button data-t="doc">📎 Documents</button>
+    <button data-t="let">📝 Lettre</button><button data-t="ent">🖼️ En-tête lettres</button><button data-t="de">⚖️ Modèle DE</button><button data-t="san">🚫 Modèle Sanction</button><button data-t="doc">📎 Documents</button>
     <button data-t="cert">📜 Certificat</button>
     <button data-t="sig">✍️ Signatures</button><button data-t="usr">👥 Utilisateurs</button>
   </div>
+  <div class="pane" id="pane-ent" style="display:none"></div>
   <div class="pane" id="pane-soc">
     <div class="fm" style="max-width:900px">
       <label>Nom société<input id="psoc"></label><label>Ville<input id="plieu"></label>
@@ -726,7 +728,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{const {data,error}=await db.from('entreprises').select('*').order('created_at');if(error)throw error;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){MULTI=isOwnerUser()?false:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','dash','alert_jours','contrats_hist','owner_json','web_json','ui_texts_json','signatures_json'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','owner_json','web_json','ui_texts_json','signatures_json'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -749,7 +751,7 @@ async function needLibs(ex){
 }
 function printHTML(title,body,css=''){
   try{body=sigInject(title,body);}catch(e){}
-  try{const _c=curCo();if(_c&&_c.cover_url&&!/^Rapport|^Alertes/.test(title))body='<div style="text-align:center;margin:-6mm 0 8mm"><img src="'+esc(_c.cover_url)+'" style="max-width:100%;max-height:32mm;object-fit:contain"></div>'+body;}catch(e){}
+  try{const _u=coverUrl();if(_u&&!/^(Rapport|Alertes|Lettres de fin|Certificats de travail)/.test(title))body='<div style="text-align:center;margin:-6mm 0 8mm"><img src="'+esc(_u)+'" style="max-width:100%;max-height:32mm;object-fit:contain"></div>'+body;}catch(e){}
   const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);
   const d=f.contentWindow.document;d.open();
   const H=('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;font-size:12px;color:#000}h2{color:#1f5fbf;margin:0 0 4px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:5px;text-align:left}th{background:#1f5fbf;color:#fff}tr{page-break-inside:avoid}thead{display:table-header-group}'+css+'</style></head><body>'+body+'</body></html>');
@@ -878,7 +880,7 @@ const prof=r=>{const p=r.t==='CDI'||r.darret?null:periode(r.deb);return '• '+r
 /* ============ TEMPLATES ============ */
 const TPL_LET=`<!--v3--><p style="text-align:right;margin:0 0 18px">{{LIEU}}, le {{DATE_DOC}}</p>
 <table style="width:100%;border:0;border-collapse:collapse;margin:0 0 20px"><tr>
-<td style="border:0;padding:0;width:50%;vertical-align:top;font-size:11pt;line-height:1.5;text-align:left"><b>{{SOCIETE}}</b><br>Direction des Ressources Humaines<br>{{ADRESSE}}</td>
+<td style="border:0;padding:0;width:50%;vertical-align:top;font-size:11pt;line-height:1.5;text-align:left">{{ENTETE_BLOC}}</td>
 <td style="border:0;padding:0;width:50%;vertical-align:top;font-size:12pt;line-height:1.5;text-align:left;padding-left:12%">À l'attention de :<br><b>{{CIVILITE}} {{NOM}}</b><br>{{POSTE}}<br>N° CNPS : {{CNPS}}</td></tr></table>
 <h3 style="font-size:15pt;letter-spacing:0;font-weight:700;margin:0 0 16px">NOTIFICATION DE FIN DE CONTRAT</h3>
 <p style="margin:0 0 14px"><b><u>Objet</u> :</b> fin de contrat et démobilisation</p>
@@ -950,7 +952,7 @@ const AI_SIZES={xs:{m:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',l:'Très léger',mb:'�
 const AI_SIZE_NOW=()=>{try{const v=localStorage.getItem('terh_ai_size');if(AI_SIZES[v])return v;const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),mem=navigator.deviceMemory||0;return (mobile||(mem&&mem<=4))?'xs':'s';}catch(e){return 's';}};
 const AI_LIST=k=>{const order={xs:['xs'],s:['s','xs'],m:['m','s','xs']}[k]||['s','xs'];return order.map(x=>AI_SIZES[x].m).concat(['Llama-3.2-1B-Instruct-q4f16_1-MLC']);};
 const AI_MODELS=AI_LIST(AI_SIZE_NOW());
-let PARAMS={soc:'TOTAL EMPLOI RH',lieu:'Kribi',tel:'233 43 83 07 / 673 72 23 41 / 697 44 11 58',email:'info@total-emploirh.com',sig:'',fn:'Responsable des Ressources Humaines',client:'ACC',adresse:'B.P 12561 Douala - CAMEROUN',tpl_let:TPL_LET,tpl_cert:TPL_CERT,tpl_de:'',tpl_sanction:'',dash:'',alert_mails:'',alert_jours:'30',last_mail:'',ntfy_topic:'',tg_token:'',tg_chat:'',wa_num:'',auto_push:'',last_push:'',contrats_hist:'',discipline_json:'[]',documents_json:'[]',owner_json:'',web_json:'',ui_texts_json:'[]'};
+let PARAMS={soc:'TOTAL EMPLOI RH',lieu:'Kribi',tel:'233 43 83 07 / 673 72 23 41 / 697 44 11 58',email:'info@total-emploirh.com',sig:'',fn:'Responsable des Ressources Humaines',client:'ACC',adresse:'B.P 12561 Douala - CAMEROUN',tpl_let:TPL_LET,tpl_cert:TPL_CERT,tpl_de:'',tpl_sanction:'',ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',dash:'',alert_mails:'',alert_jours:'30',last_mail:'',ntfy_topic:'',tg_token:'',tg_chat:'',wa_num:'',auto_push:'',last_push:'',contrats_hist:'',discipline_json:'[]',documents_json:'[]',owner_json:'',web_json:'',ui_texts_json:'[]'};
 
 let _ENcache=null,_ENver=0,_ENlast=-1;
 function bumpEN(){_ENver++;}
@@ -1161,6 +1163,7 @@ async function loadAll(){
   if(!PARAMS_DEF)PARAMS_DEF={...PARAMS};else Object.assign(PARAMS,PARAMS_DEF);
   {const c=curCo();if(c)Object.assign(PARAMS,{soc:c.nom,client:c.client||c.nom,lieu:c.ville||'',tel:c.tel||'',email:c.email||'',adresse:c.adresse||'',sig:'',fn:'Responsable des Ressources Humaines'});}
   (par.data||[]).forEach(r=>{if(r.cle in PARAMS&&r.valeur!=null)PARAMS[r.cle]=r.valeur;});
+  try{const _co=curCo();if(_co&&_co.groupe_id&&_co.type_entreprise!=='groupe'){const own=new Set((par.data||[]).filter(r=>r.valeur!=null&&String(r.valeur).trim()!=='').map(r=>r.cle));const mk=['tpl_let','tpl_cert','tpl_de','tpl_sanction'].filter(k=>k in PARAMS&&!own.has(k));if(mk.length){const pr=await db.from('parametres').select('cle,valeur').eq('entreprise_id',_co.groupe_id).in('cle',mk);(pr.data||[]).forEach(r=>{if(r.valeur!=null&&String(r.valeur).trim()!=='')PARAMS[r.cle]=r.valeur;});}}}catch(e){}
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<h3>Objet : Notification de fin de contrat et démobilisation</h3>')&&!PARAMS.tpl_let.includes('<!--v2-->'))PARAMS.tpl_let=TPL_LET;
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<!--v2-->')&&!PARAMS.tpl_let.includes('<!--v3-->')&&PARAMS.tpl_let.includes('Nous faisons référence à votre {{TYPE_CONTRAT}}, à effet du'))PARAMS.tpl_let=TPL_LET;
   if(PARAMS.tpl_let)PARAMS.tpl_let=cutAfterDir(PARAMS.tpl_let);
@@ -1816,17 +1819,18 @@ function fillParamsUI(){
 $('ptl').oninput=()=>updatePreviews();$('ptc').oninput=()=>updatePreviews();
 const SAMPLE={n:'AKAM Samuel Lionel',p:'Opérateur Conditionnement',g:'M',dn:'1985-03-15',t:'CDD',deb:'2025-01-24',fin:'',tel:'690123456',cnps:'392-1042041-3'};
 function renderTemplate(tpl,r,extras){
+  tpl=entLegacy(tpl);
   let finCalculee=r.fin;if(!finCalculee&&r.deb&&r.t!=='CDI')finCalculee=calcFin(r.deb);
   const f=r.g==='F',civ=f?'Madame':'Monsieur',e=f?'e':'',ilElle=f?'Elle':'Il';
   const dd=$('ld').value||LD(T),da=extras.demob||r.darret||finCalculee,du=dureeMois(r.deb,da);
   const mt=r.marret?r.marret+(r.comarret?' — '+r.comarret:''):'Fin normale du contrat';
-  const v={CIVILITE:civ,NOM:esc(r.n),POSTE:esc(r.p)||'…',DATE_NAISSANCE:r.dn?FL(r.dn):'…',AGE:r.age!=null?r.age:'…',E:e,IL_ELLE:ilElle,TYPE_CONTRAT:r.t==='CDI'?'Contrat à Durée Indéterminée (CDI)':r.t==='TEMPORAIRE'?'Contrat de Travail Temporaire':r.t==='OCCASIONNEL'?'Contrat occasionnel':'Contrat à Durée Déterminée (CDD)',DATE_DEBUT:FL(extras.deb||r.deb),DATE_FIN:r.t==='CDI'&&!r.darret?'—':FL(finCalculee),DATE_ARRET:FL(da),MOTIF:esc(mt),COMMENTAIRE:esc(r.comarret||''),DUREE:du!=null?du:'—',DATE_DEMOBILISATION:FL(extras.demob||da||''),DATE_DOC:FL(dd),DATE_DOC_C:FLC(dd),DATE_DEBUT_C:FLC(extras.deb||r.deb),DATE_ARRET_C:FLC(da),CNPS:esc(r.cnps)||'…',TELEPHONE:esc(r.tel)||'…',SOCIETE:esc(PARAMS.soc)||'…',LIEU:esc(PARAMS.lieu)||'…',SIGNATAIRE:esc(PARAMS.sig)||'…',FONCTION:esc(PARAMS.fn)||'…',CLIENT:esc(PARAMS.client)||'…',ADRESSE:esc(PARAMS.adresse)||'',CATEGORIE:$('lcat').value.trim()?', <b>'+esc($('lcat').value.trim())+'</b>':''};
+  const v={CIVILITE:civ,NOM:esc(r.n),POSTE:esc(r.p)||'…',DATE_NAISSANCE:r.dn?FL(r.dn):'…',AGE:r.age!=null?r.age:'…',E:e,IL_ELLE:ilElle,TYPE_CONTRAT:r.t==='CDI'?'Contrat à Durée Indéterminée (CDI)':r.t==='TEMPORAIRE'?'Contrat de Travail Temporaire':r.t==='OCCASIONNEL'?'Contrat occasionnel':'Contrat à Durée Déterminée (CDD)',DATE_DEBUT:FL(extras.deb||r.deb),DATE_FIN:r.t==='CDI'&&!r.darret?'—':FL(finCalculee),DATE_ARRET:FL(da),MOTIF:esc(mt),COMMENTAIRE:esc(r.comarret||''),DUREE:du!=null?du:'—',DATE_DEMOBILISATION:FL(extras.demob||da||''),DATE_DOC:FL(dd),DATE_DOC_C:FLC(dd),DATE_DEBUT_C:FLC(extras.deb||r.deb),DATE_ARRET_C:FLC(da),CNPS:esc(r.cnps)||'…',TELEPHONE:esc(r.tel)||'…',SOCIETE:esc(PARAMS.soc)||'…',LIEU:esc(PARAMS.lieu)||'…',SIGNATAIRE:esc(PARAMS.sig)||'…',FONCTION:esc(PARAMS.fn)||'…',CLIENT:esc(PARAMS.client)||'…',ADRESSE:esc(PARAMS.adresse)||'',ENTETE_BLOC:entHeaderHTML(),SERVICE:esc(entGet('ent_service')),SOCIETE_MERE:esc(entInfo().mere),CATEGORIE:$('lcat').value.trim()?', <b>'+esc($('lcat').value.trim())+'</b>':''};
   return tpl.replace(/\{\{(\w+)\}\}/g,(m,k)=>v[k]!=null?v[k]:m).replace(/,\s*nées? le <b>…<\/b>,?/g,'');
 }
 function updatePreviews(){
   const base=en(SAMPLE);let finCalculee=base.fin;if(!finCalculee&&base.deb&&base.t!=='CDI')finCalculee=calcFin(base.deb);
   const r={...base,fin:finCalculee};const dd=LD(T),f=r.g==='F',e=f?'e':'',ilElle=f?'Elle':'Il';
-  const rd=tpl=>tpl.replace(/\{\{(\w+)\}\}/g,(m,k)=>{const v={CIVILITE:f?'Madame':'Monsieur',NOM:esc(r.n),POSTE:esc(r.p),DATE_NAISSANCE:FL(r.dn),AGE:r.age,E:e,IL_ELLE:ilElle,TYPE_CONTRAT:r.t==='CDI'?'Contrat à Durée Indéterminée (CDI)':r.t==='TEMPORAIRE'?'Contrat de Travail Temporaire':r.t==='OCCASIONNEL'?'Contrat occasionnel':'Contrat à Durée Déterminée (CDD)',DATE_DEBUT:FL(r.deb),DATE_FIN:FL(finCalculee),DATE_ARRET:FL(r.darret||finCalculee),MOTIF:'Fin normale du contrat',COMMENTAIRE:'',DUREE:dureeMois(r.deb,r.darret||finCalculee)||'—',DATE_DEMOBILISATION:FL(finCalculee),DATE_DOC:FL(dd),DATE_DOC_C:FLC(dd),DATE_DEBUT_C:FLC(r.deb),DATE_ARRET_C:FLC(r.darret||finCalculee),CNPS:esc(r.cnps),TELEPHONE:esc(r.tel),SOCIETE:esc(PARAMS.soc||''),LIEU:esc(PARAMS.lieu||'Kribi'),SIGNATAIRE:esc(PARAMS.sig||''),FONCTION:esc(PARAMS.fn||''),CLIENT:esc(PARAMS.client||'ACC'),ADRESSE:esc(PARAMS.adresse||''),CATEGORIE:', <b>catégorie 4 échelon A</b>'};return v[k]!=null?v[k]:m;});
+  const rd=tpl=>entLegacy(tpl).replace(/\{\{(\w+)\}\}/g,(m,k)=>{const v={CIVILITE:f?'Madame':'Monsieur',NOM:esc(r.n),POSTE:esc(r.p),DATE_NAISSANCE:FL(r.dn),AGE:r.age,E:e,IL_ELLE:ilElle,TYPE_CONTRAT:r.t==='CDI'?'Contrat à Durée Indéterminée (CDI)':r.t==='TEMPORAIRE'?'Contrat de Travail Temporaire':r.t==='OCCASIONNEL'?'Contrat occasionnel':'Contrat à Durée Déterminée (CDD)',DATE_DEBUT:FL(r.deb),DATE_FIN:FL(finCalculee),DATE_ARRET:FL(r.darret||finCalculee),MOTIF:'Fin normale du contrat',COMMENTAIRE:'',DUREE:dureeMois(r.deb,r.darret||finCalculee)||'—',DATE_DEMOBILISATION:FL(finCalculee),DATE_DOC:FL(dd),DATE_DOC_C:FLC(dd),DATE_DEBUT_C:FLC(r.deb),DATE_ARRET_C:FLC(r.darret||finCalculee),CNPS:esc(r.cnps),TELEPHONE:esc(r.tel),SOCIETE:esc(PARAMS.soc||''),LIEU:esc(PARAMS.lieu||'Kribi'),SIGNATAIRE:esc(PARAMS.sig||''),FONCTION:esc(PARAMS.fn||''),CLIENT:esc(PARAMS.client||'ACC'),ADRESSE:esc(PARAMS.adresse||''),ENTETE_BLOC:entHeaderHTML(),SERVICE:esc(entGet('ent_service')),SOCIETE_MERE:esc(entInfo().mere),CATEGORIE:', <b>catégorie 4 échelon A</b>'};return v[k]!=null?v[k]:m;});
   if($('pv-let'))$('pv-let').innerHTML=rd(cutAfterDir($('ptl').value||TPL_LET));
   if($('pv-cert'))$('pv-cert').innerHTML=rd($('ptc').value||TPL_CERT);
 }
@@ -1904,7 +1908,7 @@ document.addEventListener('click',async e=>{
 });
 
 /* ============ DOCUMENTS ============ */
-function draw(){if(!LR)return;const r=LR;const tpl=DOC_TYPE==='lettre'?cutAfterDir(PARAMS.tpl_let||TPL_LET):(PARAMS.tpl_cert||TPL_CERT);$('pp').className='paper'+(DOC_TYPE==='certificat'?' cert':'');$('pp').innerHTML=renderTemplate(tpl,r,{demob:$('lm').value,deb:$('ldb').value});fitPaper();}
+function draw(){if(!LR)return;const r=LR;const tpl=DOC_TYPE==='lettre'?cutAfterDir(PARAMS.tpl_let||TPL_LET):(PARAMS.tpl_cert||TPL_CERT);$('pp').className='paper'+(DOC_TYPE==='certificat'?' cert':'');$('pp').innerHTML=coverTag()+renderTemplate(tpl,r,{demob:$('lm').value,deb:$('ldb').value});fitPaper();}
 function openDoc(r,t){LR=r;DOC_TYPE=t;$('ll').value=PARAMS.lieu||'';$('lcat').value='';$('lg').value=PARAMS.sig||'';$('lf').value=PARAMS.fn||'';$('ld').value=LD(T);$('ldb').value=r.deb||'';$('lm').value=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):'');$('lt').classList.add('on');draw();}
 $('ld').oninput=$('lm').oninput=$('ldb').oninput=$('lcat').oninput=()=>draw();
 $('ll').oninput=()=>{PARAMS.lieu=$('ll').value;draw();};
@@ -1926,12 +1930,12 @@ function batchPrint(kind){
   try{
     $('ld').value=LD(T);$('lm').value='';$('lcat').value='';
     const tpl=cert?(PARAMS.tpl_cert||TPL_CERT):cutAfterDir(PARAMS.tpl_let||TPL_LET);
-    pg=a.map(r=>'<div class="pg'+(cert?' cert':'')+'">'+renderTemplate(tpl,r,{demob:'',deb:''})+'</div>').join('');
+    pg=a.map(r=>'<div class="pg'+(cert?' cert':'')+'">'+coverTag()+renderTemplate(tpl,r,{demob:'',deb:''})+'</div>').join('');
   }catch(e){toast('Erreur : '+e.message);return;}
   finally{$('ld').value=sv.ld;$('lm').value=sv.lm;$('lcat').value=sv.lc;}
   const fit='<script>(function(){var L=document.querySelectorAll(".pg");for(var i=0;i<L.length;i++){var p=L[i],s=p.classList.contains("cert")?14:12;p.style.fontSize=s+"pt";while(p.scrollHeight>p.clientHeight+2&&s>8){s-=.25;p.style.fontSize=s+"pt";}}})();<\/script>';
   const css='@page{size:A4;margin:0}html,body{margin:0;padding:0}.pg{break-after:page;page-break-after:always;padding:150px 22mm 110px;height:296mm;overflow:hidden;box-sizing:border-box;font:12pt/1.42 "Times New Roman",Times,serif;color:#000}.pg:last-of-type{break-after:auto;page-break-after:auto}.pg h3{text-align:center;text-decoration:underline;font-size:20pt}.pg p{text-align:justify;margin:0 0 14px}'
-   +'.pg.cert{font:14pt/1.15 "Times New Roman",Times,serif;letter-spacing:1pt}.pg.cert h3{font-size:18pt;font-weight:bold;letter-spacing:0;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;line-height:1.5;margin:38px 0 56px}.pg.cert p{margin:0;line-height:1.15;text-align:justify}.pg.cert p.gap{height:1.15em}.pg.cert p.sgn{margin:4.6em 0 0 50%;white-space:nowrap;font-size:12pt;letter-spacing:.5pt;text-align:left}.pg.cert p.sgn2{margin:3.4em 0 0 50%;font-size:12pt;letter-spacing:.5pt;text-align:left}';
+   +'.pg.cert{font:14pt/1.15 "Times New Roman",Times,serif;letter-spacing:1pt}.pg.cert h3{font-size:18pt;font-weight:bold;letter-spacing:0;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;line-height:1.5;margin:38px 0 56px}.pg.cert p{margin:0;line-height:1.15;text-align:justify}.pg.cert p.gap{height:1.15em}.pg.cert p.sgn{margin:4.6em 0 0 50%;white-space:nowrap;font-size:12pt;letter-spacing:.5pt;text-align:left}.pg.cert p.sgn2{margin:3.4em 0 0 50%;font-size:12pt;letter-spacing:.5pt;text-align:left}.pg{position:relative}.pcover{position:absolute;top:8mm;left:0;right:0;text-align:center}.pcover img{max-width:80%;max-height:32mm;object-fit:contain}';
   printHTML(cert?'Certificats de travail':'Lettres de fin de contrat',pg+fit,css);
 }
 $('prlt').onclick=()=>batchPrint('lettre');
@@ -2560,11 +2564,12 @@ function sigInit(){sigRender();sigPrev();sigWarm(sigLoad()).then(sigRender);if(S
 document.querySelectorAll('#ptabs button').forEach(b=>b.addEventListener('click',()=>{
   if(!CAN.params()||(MY_ROLE!=='admin'&&MY_ROLE!=='super_owner')){toast('🔒 Réservé à l\'administrateur');return;}
   document.querySelectorAll('#ptabs button').forEach(x=>x.classList.toggle('on',x===b));
-  document.querySelectorAll('#pane-soc,#pane-let,#pane-cert,#pane-de,#pane-san,#pane-doc,#pane-usr,#pane-sig').forEach(p=>p.style.display='none');
+  document.querySelectorAll('#pane-soc,#pane-let,#pane-cert,#pane-de,#pane-san,#pane-doc,#pane-usr,#pane-sig,#pane-ent').forEach(p=>p.style.display='none');
   const id='pane-'+b.dataset.t;
   if($(id))$(id).style.display='';
   if(b.dataset.t==='de')$('ptde').value=PARAMS.tpl_de||deTemplateDefault();
   if(b.dataset.t==='san')$('ptsan').value=PARAMS.tpl_sanction||sanctionTemplateDefault();
+  if(b.dataset.t==='ent')entMount('pane-ent','p_');
   if(b.dataset.t==='doc')renderDocLog();
   if(b.dataset.t==='usr')listUsers();
   if(b.dataset.t==='sig')sigInit();
@@ -2573,7 +2578,8 @@ document.querySelectorAll('#ptabs button').forEach(b=>b.addEventListener('click'
 
 /* ============ AIDE, DIAGNOSTIC IA, CONSOLE ADMIN ============ */
 const HELP_OWN=['Modifier les textes de la plateforme','Profil propriétaire et infos en ligne','Super Owner — diagnostic'];
-const helpList=()=>isAdm()?HELP:HELP.filter(h=>!HELP_OWN.includes(h[0])).map(h=>h[0]==='Rôles et permissions'?[h[0],h[1],'👑 Administrateur : tout sur son entreprise. ✏️ Éditeur : ajout/modification/import/congés. 👁️ Lecteur : consultation seulement.']:h);
+const HELP_NEED={'Suivi disciplinaire':'dsp','Congés':'c','Alertes de contrats':'a','CNPS en retard':'a','DIPE depuis les bulletins':'paie'};
+const helpList=()=>{const base=isAdm()?HELP:HELP.filter(h=>!HELP_OWN.includes(h[0])).map(h=>h[0]==='Rôles et permissions'?[h[0],h[1],'👑 Administrateur : tout sur son entreprise. ✏️ Éditeur : ajout/modification/import/congés. 👁️ Lecteur : consultation seulement.']:h);try{return base.filter(h=>{const k=HELP_NEED[h[0]];return !k||modOn(k);});}catch(e){return base;}};
 const HELP=[
 ['Modifier les textes de la plateforme',/(modifier|changer|renommer|personnaliser).*(texte|mot|libelle|menu|titre|bouton)|textes? de la plateforme/,'👑 Réservé au propriétaire : Espace propriétaire → ✏️ Textes.\n• « Mode cliquer pour modifier » : cliquez sur un texte à l\'écran pour le changer.\n• Ou saisissez un mot / une phrase à remplacer partout.\nLes changements s\'appliquent à tous vos utilisateurs ; supprimez une ligne pour rétablir l\'original.'],
 ['Profil propriétaire et infos en ligne',/(profil|informations?|infos?).*(proprietaire|en ligne|web)|recherch.*(en ligne|web)/,'👑 Espace propriétaire → 👤 Profil & web : modifiez vos informations à volonté, puis lancez 🔎 « Chercher » pour que l\'assistant trouve des informations publiques à jour sur vous et sur l\'entreprise.\nVérifiez le résumé proposé (homonymes possibles) puis enregistrez : l\'assistant s\'en servira. Dans le chat : /web proprietaire, /web entreprise ou /web votre recherche (administrateur / propriétaire).'],
@@ -3113,6 +3119,7 @@ async function renderOwner(){
   const tabs=[
     ['gl','🌍 Vue générale'],['co','🏢 Entreprises'],['us','👥 Utilisateurs'],
     ['rol','🔐 Rôles & permissions'],['mg','🧩 Modules'],['mn','📋 Menus'],
+    ['ent','🖼️ Papier à en-tête'],['bib','📚 Bibliothèque'],['mt','🛠 Maintenance'],
     ['db','📊 Tableaux de bord'],['md','📄 Documents'],['nt','🔔 Notifications'],
     ['em','📧 Fournisseurs email'],['sm','📱 Fournisseurs SMS'],['ia','🤖 IA'],
     ['lg','⚖️ Droit social'],['sc','🛡️ Sécurité'],['ad','📜 Audit'],
@@ -3152,6 +3159,9 @@ async function renderOwner(){
   if(OTAB==='pf')body=await OWX.pf();
   if(OTAB==='pr')body=await OWX.pr();
   if(OTAB==='tx')body=await OWX.tx();
+  if(OTAB==='ent')body=await OWX.ent();
+  if(OTAB==='bib')body=await OWX.bib();
+  if(OTAB==='mt')body=await OWX.mt();
   if(OTAB==='bd')body=await OWX.bd();
   if(OTAB==='al')body=await OWX.al();
   if(!MULTI)body='<div class="ban">⚠ Multi-entreprises non activé : exécutez migration-multi-entreprises.sql dans Supabase pour débloquer les autres onglets.</div>'+body;
@@ -3347,6 +3357,193 @@ document.addEventListener('change',e=>{
 
 /* ============ POUVOIRS ÉTENDUS DU PROPRIÉTAIRE ============ */
 const OWX={},OWP={};
+
+/* ============ TERH · EN-TÊTE DES LETTRES, IMPORT DE MODÈLES, ONGLETS ent / bib / mt ============ */
+const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:''};
+const ENT_KEYS=Object.keys(ENT_DEF);
+function _entLS(){try{return JSON.parse(localStorage.getItem('terh_ent_'+(CO||''))||'{}')||{};}catch(e){return {};}}
+function entGet(k){const o=_entLS(),v=PARAMS[k];if(k in o&&(v==null||v===ENT_DEF[k]))return o[k];return v==null?'':v;}
+function entInfo(){
+  const co=(typeof curCo==='function'&&curCo())||{};let ci={cab:'',cli:'',logo:''};
+  try{ci=(window.cabinetInfo&&window.cabinetInfo())||ci;}catch(e){}
+  const mode=entGet('ent_mode')||'auto';
+  const mere=String(entGet('ent_mere')||'').trim()||ci.cab||'';
+  const auto=!!(co.groupe_id&&co.type_entreprise!=='groupe');
+  return {co:co,ci:ci,mere:mere,mad:!!mere&&(mode==='oui'||(mode==='auto'&&auto))};
+}
+/* Bloc d'en-tête de la lettre : société (ou société mère en cas de mise à disposition) + infos modifiables */
+function entHeaderHTML(){
+  const I=entInfo(),P=PARAMS,lc=x=>String(x||'').trim().toLowerCase(),L=[];
+  const soc=P.soc||'',cli=P.client||I.co.nom||soc,svc=entGet('ent_service');
+  if(I.mad){
+    L.push('<b>'+esc(I.mere)+'</b>');
+    if(svc)L.push(esc(svc));
+    const adr=entGet('ent_mere_adr')||P.adresse||'';if(adr)L.push(esc(adr));
+    const who=(soc&&lc(soc)!==lc(I.mere))?soc:cli;
+    if(who&&lc(who)!==lc(I.mere))L.push('<i>'+esc(entGet('ent_mad_label')||ENT_DEF.ent_mad_label)+' : <b>'+esc(who)+'</b></i>');
+  }else{
+    L.push('<b>'+esc(soc||'…')+'</b>');
+    if(svc)L.push(esc(svc));
+    if(P.adresse)L.push(esc(P.adresse));
+  }
+  const ct=[P.tel,P.email].filter(Boolean).join(' · ');if(ct)L.push(esc(ct));
+  const m=String(entGet('ent_mentions')||'').split(/\n/).map(x=>esc(x.trim())).filter(Boolean);
+  if(m.length)L.push('<span style="font-size:9.5pt">'+m.join('<br>')+'</span>');
+  return L.join('<br>');
+}
+/* Anciens modèles enregistrés : l'ancien bloc fixe est remplacé par le bloc modifiable */
+function entLegacy(t){return String(t==null?'':t).replace(/<b>\{\{SOCIETE\}\}<\/b><br>\s*Direction des Ressources Humaines<br>\s*\{\{ADRESSE\}\}/g,'{{ENTETE_BLOC}}');}
+function coverUrl(){
+  try{const c=curCo();if(!c)return '';if(c.cover_url)return c.cover_url;
+    if(entInfo().mad&&c.groupe_id){const pool=(window.__ALLCOS&&window.__ALLCOS.length)?window.__ALLCOS:(typeof COS!=='undefined'?COS:[]);const p=pool.find(x=>x.id===c.groupe_id);if(p&&p.cover_url)return p.cover_url;}
+  }catch(e){}return '';
+}
+function coverTag(){const u=coverUrl();return u?'<div class="pcover"><img src="'+esc(u)+'" alt=""></div>':'';}
+
+/* ---- Formulaire « En-tête des lettres » (partagé : Paramètres › Société et Centre de contrôle › Papier à en-tête) ---- */
+function entFormHTML(p){
+  const v=k=>esc(k==='ent_mode'?(entGet(k)||'auto'):entGet(k));
+  const P=PARAMS,f=(id,lab,val,ph)=>`<label>${lab}<input id="${p}${id}" value="${esc(val||'')}" placeholder="${esc(ph||'')}"></label>`;
+  return `<h3 style="margin:0 0 6px">✏️ En-tête des lettres de démobilisation</h3>
+<p class="muted" style="font-size:12px;margin:0 0 8px">Modifiez la société et ses informations affichées en haut des lettres (variable <code>{{ENTETE_BLOC}}</code>). En cas de <b>mise à disposition</b>, la société mère figure sur le papier à en-tête.</p>
+<div class="fm" style="max-width:900px">
+${f('soc','Société',P.soc)}${f('lieu','Ville (lieu de la lettre)',P.lieu)}
+${f('adresse','Adresse',P.adresse)}${f('tel','Téléphone(s)',P.tel)}
+${f('email','Email',P.email)}${f('service','Service / direction',entGet('ent_service'),'Direction des Ressources Humaines')}
+<label>Mise à disposition<select id="${p}mode"><option value="auto">Automatique (si l'entreprise a une société mère)</option><option value="oui">Toujours afficher la société mère</option><option value="non">Jamais</option></select></label>
+${f('mere','Société mère (nom)',entGet('ent_mere'),'ex. TOTAL EMPLOI RH (vide = société mère du groupe)')}
+${f('mereadr','Adresse de la société mère',entGet('ent_mere_adr'),'vide = adresse ci-dessus')}${f('madlabel','Libellé de mise à disposition',entGet('ent_mad_label'),'Mis à disposition auprès de')}
+<label style="grid-column:1/-1">Mentions légales (RCCM, NIU, BP… une ligne par mention)<textarea id="${p}mentions" rows="3">${v('ent_mentions')}</textarea></label>
+</div>
+<p class="muted" style="font-size:12px;margin:8px 0 2px">Aperçu de l'en-tête :</p>
+<div id="${p}prev" style="border:1px dashed var(--bd,#bbb);border-radius:8px;padding:10px;font:11pt/1.5 'Times New Roman',serif;background:#fff;color:#000;max-width:420px"></div>
+<p style="margin-top:10px"><button class="p" type="button" id="${p}save">💾 Enregistrer l'en-tête</button> <button class="s" type="button" id="${p}reset">↺ Valeurs par défaut</button></p>`;
+}
+function entFormRead(p){const g=id=>{const x=document.getElementById(p+id);return x?x.value:'';};return {soc:g('soc').trim(),lieu:g('lieu').trim(),adresse:g('adresse').trim(),tel:g('tel').trim(),email:g('email').trim(),ent_service:g('service').trim(),ent_mode:g('mode')||'auto',ent_mere:g('mere').trim(),ent_mere_adr:g('mereadr').trim(),ent_mad_label:g('madlabel').trim(),ent_mentions:g('mentions')};}
+function entPreview(p){
+  const el=document.getElementById(p+'prev');if(!el)return;
+  const o=entFormRead(p),bak={};Object.keys(o).forEach(k=>{bak[k]=PARAMS[k];PARAMS[k]=o[k];});
+  try{el.innerHTML=entHeaderHTML();}catch(e){el.textContent='Aperçu indisponible';}
+  Object.keys(bak).forEach(k=>{PARAMS[k]=bak[k];});
+}
+function entImgHTML(p){const c=curCo()||{};return `<h3 style="margin:0 0 6px">🖼️ Image du papier à en-tête</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Bandeau en haut de page (lettres, certificats, DE, sanctions). En mise à disposition, l'image de la société mère est utilisée si l'entreprise n'a pas la sienne.</p>
+<div style="text-align:center;margin:8px 0;min-height:40px"><img id="${p}img" src="${esc(c.cover_url||'')}" style="max-width:100%;max-height:100px;object-fit:contain;${c.cover_url?'':'display:none'}"></div>
+<div class="f"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir l'image<input type="file" accept="image/*" id="${p}file" hidden></label><button class="p" type="button" id="${p}isave">💾 Enregistrer l'image</button><button class="s" type="button" id="${p}idel">🗑 Retirer</button></div><hr style="margin:14px 0">`;}
+function entImgMount(p){
+  let blob=null;const img=$(p+'img');
+  $(p+'file').onchange=async e=>{const x=e.target.files[0];if(!x)return;try{blob=await _toJpegW(x,1600);img.src=URL.createObjectURL(blob);img.style.display='';toast('Aperçu chargé — cliquez sur Enregistrer');}catch(er){toast('Erreur : '+er.message);}};
+  $(p+'isave').onclick=async()=>{if(!blob){toast('Choisissez d\'abord une image');return;}
+    try{const c=curCo();let url;
+      try{const path='logos/'+c.id+'-entete-'+Date.now()+'.jpg';const {error}=await db.storage.from('branding').upload(path,blob,{contentType:'image/jpeg',upsert:true});if(error)throw error;url=db.storage.from('branding').getPublicUrl(path).data.publicUrl+'?v='+Date.now();}
+      catch(e){url=await new Promise(ok=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.readAsDataURL(blob);});}
+      const {error}=await db.from('entreprises').update({cover_url:url}).eq('id',c.id);if(error)throw error;c.cover_url=url;toast('✅ Papier à en-tête enregistré');}
+    catch(e){toast('Erreur : '+e.message);}};
+  $(p+'idel').onclick=async()=>{if(!confirm('Retirer le papier à en-tête ?'))return;try{const c=curCo();const {error}=await db.from('entreprises').update({cover_url:null}).eq('id',c.id);if(error)throw error;c.cover_url=null;img.style.display='none';toast('Retiré');}catch(e){toast('Erreur : '+e.message);}};
+}
+function entMount(id,p){
+  const box=document.getElementById(id);if(!box)return;
+  box.innerHTML=entImgHTML(p)+entFormHTML(p);entImgMount(p);
+  const set=(i,v)=>{const x=document.getElementById(p+i);if(x)x.value=v;};set('mode',entGet('ent_mode')||'auto');
+  box.querySelectorAll('input,select,textarea').forEach(x=>{x.oninput=x.onchange=()=>entPreview(p);});
+  entPreview(p);
+  document.getElementById(p+'reset').onclick=()=>{set('service',ENT_DEF.ent_service);set('mode','auto');set('mere','');set('mereadr','');set('madlabel',ENT_DEF.ent_mad_label);set('mentions','');entPreview(p);};
+  document.getElementById(p+'save').onclick=async()=>{
+    if(typeof CAN!=='undefined'&&CAN.params&&!CAN.params()){toast('Permission refusée');return;}
+    const o=entFormRead(p);let ko=null;
+    for(const k of Object.keys(o)){try{await saveParam(k,o[k]);}catch(e){ko=e;PARAMS[k]=o[k];}}
+    if(ko){try{const ls={};ENT_KEYS.forEach(k=>ls[k]=o[k]);localStorage.setItem('terh_ent_'+(CO||''),JSON.stringify(ls));}catch(e){}toast('⚠ Enregistré sur cet appareil seulement ('+(ko.message||ko)+'). Autorisez les clés ent_* dans la table parametres pour synchroniser.');}
+    else{try{localStorage.removeItem('terh_ent_'+(CO||''));}catch(e){}toast('✅ En-tête enregistré');}
+    try{fillParamsUI();}catch(e){}try{updatePreviews();}catch(e){}try{if(LR&&$('lt').classList.contains('on'))draw();}catch(e){}
+  };
+}
+
+/* ---- Import de modèles : TXT / MD / HTML / RTF / DOCX / PDF / image (OCR) ---- */
+function _toParas(t){return String(t||'').replace(/\r/g,'').split(/\n{2,}/).map(b=>b.trim()).filter(Boolean).map(b=>'<p>'+esc(b).replace(/\n/g,'<br>')+'</p>').join('\n');}
+function _cleanHtml(h){return String(h||'').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->|<meta[^>]*>|<link[^>]*>|<title[\s\S]*?<\/title>/gi,'').replace(/\son\w+="[^"]*"/gi,'').replace(/<\/?(html|head|body)[^>]*>/gi,'').replace(/<img[^>]*>/gi,'').trim();}
+function _htmlToText(h){return _cleanHtml(h).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|h\d|li|tr)>/gi,'\n\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/\n{3,}/g,'\n\n').trim();}
+window.TERH_tplFromFile=async function(f,kind){
+  if(!f)return '';
+  const html=(kind==='html'||kind==='ptl'||kind==='ptc'||kind==='tpl_let'||kind==='tpl_cert');
+  const ex=f.name.toLowerCase().split('.').pop();
+  if(ex==='txt'||ex==='md'){const t=await f.text();return (html&&!/<\w+[^>]*>/.test(t))?_toParas(t):t;}
+  if(ex==='html'||ex==='htm'){const h=await f.text();return html?_cleanHtml(h):_htmlToText(h);}
+  if(ex==='rtf'){let t=await f.text();t=t.replace(/\\par[d]?\b/g,'\n').replace(/\\'([0-9a-f]{2})/gi,(m,h)=>String.fromCharCode(parseInt(h,16))).replace(/\\[a-z]+-?\d* ?/gi,'').replace(/[{}]/g,'').replace(/\n{3,}/g,'\n\n').trim();return html?_toParas(t):t;}
+  if(ex==='docx'){if(!window.mammoth)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');const ab=await f.arrayBuffer();
+    if(html){const r=await mammoth.convertToHtml({arrayBuffer:ab});return _cleanHtml(r.value).replace(/<h[1-2]>/gi,'<h3>').replace(/<\/h[1-2]>/gi,'</h3>');}
+    return (await mammoth.extractRawText({arrayBuffer:ab})).value||'';}
+  if(ex==='pdf'){const t=await readPdf(f);return html?_toParas(t):t;}
+  if(['jpg','jpeg','png','webp','bmp'].indexOf(ex)>=0){const t=await readImg(f);return html?_toParas(t):t;}
+  throw new Error('Format non supporté : .'+ex);
+};
+
+/* ---- Bibliothèque locale (IndexedDB, utilisable hors ligne) ---- */
+(function(){
+  const open=()=>new Promise((ok,ko)=>{const r=indexedDB.open('terh_bib',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('docs'))r.result.createObjectStore('docs',{keyPath:'id'});};r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error);});
+  const chunk=txt=>{txt=String(txt||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();const out=[];for(let i=0;i<txt.length;i+=1200)out.push(txt.slice(i,i+1200));return out;};
+  window.TERH_bibAdd=async function(t,txt){
+    const d=await open(),doc={id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:String(t||'Document').slice(0,120),k:'bib',at:new Date().toISOString(),chunks:chunk(txt)};
+    await new Promise((ok,ko)=>{const r=d.transaction('docs','readwrite').objectStore('docs').put(doc);r.onsuccess=ok;r.onerror=()=>ko(r.error);});
+    return doc;
+  };
+  window.TERH_bibList=async()=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs').objectStore('docs').getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([]);});}catch(e){return [];}};
+  window.TERH_bibDel=async id=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs','readwrite').objectStore('docs').delete(id);r.onsuccess=ok;r.onerror=ok;});}catch(e){}};
+  const refresh=async()=>{try{const list=await window.TERH_bibList();if(!list.length)return;
+    const base=(window.TERH_CORPUS||[]).filter(c=>c.k!=='bib');
+    list.forEach(d=>d.chunks.forEach((x,i)=>base.push({t:d.t+(d.chunks.length>1?' ('+(i+1)+'/'+d.chunks.length+')':''),x:x,k:'bib',inh:0})));
+    window.TERH_CORPUS=base;}catch(e){}};
+  setInterval(refresh,4000);setTimeout(refresh,800);
+})();
+
+function _toJpegW(file,max){return new Promise((ok,ko)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):ko(new Error('Conversion impossible')),'image/jpeg',.9);};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('Image illisible'));};im.src=u;});}
+
+/* ---- Onglet « Papier à en-tête » ---- */
+OWX.ent=async()=>{const c=curCo()||{};return `<div class="c" id="ent_form_box"></div>
+<div class="c"><h3 style="margin:0 0 6px">📂 Importer un nouveau modèle — ${esc(c.nom||'')}</h3><p class="muted" style="font-size:12px;margin:0 0 8px">Fichier Word (.docx), PDF, .txt, .html, .rtf ou image (OCR). Le contenu est chargé dans le modèle choisi ; vérifiez-le puis enregistrez. Ajoutez <code>{{ENTETE_BLOC}}</code> là où l'en-tête société doit apparaître.</p>
+<div class="f"><select id="ent_k">${Object.entries(TPLS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select><label class="s" style="cursor:pointer;padding:8px 12px">📂 Choisir un fichier<input type="file" id="ent_imp" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf,.jpg,.jpeg,.png,.webp" hidden></label></div>
+<textarea id="ent_t" style="width:100%;min-height:260px;margin-top:8px" placeholder="Le modèle importé s'affiche ici"></textarea>
+<p><button class="p" id="ent_tsave">💾 Enregistrer ce modèle</button> <span class="muted" id="ent_tmsg"></span></p></div>`;};
+OWP.ent=()=>{
+  entMount('ent_form_box','o_');
+  $('ent_imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5000000){toast('Fichier trop volumineux (max 5 Mo)');return;}
+    try{$('ent_tmsg').textContent='⏳ Lecture de '+f.name+'…';$('ent_t').value=await window.TERH_tplFromFile(f,$('ent_k').value);$('ent_tmsg').textContent='✅ Chargé : vérifiez puis enregistrez';}
+    catch(er){$('ent_tmsg').textContent='';toast('Erreur : '+er.message);}e.target.value='';};
+  $('ent_tsave').onclick=async()=>{const k=$('ent_k').value;let v=$('ent_t').value;if(!v.trim()){toast('Modèle vide');return;}
+    try{if(k==='tpl_let')v=cutAfterDir(v);await saveParam(k,v);toast('✅ Modèle enregistré : '+TPLS[k]);}catch(er){toast('Erreur : '+er.message);}};
+};
+
+/* ---- Onglet « Bibliothèque » ---- */
+OWX.bib=async()=>{const co=curCo()||{};return `<div class="c"><h2>📚 Bibliothèque — ${esc(co.nom||'')}</h2>
+<p class="muted">Livres, conventions collectives, codes, procédures. Les textes sont enregistrés dans <b>IndexedDB</b> : ils restent lisibles par l'IA et l'assistant <b>même sans internet</b>.</p>
+<div class="f"><label class="s" style="cursor:pointer;padding:8px 12px">📎 Ajouter des fichiers (PDF, DOCX, TXT, HTML, RTF)<input type="file" id="bib_f" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf" hidden multiple></label><span id="bib_s" class="muted"></span></div>
+<div id="bib_list" style="margin-top:10px"></div></div>`;};
+OWP.bib=()=>{
+  const draw=async()=>{const box=$('bib_list');if(!box)return;const list=await window.TERH_bibList();
+    box.innerHTML=list.length?list.map(x=>`<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;margin:4px 0"><span>📄</span><b style="flex:1">${esc(x.t)}</b><small class="muted">${(x.chunks||[]).reduce((a,c)=>a+c.length,0)} car.</small><button class="s" data-bibdel="${esc(x.id)}">🗑</button></div>`).join(''):'<p class="muted">Aucun document.</p>';
+    box.querySelectorAll('[data-bibdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer ce document ?'))return;await window.TERH_bibDel(b.dataset.bibdel);toast('Supprimé');draw();});};
+  const f=$('bib_f');
+  if(f)f.onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;const s=$('bib_s');
+    for(const file of fs){try{s.textContent='⏳ Lecture de '+file.name+'…';const txt=await window.TERH_tplFromFile(file,'text');await window.TERH_bibAdd(file.name,txt);}catch(er){toast('Erreur '+file.name+' : '+er.message);}}
+    s.textContent='✅ '+fs.length+' fichier(s) ajouté(s)';draw();};
+  draw();
+};
+
+/* ---- Onglet « Maintenance » ---- */
+OWX.mt=async()=>{
+  let nbDoc=0;try{nbDoc=(await window.TERH_bibList()).length;}catch(e){}
+  return `<div class="c"><h2>🛠 Maintenance</h2>
+<div class="kp"><div class="k g-blue"><b>${E.length}</b><span>Employés</span></div><div class="k g-green"><b>${CG.length}</b><span>Congés</span></div><div class="k g-orange"><b>${nbDoc}</b><span>Documents bibliothèque</span></div><div class="k g-red"><b>${ERRLOG.length}</b><span>Erreurs locales</span></div></div>
+<div class="f" style="margin-top:10px"><button class="s" data-mt="reload">🔄 Recharger les données</button><button class="s" data-mt="cache">🧹 Vider le cache local</button><button class="s" data-mt="diag">📋 Rapport de diagnostic</button><button class="s" data-mt="backup">💾 Sauvegarde JSON</button></div>
+<h3 style="margin-top:14px">Journal d'erreurs local</h3><pre style="white-space:pre-wrap;font-size:11px;max-height:240px;overflow:auto;background:var(--bg,#f6f6f6);padding:8px;border-radius:8px">${esc(ERRLOG.join('\n')||'Aucune erreur.')}</pre></div>`;};
+OWP.mt=()=>{
+  document.querySelectorAll('#v-own [data-mt]').forEach(b=>b.onclick=async()=>{const a=b.dataset.mt;
+    try{
+      if(a==='reload'){await loadAll();toast('Données rechargées');}
+      if(a==='cache'){if(!confirm('Vider le cache local (les données en ligne restent) ?'))return;try{indexedDB.deleteDatabase('terh_cache');}catch(e){}toast('Cache vidé');setTimeout(()=>location.reload(),600);}
+      if(a==='diag'){const t='TERH diagnostic '+new Date().toLocaleString('fr-FR')+'\nRôle : '+MY_ROLE+'\nEmployés : '+E.length+'\nIA locale : '+aiReady+'\nNavigateur : '+navigator.userAgent+'\n\nErreurs :\n'+(ERRLOG.join('\n')||'aucune');
+        try{await navigator.clipboard.writeText(t);toast('Rapport copié');}catch(e){alert(t);}}
+      if(a==='backup'){const sb=$('sg-bak');if(sb)sb.click();else toast('Sauvegarde : utilisez Paramètres › Sauvegarde');}
+    }catch(e){toast('Erreur : '+e.message);}});
+};
 const DBT=['employes','conges','parametres','user_roles','entreprises','historique'],SBREF='cbaepeugbemwmclgfnxz';
 let DBX={t:'employes',q:'',co:'',rows:[],ed:null};
 const dlBlob=(t,n,ty)=>{const u=URL.createObjectURL(new Blob([t],{type:ty})),a=document.createElement('a');a.href=u;a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(u),5000);};
@@ -4268,7 +4465,7 @@ OWP.tx=()=>{
 /* ===== Photos : avatar utilisateur + logo entreprise (bucket "branding") ===== */
 (function(){
 const BK='branding';
-function toJpeg(file,max){return new Promise((ok,ko)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):ko(new Error('image illisible')),'image/jpeg',.85);};im.onerror=()=>ko(new Error('image illisible'));im.src=u;});}
+function toJpeg(file,max){return new Promise((ok,ko)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const _g=c.getContext('2d');_g.fillStyle='#fff';_g.fillRect(0,0,c.width,c.height);_g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):ko(new Error('image illisible')),'image/jpeg',.85);};im.onerror=()=>ko(new Error('image illisible'));im.src=u;});}
 async function up(path,blob){const {error}=await db.storage.from(BK).upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(error)throw error;return db.storage.from(BK).getPublicUrl(path).data.publicUrl+'?v='+Date.now();}
 let blobA=null,blobL=null,stream=null;
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
@@ -4341,9 +4538,9 @@ if(box)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(()=>{if(!on)retu
 /* ===== Import d'un modèle de document (.txt / .html) par entreprise ===== */
 (function(){[['ptde','Demande d\'explication'],['ptsan','Notification de sanction'],['ptl','Lettre'],['ptc','Certificat']].forEach(([id,nom])=>{const t=$(id);if(!t||t.dataset.imp)return;t.dataset.imp=1;
 const w=document.createElement('p');w.className='muted';w.style.cssText='margin:6px 0;font-size:12px';
-w.innerHTML='<label class="s" style="cursor:pointer;padding:6px 10px">📂 Importer un modèle ('+nom+')<input type="file" accept=".txt,.html,.htm" hidden></label> <span>Fichier .txt ou .html, puis « Enregistrer ». Variables : {{NOM}}, {{SOCIETE}}…</span>';
+w.innerHTML='<label class="s" style="cursor:pointer;padding:6px 10px">📂 Importer un modèle ('+nom+')<input type="file" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf,.jpg,.jpeg,.png,.webp" hidden></label> <span>Word, PDF, .txt, .html, .rtf ou image, puis « Enregistrer ». Variables : {{NOM}}, {{SOCIETE}}…</span>';
 t.parentNode.insertBefore(w,t);
-w.querySelector('input').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>200000){toast('Fichier trop volumineux (max 200 Ko)');return;}t.value=await f.text();t.dispatchEvent(new Event('input',{bubbles:true}));toast('Modèle chargé : vérifiez l\'aperçu puis enregistrez');e.target.value='';};});})();
+w.querySelector('input').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5000000){toast('Fichier trop volumineux (max 5 Mo)');return;}try{toast('Lecture du fichier…');t.value=await window.TERH_tplFromFile(f,id);t.dispatchEvent(new Event('input',{bubbles:true}));toast('Modèle chargé : vérifiez l\'aperçu puis enregistrez');}catch(er){toast('Erreur : '+er.message);}e.target.value='';};});})();
 
 /* ===== Paie camerounaise, congés légaux, widgets activables (par entreprise) ===== */
 (function(){
