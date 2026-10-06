@@ -25,7 +25,7 @@ T.LABELS={
   mi:['matricule\\s+interne','n[°o]?\\s*matricule','\\bmatricule\\b','\\bmatr?\\.(?=\\s*[:\\-]?\\s*[A-Za-z0-9])','\\bmle\\b','n[°o]\\s*(?:interne|employ[ée]|salari[ée]|agent|personnel)','code\\s+(?:salari[ée]|employ[ée]|agent)'],
   /* « pension vieillesse cnps » cible directement la ligne de la base de calcul (vérifiée : montant ≈ base × taux) */
   cot:['salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable','pension\\s+vieillesse\\s+cnps'],
-  brut:['salaire\\s+brut','total\\s+brut','brut\\s+total','gains?\\s+bruts?','total\\s+(?:des\\s+)?gains','total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
+  brut:['total\\s+brut','brut\\s+total','salaire\\s+brut(?!\\s+(?:jour|journalier|horaire|heure))','gains?\\s+bruts?','total\\s+(?:des\\s+)?gains','total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
   net:['net\\s+[àa]\\s+payer','net\\s+pay[ée]'],
   jours:['nombre\\s+de\\s+jours','nb\\.?\\s*(?:de\\s*)?jours','jours?\\s+(?:travaill\\w+|pay\\w+|pr[ée]sence|de\\s+travail)'],
   exc:['(?:prime|salaire|indemnit[ée]|gratification)\\s+exceptionnel\\w*']
@@ -111,7 +111,8 @@ T.enrich=function(r,text,fn){
   /* cotisable : jamais supérieur au brut, jamais le simple « plafond » */
   let c=findAmt(lines,R('cot'),'max',1000);
   /* ligne « pension vieillesse » : on recopie UNIQUEMENT le 1er montant (la base), et seulement si la ligne en porte au moins 2 (base + retenue) ; un seul montant = la retenue, pas la base */
-  if(c&&/pension|vieillesse/i.test(c.label)){const L0=lines[c.line],mm=new RegExp(c.label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+'),'i').exec(L0),n0=mm?nums(L0.slice(mm.index+mm[0].length)):[];
+  if(c&&/pension|vieillesse/i.test(c.label)){const L0=lines[c.line],mm=new RegExp(c.label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+'),'i').exec(L0);let n0=mm?nums(L0.slice(mm.index+mm[0].length)):[];
+    for(let k=1;n0.length<2&&k<=2&&lines[c.line+k];k++){const nx=lines[c.line+k];if((nx.match(/[A-Za-zÀ-ÿ]/g)||[]).length>6)break;n0=n0.concat(nums(nx));}
     if(n0.length<2)c=null;else c.v=n0[0].v;}  /* 1er montant après le libellé = colonne Base */
   if(c&&r.brut&&c.v>r.brut*1.001)c=null;
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
@@ -371,8 +372,8 @@ T.mount=function(ctx){
   ctx.setDraw(render);
   g('d_flt').onchange=render;g('d_drop').onchange=render;
   const stat=el.querySelector('#d_s');
-  if(stat&&!stat._dpx){stat._dpx=1;new MutationObserver(()=>{if(/bulletin\(s\) lu\(s\)/.test(stat.textContent)&&!stat.dataset.x){const rs=R.filter(r=>r._t);const c=rs.filter(r=>r.src&&r.src.cot&&!r.cotEst).length,mi=rs.filter(r=>r.mi&&!r.miAuto).length;
-      $('dpx_info').innerHTML='📊 '+rs.length+' bulletin(s) : cotisable lu sur <b>'+c+'</b> · matricule interne lu sur <b>'+mi+'</b>'+(rs.length-c?' · <span style="color:#e69500">'+(rs.length-c)+' cotisable(s) estimé(s)</span> (filtre « Cotisable estimé », puis 🔎 pour apprendre le libellé)':'')+'.';}}).observe(stat,{childList:true,characterData:true,subtree:true});}
+  if(stat&&!stat._dpx){stat._dpx=1;new MutationObserver(()=>{if(/bulletin\(s\) lu\(s\)/.test(stat.textContent)&&!stat.dataset.x){const rs=R.filter(r=>r._t);const c=rs.filter(r=>r.cot>0&&r.src&&r.src.cot&&!r.cotEst).length,mi=rs.filter(r=>r.mi&&!r.miAuto).length;
+      $('dpx_info').innerHTML='📊 '+rs.length+' bulletin(s) : cotisable lu sur <b>'+c+'</b> · matricule interne lu sur <b>'+mi+'</b>'+(rs.length-c>0?' · <span style="color:#e69500">'+(rs.length-c)+' cotisable(s) non trouvé(s)</span> (filtre « À corriger », puis 🔎 pour apprendre le libellé)':'')+'.';}}).observe(stat,{childList:true,characterData:true,subtree:true});}
   render();
 };
 
