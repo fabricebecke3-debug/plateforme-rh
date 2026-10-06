@@ -17,7 +17,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.3';
+T.version='2026.10.4';
 T.custom=T.custom||{};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
@@ -104,7 +104,7 @@ function findMi(lines,custom,cnpsDigits){
 
 /* ---------- 1. lecture enrichie d'un bulletin (appelée par l'index) ---------- */
 T.enrich=function(r,text,fn){
-  const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||(typeof window.E!=='undefined'?window.E:[]),MAT=ctx.MAT||{};
+  const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||(typeof E!=='undefined'?E:[]),MAT=ctx.MAT||{};
   const lines=normLines(text),C=T.custom||{},src=r.src={};
   const R=k=>(C[k]||[]).map(custRe).concat((T.LABELS[k]||[]).map(s=>new RegExp(s,'i')));
   const b=findAmt(lines,R('brut'),'max',1000);if(b){r.brut=b.v;src.brut=b.label;}
@@ -203,7 +203,7 @@ T.mount=function(ctx){
   const status=(r,i)=>{const m=miss(r,i),b=[];
     b.push(r.old&&!r.seen?'⚪ absent':r.old?'🔄 mis à jour':'🆕 nouveau');
     if(!incl(r,i))b.push('🚫 exclu du DIPE');
-    if(r.cnpsAuto)b.push('CNPS fiche');if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
+    if(r.cnpsAuto)b.push('CNPS fiche');if(r.cnpsRef)b.push('📚 CNPS référentiel'+(r.cnpsWas?' (bulletin : '+esc(r.cnpsWas)+')':''));if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
     if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
     if(isDup.has(r))b.push('⚠ doublon');
     if(r.warn)b.push('⚠ '+esc(r.warn));
@@ -241,7 +241,7 @@ T.mount=function(ctx){
     r[k]=num?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value.trim());
     if(k==='mi'){r.miAuto=false;r.miGen=false;if(r.mi)r.mat=String(r.mi).slice(-4);const e=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));if(e&&!r.eid){r.eid=e.id;if(!r.nom)r.nom=e.n;}}
     if(k==='cot')r.cotEst=false;
-    if(k==='cnps')r.cnpsAuto=false;
+    if(k==='cnps'){r.cnpsAuto=false;r.cnpsRef=false;r.cnpsManual=digits(r.cnps).length>0;}
     /* mise à jour de la ligne seulement : le focus reste dans le tableau */
     const tr=x.closest('tr'),m=miss(r,i);isDup.build();
     tr.querySelectorAll('input.dx').forEach(inp=>{const kk=inp.dataset.k;if(document.activeElement!==inp&&String(r[kk]==null?'':r[kk])!==inp.value)inp.value=r[kk]==null?'':r[kk];inp.className=cls(r,i,kk,m);});
@@ -322,16 +322,16 @@ T.mount=function(ctx){
     if(!confirm('Générer '+miss0+' matricule(s) interne(s) à la suite de la numérotation existante ?'))return;
     const o=genMis();render();$('dpx_info').textContent='🔢 '+o.n+' matricule(s) généré(s) (prochain : '+o.sample+'). Vérifiez puis « Enregistrer dans les fiches ».';};
   $('dpx_save').onclick=async()=>{
-    try{if(window.CAN&&CAN.edit&&!CAN.edit()){say('Permission refusée');return;}}catch(e){}
-    const mats={},ciu=[];
+    try{if(typeof CAN!=='undefined'&&CAN.edit&&!CAN.edit()){say('Permission refusée');return;}}catch(e){}
+    const mats={},ciu=[];let nfix=0;
     R.forEach(r=>{if(!r.eid)return;if(r.mi&&String(MAT[r.eid]||'')!==String(r.mi))mats[r.eid]=r.mi;
-      const e=E.find(y=>String(y.id)===String(r.eid));if(e&&digits(r.cnps).length===11&&digits(e.cnps).length!==11)ciu.push([e,digits(r.cnps)]);});
+      const e=E.find(y=>String(y.id)===String(r.eid));if(e&&digits(r.cnps).length===11){const fc=digits(e.cnps);if(fc.length!==11)ciu.push([e,digits(r.cnps)]);else if(r.cnpsRef&&fc!==digits(r.cnps)){ciu.push([e,digits(r.cnps)]);nfix++;}}});
     const nm=Object.keys(mats).length;
     if(!nm&&!ciu.length){say('Rien de nouveau à enregistrer (seules les lignes rattachées à une fiche employé sont concernées)');return;}
-    if(!confirm(nm+' matricule(s) et '+ciu.length+' N° CNPS seront enregistrés dans les fiches employés (les N° CNPS déjà renseignés ne sont jamais modifiés). Continuer ?'))return;
+    if(!confirm(nm+' matricule(s) et '+ciu.length+' N° CNPS seront enregistrés dans les fiches employés (un N° déjà renseigné n\'est remplacé que s\'il diffère du référentiel CNPS : '+nfix+' correction(s)). Continuer ?'))return;
     let ko=0;
     try{if(nm){Object.assign(MAT,mats);await ctx.wr('matricules_json',MAT);}}catch(e){ko++;console.error(e);}
-    for(const [e,c] of ciu){try{await updateEmp(e.id,{...e,cnps:c});e.cnps=c;}catch(er){ko++;console.error(er);}}
+    for(const [e,c] of ciu){try{const cf=(window.TERH_CNPSREF&&TERH_CNPSREF.fmt)?TERH_CNPSREF.fmt(c):c;await updateEmp(e.id,{...e,cnps:cf});e.cnps=cf;}catch(er){ko++;console.error(er);}}
     say(ko?'⚠ Enregistré avec '+ko+' erreur(s) (voir la console)':'✅ Fiches mises à jour');};
 
   /* --- texte lu + apprentissage de libellé --- */

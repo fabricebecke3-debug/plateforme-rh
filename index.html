@@ -4598,7 +4598,7 @@ const chS=c.cn+c.cf+c.im+c.aut,patT=c.pat,hh=Math.round(CFG.hmois||173.33);
 const cum=S.cum?'<table class=g style="margin-top:6px"><tr><th></th><th>Salaire brut</th><th>Net imposable</th><th>Charges salariales</th><th>Charges patronales</th><th>Heures travaillées</th><th>NET À PAYER</th></tr><tr><td><b>Période</b></td><td class=n>'+_fN(c.b)+'</td><td class=n>'+_fN(c.bi)+'</td><td class=n>'+_fN(chS)+'</td><td class=n>'+_fN(patT)+'</td><td class=n>'+hh+'</td><td class=n><b>'+_fN(c.net)+'</b></td></tr></table>':'';
 const css='<style>.sg{font-family:Arial,sans-serif;font-size:'+S.fs+'px;color:#111}.sg table{width:100%;border-collapse:collapse}.sg .g td,.sg .g th{border:1px solid '+S.bord+';padding:3px 5px}.sg .g th{background:'+S.head+';font-weight:700;text-align:center}.sg .n{text-align:right;white-space:nowrap}.sg .t td{font-weight:700;background:'+S.head+'}.sg td{padding:2px 5px}</style>';
 return css+'<div class="sg" style="'+brk+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div>'+lg+'<b style="font-size:'+(S.fs+3)+'px">'+esc(co.nom||'')+'</b><br>'+esc(S.adr).replace(/\n/g,'<br>')+(S.siret?'<br>N° SIRET : '+esc(S.siret):'')+(S.ape?'<br>APE / NAF : '+esc(S.ape):'')+'</div><div style="text-align:right"><h2 style="margin:0;font-size:'+(S.fs+6)+'px">'+esc(S.titre)+'</h2>Période du : '+dd+' au : '+df+'<br>Paiement le : '+df+' par : Virement</div></div>'
-+(S.ent?'<table class=g style="margin-top:6px"><tr><th>Matricule</th><th>Niveau</th><th>Ancienneté</th><th>N° de Sécurité Sociale</th><th>Emploi occupé</th><th>Horaire</th><th>Convention</th></tr><tr><td>'+esc(MAT[e.id]||'')+'</td><td></td><td>'+esc(anc)+'</td><td>'+esc(e.cnps||'')+'</td><td>'+esc(e.p||'')+'</td><td class=n>'+(CFG.hmois||173.33)+'</td><td>'+esc(S.conv)+'</td></tr></table>':'')
++(S.ent?'<table class=g style="margin-top:6px"><tr><th>Matricule</th><th>Niveau</th><th>Ancienneté</th><th>N° de Sécurité Sociale</th><th>Emploi occupé</th><th>Horaire</th><th>Convention</th></tr><tr><td>'+esc(MAT[e.id]||'')+'</td><td></td><td>'+esc(anc)+'</td><td>'+esc(CNX(e))+'</td><td>'+esc(e.p||'')+'</td><td class=n>'+(CFG.hmois||173.33)+'</td><td>'+esc(S.conv)+'</td></tr></table>':'')
 +'<p style="margin:6px 0"><b>'+esc(e.n)+'</b></p>'
 +(S.conges?'<table class=g style="width:60%"><tr><th></th><th>Acquis</th><th>Reste à prendre</th><th>Pris</th></tr><tr><td>Congés</td><td></td><td></td><td></td></tr></table>':'')
 +'<table class=g style="margin-top:6px"><tr><th>N°</th><th>Désignation</th><th>Nombre</th><th>Base</th><th>Taux</th><th>Gain</th><th>Retenue</th>'+(S.pat?'<th>Taux pat.</th><th>Retenue pat.</th>':'<th></th><th></th>')+'</tr>'+tb+T('Total Brut',_fN(c.b),'','')+rc.replace(/<td class=n>[^<]*<\/td><\/tr>/g,m=>S.pat?m:'<td></td></tr>')+T('Total Cotisations','',_fN(c.cn),S.pat?_fN(patT):'')+rr+'</table>'+cum
@@ -4607,7 +4607,7 @@ function slip(r,e,period,pg){const g=gross(e.id),c=calc(g.b+g.p,g.r,g.nc,g.tx,g.
 const pl=Math.min(c.b,CFG.plafond),rows=[['Salaire de base','','',g.b,''],g.hs?['Heures supplémentaires','','',g.hs,'']:null,g.pr?['Primes et indemnités','','',g.pr,'']:null,...g.cl.filter(c=>c.t==='g').map(c=>[c.n,'','',c.m,'']),['CNPS (vieillesse)',fm(pl),CFG.cnps_sal+' %','',c.cn],['Crédit foncier',fm(c.b),CFG.cfc_sal+' %','',c.cf],['IRPP',fm(c.bi/12),'','',c.ir/12],['CAC',fm(c.ir/12),CFG.cac+' %','',c.ca/12],g.av?['Avance sur salaire','','','',g.av]:null,g.rr?['Autres retenues','','','',g.rr]:null,...g.cl.filter(c=>c.t==='r').map(c=>[c.n,'','','',c.m])].filter(Boolean);
 const tb=rows.map(x=>'<tr><td>'+x[0]+'</td><td>'+x[1]+'</td><td>'+x[2]+'</td><td style="text-align:right">'+(x[3]?fm(x[3]):'')+'</td><td style="text-align:right">'+(x[4]?fm(x[4]):'')+'</td></tr>').join('');
 const head='<tr><th>Désignation</th><th>Base</th><th>Taux</th><th>Gains</th><th>Retenues</th></tr>';
-const id='<b>'+esc(e.n)+'</b> — '+esc(e.p||'')+'<br>Matricule : '+esc(MAT[e.id]||'—')+' · N° CNPS : '+esc(e.cnps||'—')+' · Embauche : '+esc(F(e.deb)||'—');
+const id='<b>'+esc(e.n)+'</b> — '+esc(e.p||'')+'<br>Matricule : '+esc(MAT[e.id]||'—')+' · N° CNPS : '+esc(CNX(e)||'—')+' · Embauche : '+esc(F(e.deb)||'—');
 const net='<div style="margin-top:8px;text-align:right;font-size:15px"><b>NET À PAYER : '+fm(c.net)+'</b></div>';
 const pat='<p style="font-size:10px;margin:6px 0">Charges patronales : '+fm(c.pat)+' · Coût employeur : '+fm(c.cout)+'</p>';
 const foot='<p style="font-size:10px;color:#555">'+esc(MOD.mention||'')+'</p><div style="display:flex;justify-content:space-between;margin-top:14px"><span>'+(window.TERH_footHtml?window.TERH_footHtml(MOD.foot||''):esc(MOD.foot||''))+'</span><span>'+esc(MOD.sig||'')+'</span></div>';
@@ -4617,7 +4617,7 @@ else if(MOD.m==='compact')h='<div style="'+brk+'font-family:Arial;font-size:11px
 else h='<div style="'+brk+'font-family:Arial"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid '+col+';padding-bottom:6px">'+lg+'<div style="text-align:right"><h2 style="margin:0;color:'+col+'">BULLETIN DE PAIE</h2>'+esc(co.nom||'')+'<br>Période : '+esc(period)+'</div></div><p>'+id+'</p><table style="width:100%;border-collapse:collapse;font-size:12px" border="1" cellpadding="4">'+head+tb+'</table>'+net+pat+foot+'</div>';
 return h;}
 window.TERH_P={get MOD(){return MOD},set MOD(v){MOD=v},get CUS(){return CUS},set CUS(v){CUS=v},get CFG(){return CFG},set CFG(v){CFG={...DEF,...v}},get E(){return E},prev(){const d={id:'_demo',n:'EXEMPLE Jean',p:'Chauffeur',cnps:'32501209337',deb:'2026-01-06'},k=SAL._demo;SAL._demo={b:92429,p:62475,nc:23004,nt:5000,tx:'tc',h1:40,h2:32,h3:21,hn:16};try{return slip(null,d,per(),false);}finally{if(k)SAL._demo=k;else delete SAL._demo;}},per:()=>per()};
-function livre(list,period){const col=MOD.color||'#1f5fbf';let T={};const rows=list.map(e=>{const g=gross(e.id),c=calc(g.b+g.p,g.r,g.nc,g.tx,g.nt);['b','cn','cf','im','aut','net','pat','cout'].forEach(k=>T[k]=(T[k]||0)+c[k]);return '<tr><td>'+esc(MAT[e.id]||'')+' '+esc(e.n)+'</td><td>'+esc(e.cnps||'')+'</td><td>'+fm(c.b)+'</td><td>'+fm(c.cn)+'</td><td>'+fm(c.cf)+'</td><td>'+fm(c.im)+'</td><td>'+fm(c.aut)+'</td><td><b>'+fm(c.net)+'</b></td><td>'+fm(c.pat)+'</td><td>'+fm(c.cout)+'</td></tr>';}).join('');
+function livre(list,period){const col=MOD.color||'#1f5fbf';let T={};const rows=list.map(e=>{const g=gross(e.id),c=calc(g.b+g.p,g.r,g.nc,g.tx,g.nt);['b','cn','cf','im','aut','net','pat','cout'].forEach(k=>T[k]=(T[k]||0)+c[k]);return '<tr><td>'+esc(MAT[e.id]||'')+' '+esc(e.n)+'</td><td>'+esc(CNX(e))+'</td><td>'+fm(c.b)+'</td><td>'+fm(c.cn)+'</td><td>'+fm(c.cf)+'</td><td>'+fm(c.im)+'</td><td>'+fm(c.aut)+'</td><td><b>'+fm(c.net)+'</b></td><td>'+fm(c.pat)+'</td><td>'+fm(c.cout)+'</td></tr>';}).join('');
 return '<h2 style="color:'+col+'">Livre de paie — '+esc(period)+' — '+esc(curCo()?.nom||'')+'</h2><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><thead style="background:'+col+'1a"><tr><th>Employé</th><th>N° CNPS</th><th>Brut</th><th>CNPS</th><th>CFC</th><th>IRPP+CAC</th><th>Autres</th><th>Net</th><th>Charges pat.</th><th>Coût</th></tr></thead><tbody>'+rows+'<tr style="font-weight:700;background:#eee"><td colspan="2">TOTAL ('+list.length+')</td><td>'+fm(T.b||0)+'</td><td>'+fm(T.cn||0)+'</td><td>'+fm(T.cf||0)+'</td><td>'+fm(T.im||0)+'</td><td>'+fm(T.aut||0)+'</td><td>'+fm(T.net||0)+'</td><td>'+fm(T.pat||0)+'</td><td>'+fm(T.cout||0)+'</td></tr></tbody></table><p style="font-size:10px">'+esc(MOD.mention||'')+'</p>';}
 const active=()=>(E||[]).filter(r=>r.sc!=='ARRÊT');
 
@@ -4629,7 +4629,7 @@ async function saveMat(){await wr('matricules_json',MAT);await wr('matricule_cfg
 function genMat(firstId,ex){const m=String(ex||'').trim().match(/^(.*?)(\d+)$/);if(!m||!firstId)return -1;MCFG.prefix=m[1];MCFG.width=m[2].length;MAT[firstId]=ex.trim();MCFG.next=+m[2]+1;return fillMat()+1;}
 let _mb=false;async function autoMat(){if(_mb||!MCFG.auto||!['admin','super_owner'].includes(ER())||!CO||loaded!==CO)return;if(!active().some(e=>!MAT[e.id]))return;_mb=true;try{fillMat();await saveMat();}catch(e){}_mb=false;}
 const calcAll=(list)=>list.map(e=>{const g=gross(e.id);return{e,c:calc(g.b+g.p,g.r,g.nc,g.tx,g.nt)};});
-async function archive(p){const l=active().filter(e=>gross(e.id).b>0);if(!l.length){toast('Aucun salaire enregistré');return;}if(!confirm('Archiver la paie '+p+' ? (écrase l\'archive existante de ce mois)'))return;try{await wr('paie_arch_'+p,{cfg:CFG,sal:SAL,mod:MOD,mat:MAT,emps:l.map(e=>({id:e.id,n:e.n,p:e.p,cnps:e.cnps,deb:e.deb}))});const o={...SAL};l.forEach(e=>{const x=o[e.id]||{},a=gross(e.id).av;if(a>0)o[e.id]={...x,avs:Math.max(0,((x.avs===undefined||x.avs==='')?(+x.avt||0):+x.avs)-a)};});await wr('paie_sal_json',o);SAL=o;toast('Paie '+p+' archivée (avances mises à jour)');}catch(e){toast('Erreur : '+e.message);}}
+async function archive(p){const l=active().filter(e=>gross(e.id).b>0);if(!l.length){toast('Aucun salaire enregistré');return;}if(!confirm('Archiver la paie '+p+' ? (écrase l\'archive existante de ce mois)'))return;try{await wr('paie_arch_'+p,{cfg:CFG,sal:SAL,mod:MOD,mat:MAT,emps:l.map(e=>({id:e.id,n:e.n,p:e.p,cnps:CNX(e),deb:e.deb}))});const o={...SAL};l.forEach(e=>{const x=o[e.id]||{},a=gross(e.id).av;if(a>0)o[e.id]={...x,avs:Math.max(0,((x.avs===undefined||x.avs==='')?(+x.avt||0):+x.avs)-a)};});await wr('paie_sal_json',o);SAL=o;toast('Paie '+p+' archivée (avances mises à jour)');}catch(e){toast('Erreur : '+e.message);}}
 function withArc(o,f){const s=[CFG,SAL,MOD,MAT];CFG={...DEF,...o.cfg};SAL=o.sal||{};MOD=o.mod||MOD;MAT=o.mat||{};try{return f(o.emps||[]);}finally{[CFG,SAL,MOD,MAT]=s;}}
 function close(){const m=$('pym');if(m)m.remove();}
 function open(tab){close();tab=tab||'sim';const m=document.createElement('div');m.id='pym';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:10px';
@@ -4652,8 +4652,8 @@ $('pyr').innerHTML='<table style="width:100%;font-size:13px">'+L.map(x=>'<tr><td
 $('pyp').onclick=()=>{const e=(E||[]).find(x=>String(x.id)===$('pye').value);if(e){SAL[e.id]={b:+$('pyb').value,p:0,r:+$('pya').value||0};printHTML('Bulletin de paie',slip(null,e,per()));return;}printHTML('Bulletin de paie','<h2>Bulletin de paie (simulation)</h2><p>'+esc(curCo()?.nom||'')+(nm&&!nm.startsWith('—')?' — '+esc(nm):'')+'</p><table><tbody>'+L.map(x=>'<tr><td>'+x[0]+'</td><td>'+fm(x[1])+'</td></tr>').join('')+'<tr><th>Net à payer</th><th>'+fm(r.net)+'</th></tr></tbody></table><p style="font-size:10px">Document indicatif : à valider selon les taux en vigueur.</p>');};};
 if($('pye'))$('pye').onchange=()=>{const g=gross($('pye').value);if(g.b)$('pyb').value=g.b+g.p;};
 if($('pge'))$('pge').onchange=()=>{const r=(E||[]).find(e=>String(e.id)===$('pge').value);if(!r){$('pgr').textContent='';return;}const c=conge(r.deb);$('pgr').textContent=c?('Embauche : '+F(r.deb)+'\nService : '+c.m+' mois ('+c.an+' an(s))\nCongé acquis : '+c.princ+' jours ouvrables'+'\nMajoration ancienneté : +'+c.anc+' jours (par tranche de 5 ans)\nTotal théorique : '+(c.princ+c.anc)+' jours'+(c.ouvert?'':'\n⚠️ Droit de jouissance pas encore ouvert (12 mois requis).')):'Date d\'embauche invalide.';};
-if($('plc'))$('plc').onclick=()=>{const l=active().filter(e=>gross(e.id).b>0);if(!l.length)return toast('Enregistrez d\'abord des salaires');dl('livre-paie-'+per()+'.csv',[['Matricule','Nom','N° CNPS','Brut','CNPS salarié','CFC','IRPP+CAC','Autres retenues','Net','Charges patronales','Coût employeur']].concat(calcAll(l).map(({e,c})=>[MAT[e.id]||'',e.n,e.cnps||'',Math.round(c.b),Math.round(c.cn),Math.round(c.cf),Math.round(c.im),Math.round(c.aut),Math.round(c.net),Math.round(c.pat),Math.round(c.cout)])));};
-if($('pcn'))$('pcn').onclick=()=>{const l=active().filter(e=>gross(e.id).b>0);if(!l.length)return toast('Enregistrez d\'abord des salaires');dl('etat-cnps-'+per()+'.csv',[['Matricule','Nom','N° CNPS','Salaire brut','Assiette plafonnée','Part salariale','Pension employeur','Alloc. familiales','Accidents du travail','Total employeur']].concat(calcAll(l).map(({e,c})=>{const pl=Math.min(c.b,CFG.plafond);return [MAT[e.id]||'',e.n,e.cnps||'',Math.round(c.b),Math.round(pl),Math.round(c.cn),Math.round(pl*CFG.cnps_pat/100),Math.round(pl*CFG.af/100),Math.round(pl*CFG.at/100),Math.round(pl*(CFG.cnps_pat+CFG.af+CFG.at)/100)];})));};
+if($('plc'))$('plc').onclick=()=>{const l=active().filter(e=>gross(e.id).b>0);if(!l.length)return toast('Enregistrez d\'abord des salaires');dl('livre-paie-'+per()+'.csv',[['Matricule','Nom','N° CNPS','Brut','CNPS salarié','CFC','IRPP+CAC','Autres retenues','Net','Charges patronales','Coût employeur']].concat(calcAll(l).map(({e,c})=>[MAT[e.id]||'',e.n,CNX(e),Math.round(c.b),Math.round(c.cn),Math.round(c.cf),Math.round(c.im),Math.round(c.aut),Math.round(c.net),Math.round(c.pat),Math.round(c.cout)])));};
+if($('pcn'))$('pcn').onclick=()=>{const l=active().filter(e=>gross(e.id).b>0);if(!l.length)return toast('Enregistrez d\'abord des salaires');dl('etat-cnps-'+per()+'.csv',[['Matricule','Nom','N° CNPS','Salaire brut','Assiette plafonnée','Part salariale','Pension employeur','Alloc. familiales','Accidents du travail','Total employeur']].concat(calcAll(l).map(({e,c})=>{const pl=Math.min(c.b,CFG.plafond);return [MAT[e.id]||'',e.n,CNX(e),Math.round(c.b),Math.round(pl),Math.round(c.cn),Math.round(pl*CFG.cnps_pat/100),Math.round(pl*CFG.af/100),Math.round(pl*CFG.at/100),Math.round(pl*(CFG.cnps_pat+CFG.af+CFG.at)/100)];})));};
 
 /* ===== DIPE magnétique CNPS (format déduit des fichiers avril/mai 2026) ===== */
 const parseEmp=v=>{v=String(v||'').replace(/\s/g,'').toUpperCase();const m=v.match(/^(\d{10})([0-9A-Z]{5})?$/);return m?{emp:m[1],suf:m[2]||'000D1'}:{emp:'',suf:''};};
@@ -4671,8 +4671,8 @@ if($('pdipe'))$('pdipe').onclick=async()=>{try{
  const jr=Math.min(30,Math.max(1,parseInt(prompt('Nombre de jours par défaut (30 = mois complet) :',cfg.jours||30))||30));
  await wr('dipe_cfg',{...cfg,emp,suf,jours:jr});
  const ok=[],ko=[];let seq=0;
- calcAll(l).forEach(({e,c})=>{const n=(e.cnps||'').replace(/\D/g,'');
-  if(n.length!==11){ko.push(e.n+' : N° CNPS invalide ou absent ('+(e.cnps||'vide')+')');return;}
+ calcAll(l).forEach(({e,c})=>{const n=CNX(e).replace(/\D/g,'');
+  if(n.length!==11){ko.push(e.n+' : N° CNPS invalide ou absent ('+(CNX(e)||'vide')+')');return;}
   const brut=Math.round(c.b),cot=Math.min(brut,CFG.plafond);
   ok.push(dipeLine({pre:cfg.pre,suf,mm,emp,yyyy,cnps:n,jours:jr,brut,cot,seq:ordreFor(cfg,n),mat:String(MAT[e.id]||'').slice(-4)||(cfg.mats||{})[n]||''}));});
  await wr('dipe_cfg',{...cfg,emp,suf,jours:jr});
@@ -4836,6 +4836,8 @@ addEventListener('load',function(){if(window.XLSX)return;var s=document.createEl
    → « Erreur : rd is not defined ». Elles sont maintenant globales, donc visibles partout. */
 async function rd(cle){try{const {data}=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle',cle).maybeSingle();return data&&data.valeur?JSON.parse(data.valeur):null;}catch(e){console.warn('rd('+cle+')',e);return null;}}
 async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,valeur:JSON.stringify(o),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});if(error)throw error;}
+/* N° CNPS à afficher pour une fiche : remplacé par le référentiel CNPS quand il est chargé (voir terh-cnpsref) */
+function CNX(e){return (e&&e.cnps)||'';}
 </script>
 <script id="terh-v3">
 (function(){
@@ -5271,8 +5273,9 @@ function parseSlip2(text,fn){
   const exc=findAmt(lines,[/(?:prime|salaire|indemnit[ée]|gratification)\s+exceptionnel\w*/i],'max');
   let jr=0;for(const l of lines){const m=/(?:nombre\s+de\s+jours|nb\.?\s*(?:de\s*)?jours|jours?\s+(?:travaill\w+|pay\w+|pr[ée]sence|de\s+travail)|\bjours?\b)\D{0,15}(\d{1,2})(?:[,.]\d+)?\b/i.exec(l);if(m&&+m[1]>=1&&+m[1]<=31){jr=+m[1];break;}}
   const tmp=(()=>{const per=/(?:p[ée]riode|mois)\D{0,15}((?:janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c)\w*\.?\s*\/?\s*\d{2,4}|\d{1,2}\s*[\/\-]\s*\d{4})/i.exec(t);return per?per[1]:'';})();
-  const r0={nom:(e?e.n:(nom||fn||'')).slice(0,60),eid:e?e.id:'',cnps,cnpsAuto:fromEmp,jours:Math.min(30,jr||30),brut,cot,exc,mat:'',per:tmp,_t:t.slice(0,8000)};
+  const r0={nom:(e?e.n:(nom||fn||'')).slice(0,60),nomBul:(nom||'').slice(0,60),eid:e?e.id:'',cnps,cnpsAuto:fromEmp,jours:Math.min(30,jr||30),brut,cot,exc,mat:'',per:tmp,_t:t.slice(0,8000)};
   try{if(window.TERH_DIPE&&TERH_DIPE.enrich)TERH_DIPE.enrich(r0,t,fn);}catch(er){console.warn('dipe-plus enrich',er);}
+  try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(r0);}catch(er){console.warn('référentiel CNPS',er);}
   return r0;
 }
 function pageText(items){return (window.TERH_pdfText||pdfItemsToText)(items);}
@@ -5312,7 +5315,7 @@ async function openDipe3(){
   <div id="d_s" class="muted" style="margin:8px 0;font-size:12px"></div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-bottom:6px"><label><input type="checkbox" id="d_flt"> Lignes à corriger seulement</label><label><input type="checkbox" id="d_drop" checked> Exclure les salariés de l'ancien modèle absents des bulletins</label></div>
   <div id="d_t" style="overflow:auto;max-height:55vh"></div>
-  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="d_dl">⬇️ Télécharger le DIPE (.txt)</button><button class="s" id="d_st">📊 État depuis les bulletins</button><button class="s" id="d_xl">⬇ Excel</button><button class="s" id="d_add">➕ Ajouter une ligne</button><button class="s" id="d_fill">🧩 Compléter depuis les fiches employés</button></div>`,'dpm2');
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="d_dl">⬇️ Télécharger le DIPE (.txt)</button><button class="s" id="d_st">📊 État depuis les bulletins</button><button class="s" id="d_xl">⬇ Excel</button><button class="s" id="d_add">➕ Ajouter une ligne</button><button class="s" id="d_fill">🧩 Compléter depuis les fiches employés</button><button class="s" id="d_ref">📚 Référentiel CNPS (import Excel / PDF)</button></div>`,'dpm2');
   const g=id=>el.querySelector('#'+id);
   const cols=[['nom','Nom',170],['cnps','N° CNPS (11 chiffres)',130],['jours','Jours',46],['brut','Brut',88],['exc','Except.',70],['cot','Cotisable',88],['mat','Matr.',54]];
   const dupAt=(r,i)=>R.findIndex(x=>x.cnps&&x.cnps===r.cnps)!==i;
@@ -5322,16 +5325,21 @@ async function openDipe3(){
   let drawX=null;const draw=()=>(drawX||drawBase)();
   const drawBase=()=>{const bad=R.filter((r,i)=>incl(r,i)&&!okRow(r,i)).length;
     g('d_t').innerHTML=R.length?`<table class="d3" style="border-collapse:collapse;width:100%"><tr><th>#</th>${cols.map(c=>'<th style="text-align:left">'+c[1]+'</th>').join('')}<th>État</th><th></th></tr>${R.map((r,i)=>{if(g('d_flt').checked&&okRow(r,i))return '';const m=miss(r,i);
-      return `<tr class="${r.old&&!r.seen?'old':''}"><td>${i+1}</td>${cols.map(c=>`<td><input data-i="${i}" data-k="${c[0]}" value="${ESC(r[c[0]]??'')}" class="${m.includes(c[0])?'bad':(r[c[0]]?'ok':'')}" style="width:${c[2]}px"></td>`).join('')}<td>${r.old&&!r.seen?'⚪ ancien (absent)':r.old?'🔄 mis à jour':'🆕 nouveau'}${r.cnpsAuto?' · CNPS fiche':''}${m.length?' · ⚠ '+[...new Set(m)].join(', '):' · ✅'}</td><td><button data-t="${i}" title="Texte lu">🔎</button><button data-del="${i}">✕</button></td></tr>`;}).join('')}</table><p class="muted" style="font-size:12px">${R.length} ligne(s) · ${bad} à corriger. Cases rouges = information manquante ou invalide (modifiable). 🔎 montre le texte lu dans le bulletin.</p>`:'<p class="muted">Aucune ligne. Chargez des bulletins puis « Lire ».</p>';
-    el.querySelectorAll('#d_t input').forEach(x=>x.onchange=()=>{const k=x.dataset.k,r=R[+x.dataset.i];r[k]=['jours','brut','cot','exc'].includes(k)?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value);draw();});
+      return `<tr class="${r.old&&!r.seen?'old':''}"><td>${i+1}</td>${cols.map(c=>`<td><input data-i="${i}" data-k="${c[0]}" value="${ESC(r[c[0]]??'')}" class="${m.includes(c[0])?'bad':(r[c[0]]?'ok':'')}" style="width:${c[2]}px"></td>`).join('')}<td>${r.old&&!r.seen?'⚪ ancien (absent)':r.old?'🔄 mis à jour':'🆕 nouveau'}${r.cnpsAuto?' · CNPS fiche':''}${r.cnpsRef?' · 📚 CNPS référentiel'+(r.cnpsWas?' (bulletin : '+ESC(r.cnpsWas)+')':''):''}${m.length?' · ⚠ '+[...new Set(m)].join(', '):' · ✅'}</td><td><button data-t="${i}" title="Texte lu">🔎</button><button data-del="${i}">✕</button></td></tr>`;}).join('')}</table><p class="muted" style="font-size:12px">${R.length} ligne(s) · ${bad} à corriger. Cases rouges = information manquante ou invalide (modifiable). 🔎 montre le texte lu dans le bulletin.</p>`:'<p class="muted">Aucune ligne. Chargez des bulletins puis « Lire ».</p>';
+    el.querySelectorAll('#d_t input').forEach(x=>x.onchange=()=>{const k=x.dataset.k,r=R[+x.dataset.i];r[k]=['jours','brut','cot','exc'].includes(k)?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value);if(k==='cnps'){r.cnpsAuto=false;r.cnpsRef=false;r.cnpsManual=String(r.cnps||'').length>0;}draw();});
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{R.splice(+b.dataset.del,1);draw();});
     el.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=R[+b.dataset.t];const w=openWin('<h3>🔎 Texte lu — '+ESC(r.nom||'')+'</h3><pre style="white-space:pre-wrap;font-size:12px;max-height:70vh;overflow:auto">'+ESC(r._t||'(ligne issue de l\'ancien modèle ou saisie manuelle)')+'</pre>');});};
   const fillFromEmp=()=>{let n=0;R.forEach(r=>{let e=r.eid?(E.find(x=>String(x.id)===String(r.eid))):matchEmp(r.nom,r.nom);if(!e&&r.cnps)e=E.find(x=>String(x.cnps||'').replace(/\D/g,'')===r.cnps);
       if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');if(!/^\d{11}$/.test(r.cnps||'')&&c.length===11){r.cnps=c;r.cnpsAuto=true;n++;}
         const mt=String(MAT[e.id]||'').slice(-4);if(!r.mat&&mt)r.mat=mt;}
       if(r.cnps&&!r.mat&&cfg.mats[r.cnps])r.mat=cfg.mats[r.cnps];
-      });return n;};
+      });
+    /* référentiel CNPS : le N° de l'historique CNPS complète / remplace celui du bulletin ou de la fiche */
+    try{if(window.TERH_CNPSREF)R.forEach(r=>TERH_CNPSREF.fixRow(r));}catch(er){console.warn('référentiel CNPS',er);}
+    return n;};
   g('d_fill').onclick=()=>{const n=fillFromEmp();draw();say('🧩 '+n+' N° CNPS complété(s) depuis les fiches');};
+  g('d_ref').onclick=()=>{if(window.TERH_CNPSREF)TERH_CNPSREF.open();else say('Référentiel CNPS indisponible');};
+  if(window.TERH_CNPSREF)TERH_CNPSREF.onChange=()=>{try{fillFromEmp();draw();showAbs();}catch(er){console.warn(er);}};
   g('d_add').onclick=()=>{R.push({nom:'',cnps:'',jours:30,brut:0,cot:0,exc:0,mat:''});draw();};
   g('d_flt').onchange=draw;g('d_drop').onchange=draw;
   /* ancien modèle */
@@ -5356,7 +5364,7 @@ async function openDipe3(){
     const A=R.filter(r=>r.old&&!r.seen);
     b.innerHTML=A.length?'<b>⚠ '+A.length+' salarié(s) dans l\'ancien DIPE mais absent(s) des bulletins :</b><br>'+A.map(r=>ESC(r.nom||'(nom inconnu)')+' — CNPS '+ESC(r.cnps||'?')).join('<br>')+'<br><i>Ils gardent leurs anciennes valeurs (lignes grisées). Vérifiez : départ, absence de paie ou bulletin non fourni.</i>':'✅ Tous les salariés de l\'ancien DIPE ont un bulletin.';};
   /* lecture des bulletins */
-  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;let nread=0;R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
+  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;let nread=0;try{if(window.TERH_CNPSREF){await TERH_CNPSREF.load();TERH_CNPSREF.S.stat={fixed:0,filled:0,named:0};}}catch(er){}R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
     try{for(const f of fs){const ex=f.name.toLowerCase().split('.').pop();let slips;
       try{
         if(ex==='pdf')slips=groupSlips(await pdfPages(f,(i,n)=>{g('d_s').textContent='⏳ '+f.name+' : page '+i+'/'+n;}));
@@ -5364,13 +5372,13 @@ async function openDipe3(){
       }catch(err){console.error(err);say('Lecture impossible : '+f.name+' ('+err.message+')');continue;}
       for(const s of slips){const r=parseSlip2(s,f.name.replace(/\.[^.]+$/,''));nread++;
         const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
-        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;}
+        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(o);}catch(er){}}
         else{R.push(r);}}
       await new Promise(r=>setTimeout(r,0));}
     }finally{g('d_go').disabled=false;}
     const n=fillFromEmp();
     const per=R.find(r=>r.per);if(per&&per.per){/* période détectée : indicative */}
-    g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();};
+    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();};
   /* export DIPE */
   g('d_dl').onclick=async()=>{try{
     const E5=parseEmp(g('d_em').value),p=g('d_mo').value,pre=(g('d_pre').value||'C0400000').trim();
@@ -5413,7 +5421,286 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 window.TERH_openDipe=openDipe3;
 })();
 </script>
+<script id="terh-cnpsref">/* ===== TERH : RÉFÉRENTIEL CNPS =====
+   Importez l'historique des cotisations CNPS (Excel, CSV ou PDF) : l'application mémorise les couples
+   « nom ↔ N° CNPS ». Ensuite le N° du référentiel (a) complète les N° manquants et (b) REMPLACE les N° erronés
+   dans : la lecture des bulletins / le DIPE, les bulletins imprimés, le livre de paie, l'état CNPS, et
+   (sur demande) les fiches employés. Stocké par entreprise (table « parametres », clé cnps_ref_json). */
+(function(){
+'use strict';
+const KEY='cnps_ref_json';
+const dg=s=>String(s==null?'':s).replace(/\D/g,'');
+const nz=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const STOPW=new Set(['de','du','la','le','des','et','ep','epse','nee']);
+const toks=s=>[...new Set(nz(s).split(' ').filter(w=>w.length>1&&!STOPW.has(w)))];
+const say=m=>{try{toast(m);}catch(e){alert(m);}};
+const canEdit=()=>{try{return typeof CAN==='undefined'||!CAN.edit||CAN.edit();}catch(e){return true;}};
+const tick=()=>new Promise(r=>setTimeout(r,0));
+const S={co:null,list:[],files:[],at:'',loaded:false,idx:[],byC:new Map(),cache:new Map(),stat:{fixed:0,filled:0,named:0}};
+const api=window.TERH_CNPSREF={S,onChange:null};
 
+/* ---------- index & rapprochement de noms ---------- */
+function reindex(){S.idx=S.list.map(o=>({o,t:toks(o.n)}));S.byC=new Map(S.list.map(o=>[o.c,o]));S.cache.clear();}
+function score(a,b){ /* a,b : listes de mots */
+  if(!a.length||!b.length)return 0;
+  const common=a.filter(w=>b.includes(w)).length;if(!common)return 0;
+  const mn=Math.min(a.length,b.length),mx=Math.max(a.length,b.length);
+  if(common===a.length&&common===b.length)return 100;
+  if(common>=2&&common===mn)return 80+common;
+  if(common>=2&&common/mx>=0.66)return 60+common;
+  return 0;}
+function bestIn(t,arr,key){ /* arr : [{o,t}] → {o,amb,score} */
+  let best=null,bs=0,amb=false;
+  for(const x of arr){const sc=score(t,x.t);if(!sc)continue;
+    if(sc>bs){best=x.o;bs=sc;amb=false;}else if(sc===bs&&best&&(key?key(x.o)!==key(best):x.o!==best))amb=true;}
+  return best?{o:best,amb,score:bs}:null;}
+const matchName=name=>bestIn(toks(name),S.idx,o=>o.c);
+const fmtLike=(c)=>{try{const L=(typeof E!=='undefined'?E:[]).map(e=>String(e.cnps||'')).filter(v=>dg(v).length===11);
+  const withDash=L.filter(v=>/-/.test(v)).length;return L.length&&withDash>L.length/2?c.slice(0,3)+'-'+c.slice(3,10)+'-'+c.slice(10):c;}catch(e){return c;}};
+api.fmt=c=>fmtLike(dg(c));
+
+/* ---------- persistance ---------- */
+async function load(force){
+  const co=(typeof CO!=='undefined')?CO:null;if(!co)return S.list;
+  if(!force&&S.loaded&&S.co===co)return S.list;
+  let v=null;try{v=await rd(KEY);}catch(e){}
+  if(!v){try{v=JSON.parse(localStorage.getItem('terh_cnpsref_'+co)||'null');}catch(e){}}
+  S.co=co;S.loaded=true;S.list=(v&&Array.isArray(v.list)?v.list:[]).filter(o=>o&&dg(o.c).length===11).map(o=>({...o,c:dg(o.c)}));
+  S.files=(v&&v.files)||[];S.at=(v&&v.at)||'';reindex();return S.list;}
+async function save(){
+  const o={list:S.list,files:S.files.slice(-30),at:new Date().toISOString()};S.at=o.at;reindex();
+  try{await wr(KEY,o);try{localStorage.removeItem('terh_cnpsref_'+S.co);}catch(e){}}
+  catch(e){try{localStorage.setItem('terh_cnpsref_'+S.co,JSON.stringify(o));}catch(x){}throw e;}}
+api.load=load;
+
+/* ---------- API utilisée par les autres modules ---------- */
+/* N° CNPS à afficher pour une fiche employé : référentiel d'abord, sinon fiche */
+api.num=function(e){
+  if(!e)return '';const raw=e.cnps||'';if(!S.list.length)return raw;
+  const k=String(e.id)+'|'+(e.n||'');if(S.cache.has(k))return S.cache.get(k)||raw;
+  const m=matchName(e.n);const v=(m&&!m.amb)?fmtLike(m.o.c):'';S.cache.set(k,v);return v||raw;};
+window.CNX=e=>{try{return api.num(e);}catch(x){return (e&&e.cnps)||'';}};
+/* Ligne du DIPE : complète le nom / remplace ou complète le N° CNPS d'après le référentiel */
+api.fixRow=function(r){
+  if(!r||!S.list.length||r.cnpsManual)return false;
+  const cur=dg(r.cnps),st=S.stat;let m=null,amb=false;
+  for(const n of [r.nom,r.nomBul]){if(!n)continue;const x=matchName(n);if(x&&!x.amb){m=x.o;break;}if(x&&x.amb)amb=true;}
+  const warn=t=>{r.warn=String(r.warn||'').includes(t)?r.warn:(r.warn?r.warn+' · ':'')+t;};
+  if(m){
+    if(cur!==m.c){r.cnpsWas=cur;r.cnps=m.c;r.cnpsAuto=false;r.cnpsRef=true;
+      if(cur.length)st.fixed++;else st.filled++;
+      if(cur)warn('N° CNPS du bulletin ('+cur+') remplacé par celui du référentiel');}
+    else r.cnpsRef=true;
+    return true;}
+  const k=cur.length===11?S.byC.get(cur):null;
+  if(k){r.cnpsRef=true;
+    if(!r.nom&&k.n){r.nom=k.n;st.named++;}
+    else if(r.nom&&score(toks(r.nom),toks(k.n))===0)warn('ce N° CNPS appartient à « '+k.n+' » dans le référentiel');
+    return true;}
+  if(amb)warn('plusieurs personnes du référentiel portent ce nom : vérifiez le N° CNPS');
+  return false;};
+
+/* ---------- lecture des fichiers ---------- */
+const CRE=/(?<!\d)\d{3}[ .\-]?\d{7}[ .\-]?\d(?!\d)/g,CRE1=new RegExp(CRE.source);
+const MONTHS={janv:1,fev:2,mars:3,avr:4,mai:5,juin:6,juil:7,aout:8,sept:9,oct:10,nov:11,dec:12};
+const BAD=new Set(['total','periode','mois','salaire','salaires','brut','cotisable','cotisations','cotisation','cnps','nom','noms','prenom','prenoms','numero','matricule','page','date','employeur','employe','employes','assure','assures','jours','trimestre','annee','montant','taux','base','net','pension','vieillesse','cumul','releve','historique','etat','liste','janvier','fevrier','avril','juin','juillet','aout','septembre','octobre','novembre','decembre','janv','fevr','avr','juil','sept','oct','nov','dec','nombre','jour','declaration','dipe','salarie','salaries','sans','objet','mars','mai']);
+function periodOf(s){
+  s=String(s||'').replace(CRE,' ');let m;
+  if((m=/(?<!\d)(0?[1-9]|1[0-2])\s*[\/\-.]\s*(20\d{2})(?!\d)/.exec(s)))return m[2]+'-'+m[1].padStart(2,'0');
+  if((m=/(?<!\d)(20\d{2})\s*[\/\-.]\s*(0?[1-9]|1[0-2])(?!\d)/.exec(s)))return m[1]+'-'+m[2].padStart(2,'0');
+  if((m=/(?<!\d)(20\d{2})(0[1-9]|1[0-2])(?!\d)/.exec(s)))return m[1]+'-'+m[2];
+  if((m=/(janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c)\w*\.?\s*(20\d{2})/i.exec(s))){const key=Object.keys(MONTHS).find(x=>nz(m[1]).startsWith(x)),mm=key?MONTHS[key]:0;if(mm)return m[2]+'-'+String(mm).padStart(2,'0');}
+  return '';}
+function nameFrom(s){ /* plus longue suite de mots alphabétiques d'un texte */
+  const w=String(s||'').replace(CRE,' ').split(/[\s|;\t]+/).filter(Boolean),runs=[];let cur=[];
+  w.forEach(t=>{if(/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*\.?$/.test(t)&&!BAD.has(nz(t))&&nz(t).length>0)cur.push(t.replace(/\.$/,''));else{if(cur.length)runs.push(cur);cur=[];}});
+  if(cur.length)runs.push(cur);
+  runs.sort((a,b)=>b.join('').length-a.join('').length);
+  const r=(runs[0]||[]).join(' ').trim();return r.replace(/[^A-Za-zÀ-ÿ]/g,'').length>=4?r:'';}
+const isCnpsCell=c=>/^[\d\s.\-\/]+$/.test(String(c).trim())&&dg(c).length===11;
+
+async function readExcel(f){
+  if(!window.XLSX)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const ex=f.name.toLowerCase().split('.').pop();
+  const wb=(ex==='csv'||ex==='txt')?XLSX.read(await f.text(),{type:'string'}):XLSX.read(await f.arrayBuffer(),{type:'array'});
+  const rows=[],rej=[];
+  for(const sn of wb.SheetNames){
+    const a=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:true}).map(r=>r.map(c=>typeof c==='number'?String(c):String(c==null?'':c)));
+    let hi=-1,cc=-1,nc=-1,pc=-1,mc=-1;
+    for(let i=0;i<Math.min(a.length,40)&&hi<0;i++){
+      const H=a[i].map(nz),c1=H.findIndex(h=>/cnps|immat|securite sociale|n ss|^ss$|assure/.test(h)&&!/nom/.test(h)),n1=H.findIndex((h,j)=>j!==c1&&/^nom|salarie|employe|assure|beneficiaire|agent/.test(h));
+      if(c1>=0&&n1>=0){hi=i;cc=c1;nc=n1;pc=H.findIndex(h=>/prenom/.test(h));mc=H.findIndex(h=>/periode|mois|trimestre|date/.test(h));}}
+    for(let i=hi+1;i<a.length;i++){const r=a[i];if(!r.some(c=>String(c).trim()))continue;
+      let c='';
+      if(cc>=0&&String(r[cc]).trim()){const raw=String(r[cc]).trim();if(isCnpsCell(raw))c=dg(raw);else if(dg(raw).length>=8&&/^[\d\s.\-\/]+$/.test(raw)){rej.push({n:String(r[nc]||'').trim(),raw,l:sn+' ligne '+(i+1)});continue;}}
+      if(!c){const k=r.find(isCnpsCell);if(k!==undefined)c=dg(k);}
+      if(!c)continue;
+      let n='';
+      if(nc>=0){n=String(r[nc]||'').trim();if(pc>=0&&r[pc])n=(n+' '+String(r[pc]).trim()).trim();n=n.replace(/\s+/g,' ');}
+      if(!n)for(const cell of r){if(isCnpsCell(cell))continue;const t=nameFrom(cell);if(t&&t.split(' ').length>=2){n=t;break;}}
+      if(!n)for(const cell of r){if(isCnpsCell(cell))continue;const t=nameFrom(cell);if(t){n=t;break;}}
+      rows.push({c,n,p:periodOf(mc>=0?r[mc]:r.join(' '))});}
+    await tick();}
+  return {rows,rej};}
+
+async function readPdfRows(f,prog){
+  await needLibs('pdf');
+  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise,lines=[];let ocr=0;
+  for(let i=1;i<=pdf.numPages;i++){
+    const p=await pdf.getPage(i);let t=(window.TERH_pdfText||pdfItemsToText)((await p.getTextContent()).items);
+    if(t.replace(/\s/g,'').length<60){
+      try{await needLibs('png');const v=p.getViewport({scale:2.2}),cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+        await p.render({canvasContext:cx,viewport:v}).promise;t=await readImg(await new Promise(r=>cv.toBlob(r,'image/png')));cv.width=cv.height=0;ocr++;}catch(e){console.warn('OCR page '+i,e);}}
+    String(t||'').split(/\n+/).forEach(l=>lines.push(l.replace(/[\u00a0\u202f]/g,' ').replace(/[ \t]+/g,' ').trim()));
+    prog(i,pdf.numPages,ocr);p.cleanup();await tick();}
+  const rows=[],rej=[];
+  lines.forEach((l,i)=>{
+    const ms=[...l.matchAll(CRE)];if(!ms.length)return;
+    if(ms.length>1){ms.forEach(m=>rows.push({c:dg(m[0]),n:'',p:periodOf(l)}));return;}
+    let n=nameFrom(l);
+    if(!n){const pv=lines[i-1]||'',nx=lines[i+1]||'';if(!CRE1.test(pv)&&(nameFrom(pv).split(' ').length>=2))n=nameFrom(pv);else if(!CRE1.test(nx)&&(nameFrom(nx).split(' ').length>=2))n=nameFrom(nx);}
+    rows.push({c:dg(ms[0][0]),n,p:periodOf(l)});});
+  return {rows,rej,ocr};}
+
+/* ---------- fusion (simulation, puis validation) ---------- */
+function merge(base,rows,src){
+  const list=base.map(o=>({...o})),by=new Map(list.map(o=>[o.c,o])),st={lus:rows.length,nouveaux:0,connus:0,maj:0,sansNom:0},warns=[];
+  rows.forEach(r=>{
+    const o=by.get(r.c);
+    if(!o){const n={n:r.n||'',c:r.c,s:src,k:1,p:r.p||''};list.push(n);by.set(r.c,n);st.nouveaux++;if(!n.n)st.sansNom++;return;}
+    o.k=(o.k||1)+1;let ch=false;
+    if(r.n){if(!o.n){o.n=r.n;ch=true;}else{const a=toks(o.n),b=toks(r.n),sc=score(a,b);
+      if(sc===0){const t='« '+r.c+' » apparaît avec deux noms différents : « '+o.n+' » et « '+r.n+' » (nom conservé : le premier)';if(!warns.includes(t)&&warns.length<30)warns.push(t);}
+      else if(b.length>a.length&&sc>=80){o.n=r.n;ch=true;}}}
+    if(r.p&&(!o.p||r.p>o.p)){o.p=r.p;}
+    if(ch)st.maj++;else st.connus++;});
+  return {list,st,warns};}
+
+/* ---------- interface ---------- */
+function openW(html){
+  document.getElementById('cnpsref_w')?.remove();
+  const el=document.createElement('div');el.id='cnpsref_w';el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);overflow:auto;padding:16px';
+  el.innerHTML='<div style="background:var(--bg,#fff);color:var(--tx,#111);max-width:1000px;margin:0 auto;border-radius:12px;padding:14px">'+html+'</div>';
+  document.body.appendChild(el);return el;}
+const empList=()=>(typeof E!=='undefined'?E:[]);
+function link(o,ET){ /* fiche employé correspondant à une entrée du référentiel */
+  const m=bestIn(toks(o.n),ET,e=>e.id);
+  if(m&&!m.amb)return {e:m.o,amb:false};
+  if(m&&m.amb)return {e:null,amb:true};
+  const e=empList().find(x=>dg(x.cnps)===o.c);return {e:e||null,amb:false};}
+async function afterChange(){try{if(typeof api.onChange==='function')api.onChange();}catch(e){}}
+
+api.open=async function(){
+  await load(true);
+  const w=openW(`<h2 style="margin:0 0 6px">📚 Référentiel CNPS — historique des cotisations</h2>
+  <p class="muted" style="font-size:12px;margin:0 0 8px">Importez l'historique des cotisations CNPS (<b>Excel, CSV ou PDF</b>). Les noms et N° CNPS sont mémorisés. Ensuite le N° du fichier <b>complète les N° manquants et remplace les N° erronés</b> à la lecture des bulletins, dans le DIPE, sur les bulletins imprimés et dans les états CNPS. Les fiches employés ne sont modifiées qu'avec le bouton « Appliquer aux fiches ».</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+   <label style="flex:1;min-width:220px">Fichier(s) CNPS<br><input id="cr_f" type="file" multiple accept=".xlsx,.xls,.csv,.pdf" style="max-width:100%"></label>
+   <button class="p" id="cr_go">🔍 Lire le fichier</button></div>
+  <div id="cr_s" class="muted" style="margin:8px 0;font-size:12px"></div><div id="cr_pend"></div>
+  <div id="cr_sum" style="margin:8px 0"></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0">
+   <input id="cr_q" placeholder="🔍 Nom ou N° CNPS…" style="flex:1;min-width:160px">
+   <select id="cr_flt"><option value="">Toutes les lignes</option><option value="miss">Fiche sans N° CNPS</option><option value="diff">Fiche avec un N° différent</option><option value="none">Sans fiche employé</option><option value="amb">Homonymes / conflits</option></select>
+   <button class="s" id="cr_add">➕ Ajouter</button></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">
+   <button class="p" id="cr_app">✅ Appliquer aux fiches employés</button><button class="s" id="cr_xl">⬇ Excel</button><button class="s" id="cr_clr">🗑 Vider le référentiel</button></div>
+  <div id="cr_t" class="tw" style="max-height:55vh;overflow:auto"></div>`);
+  const g=id=>w.querySelector('#'+id);let limit=150,pend=null;
+
+  const render=()=>{
+    const ET=empList().map(e=>({o:e,t:toks(e.n)}));
+    const info=S.list.map(o=>{const l=link(o,ET);const f=l.e,fc=f?dg(f.cnps):'';
+      const st=l.amb?'amb':!f?'none':fc===o.c?'ok':(fc.length?'diff':'miss');return {o,f,st};});
+    /* conflits : même nom, N° différents */
+    const names=S.idx,confl=new Set();
+    names.forEach((x,i)=>{for(let j=i+1;j<names.length;j++)if(score(x.t,names[j].t)>=80)confl.add(x.o.c).add(names[j].o.c);});
+    const cnt=k=>info.filter(x=>x.st===k).length;
+    g('cr_sum').innerHTML=S.list.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px">
+      <span class="b">📚 ${S.list.length} personne(s) dans le référentiel</span><span class="b">✅ ${cnt('ok')} fiche(s) à jour</span>
+      <span class="b ENCOURS">➕ ${cnt('miss')} fiche(s) sans N°</span><span class="b ENCOURS">⚠ ${cnt('diff')} fiche(s) avec N° différent</span><span class="b">— ${cnt('none')} sans fiche</span>${confl.size?`<span class="b ENCOURS">⚠ ${confl.size} en conflit / homonymes</span>`:''}</div>
+      <div class="muted" style="font-size:11px;margin-top:4px">Dernier enregistrement : ${S.at?new Date(S.at).toLocaleString('fr-FR'):'—'}${S.files.length?' · fichiers : '+esc(S.files.slice(-3).map(x=>x.n).join(', ')):''}</div>`
+      :'<p class="muted">Référentiel vide : choisissez un fichier puis « Lire le fichier ».</p>';
+    const q=nz(g('cr_q').value),qd=dg(g('cr_q').value),fl=g('cr_flt').value;
+    const V=info.filter(x=>(!q||nz(x.o.n).includes(q)||(qd&&x.o.c.includes(qd)))&&(!fl||(fl==='amb'?(x.st==='amb'||confl.has(x.o.c)):x.st===fl)));
+    const shown=V.slice(0,limit);
+    const lab={ok:'✅ fiche à jour',miss:'➕ fiche sans N°',diff:'⚠ fiche : ',none:'— pas de fiche',amb:'⚠ homonymes'};
+    g('cr_t').innerHTML=S.list.length?`<table style="border-collapse:collapse;width:100%"><thead><tr><th>Nom</th><th>N° CNPS</th><th>Fiche employé</th><th>Source</th><th></th></tr></thead><tbody>${shown.map(x=>`<tr data-c="${x.o.c}"><td><input data-k="n" value="${esc(x.o.n)}" style="min-width:140px;width:100%"></td><td><input data-k="c" value="${esc(x.o.c)}" maxlength="14" style="width:120px"></td><td style="font-size:11px">${lab[x.st]}${x.st==='diff'?esc(x.f.cnps||''):''}${confl.has(x.o.c)&&x.st!=='amb'?' · ⚠ conflit':''}</td><td style="font-size:11px">${esc(x.o.s||'')}${x.o.p?' · '+esc(x.o.p):''}</td><td><button data-del title="Retirer du référentiel">✕</button></td></tr>`).join('')}</tbody></table><p class="muted" style="font-size:12px">${V.length} ligne(s) sur ${S.list.length}${V.length>shown.length?' · <a href="#" id="cr_more">afficher '+Math.min(150,V.length-shown.length)+' de plus</a>':''}</p>`:'';
+    g('cr_t').querySelectorAll('tr[data-c] input').forEach(inp=>inp.onchange=async()=>{
+      if(!canEdit()){say('Permission refusée');render();return;}
+      const tr=inp.closest('tr'),o=S.list.find(z=>z.c===tr.dataset.c);if(!o)return;
+      if(inp.dataset.k==='c'){const v=dg(inp.value);if(v.length!==11){say('Un N° CNPS comporte 11 chiffres');render();return;}if(v!==o.c&&S.list.some(z=>z.c===v)){say('Ce N° existe déjà dans le référentiel');render();return;}o.c=v;}
+      else o.n=inp.value.replace(/\s+/g,' ').trim();
+      try{await save();}catch(e){say('Enregistré sur cet appareil seulement : '+e.message);}
+      render();afterChange();});
+    g('cr_t').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      if(!canEdit()){say('Permission refusée');return;}
+      const c=b.closest('tr').dataset.c,o=S.list.find(z=>z.c===c);if(!o||!confirm('Retirer « '+(o.n||c)+' » du référentiel ?'))return;
+      S.list=S.list.filter(z=>z.c!==c);try{await save();}catch(e){say('Erreur : '+e.message);}render();afterChange();});
+    const more=g('cr_t').querySelector('#cr_more');if(more)more.onclick=ev=>{ev.preventDefault();limit+=150;render();};
+    w._info=info;};
+
+  g('cr_q').oninput=()=>{limit=150;render();};g('cr_flt').onchange=()=>{limit=150;render();};
+
+  /* lecture du/des fichier(s) → aperçu → validation */
+  g('cr_go').onclick=async()=>{
+    if(!canEdit()){say('Permission refusée');return;}
+    const fs=[...g('cr_f').files];if(!fs.length){say('Choisissez un fichier Excel, CSV ou PDF');return;}
+    g('cr_go').disabled=true;let all=[],rej=[],names=[];
+    try{
+      for(const f of fs){const ex=f.name.toLowerCase().split('.').pop();g('cr_s').textContent='⏳ Lecture de '+f.name+'…';
+        try{const o=ex==='pdf'?await readPdfRows(f,(i,n,oc)=>{g('cr_s').textContent='⏳ '+f.name+' : page '+i+'/'+n+(oc?' (OCR sur '+oc+' page(s) scannée(s))':'');}):await readExcel(f);
+          o.rows.forEach(r=>r.s=f.name);all=all.concat(o.rows);rej=rej.concat(o.rej||[]);names.push({n:f.name,at:new Date().toISOString(),l:o.rows.length});}
+        catch(e){console.error(e);say('Lecture impossible : '+f.name+' ('+e.message+')');}}
+    }finally{g('cr_go').disabled=false;}
+    if(!all.length){g('cr_s').textContent='❌ Aucun N° CNPS à 11 chiffres trouvé dans ce fichier.'+(rej.length?' '+rej.length+' N° invalides ignorés.':'');pend=null;g('cr_pend').innerHTML='';return;}
+    const src=fs.map(f=>f.name).join(', ').slice(0,80),mg=merge(S.list,all,src);pend={...mg,names,rej};
+    g('cr_s').textContent='✅ '+all.length+' ligne(s) lue(s) dans '+fs.length+' fichier(s).';
+    g('cr_pend').innerHTML=`<div style="border:1px solid var(--bd,#ccc);border-radius:8px;padding:10px;margin:6px 0;font-size:13px">
+      <b>Aperçu avant enregistrement</b><br>🆕 ${mg.st.nouveaux} nouvelle(s) personne(s) · ✔ ${mg.st.connus} ligne(s) répétant un N° déjà connu (historique mensuel) · ✏ ${mg.st.maj} nom(s) complété(s)${mg.st.sansNom?' · ⚠ '+mg.st.sansNom+' sans nom lisible (à compléter dans le tableau)':''}${rej.length?'<br>⚠ '+rej.length+' N° ignoré(s) car invalides (≠ 11 chiffres) : '+esc(rej.slice(0,5).map(x=>(x.n||'?')+' ('+x.raw+')').join(', '))+(rej.length>5?'…':''):''}
+      ${mg.warns.length?'<div style="font-size:12px;margin-top:4px">'+mg.warns.map(x=>'⚠ '+esc(x)).join('<br>')+'</div>':''}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="cr_ok">💾 Enregistrer dans le référentiel</button><button class="s" id="cr_no">Annuler</button></div></div>`;
+    g('cr_no').onclick=()=>{pend=null;g('cr_pend').innerHTML='';g('cr_s').textContent='Import annulé.';};
+    g('cr_ok').onclick=async()=>{if(!pend)return;S.list=pend.list;S.files=S.files.concat(pend.names);
+      try{await save();say('📚 Référentiel enregistré : '+S.list.length+' personne(s)');}catch(e){say('⚠ Enregistré sur cet appareil seulement : '+e.message);}
+      pend=null;g('cr_pend').innerHTML='';g('cr_f').value='';limit=150;render();afterChange();};};
+
+  g('cr_add').onclick=async()=>{
+    if(!canEdit()){say('Permission refusée');return;}
+    const n=(prompt('Nom et prénoms :')||'').replace(/\s+/g,' ').trim();if(!n)return;
+    const c=dg(prompt('N° CNPS (11 chiffres) :')||'');if(c.length!==11){say('Un N° CNPS comporte 11 chiffres');return;}
+    if(S.list.some(z=>z.c===c)){say('Ce N° existe déjà dans le référentiel');return;}
+    S.list.push({n,c,s:'saisie manuelle',k:1,p:''});try{await save();}catch(e){say('Erreur : '+e.message);}render();afterChange();};
+
+  /* appliquer aux fiches employés : le N° du référentiel fait foi */
+  g('cr_app').onclick=async()=>{
+    if(!canEdit()){say('Permission refusée');return;}
+    const todo=(w._info||[]).filter(x=>x.f&&(x.st==='miss'||x.st==='diff'));
+    if(!todo.length){say('Toutes les fiches rattachées sont déjà à jour');return;}
+    const nm=todo.filter(x=>x.st==='miss').length,nd=todo.length-nm;
+    if(!confirm(nm+' fiche(s) sans N° seront complétées et '+nd+' fiche(s) verront leur N° CNPS REMPLACÉ par celui du référentiel. Continuer ?'))return;
+    let ko=0,ok=0;g('cr_app').disabled=true;
+    for(const x of todo){try{const c=fmtLike(x.o.c);await updateEmp(x.f.id,{...x.f,cnps:c});x.f.cnps=c;ok++;}catch(e){ko++;console.error(e);}}
+    g('cr_app').disabled=false;
+    try{if(typeof loadAll==='function')await loadAll();}catch(e){}
+    say(ko?'⚠ '+ok+' fiche(s) mise(s) à jour, '+ko+' erreur(s) (voir la console)':'✅ '+ok+' fiche(s) mise(s) à jour');render();afterChange();};
+
+  g('cr_xl').onclick=async()=>{
+    if(!S.list.length){say('Rien à exporter');return;}
+    try{if(!window.XLSX)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(S.list.map(o=>({'Nom':o.n,'N° CNPS':o.c,'Dernière période':o.p||'','Source':o.s||''}))),'Référentiel CNPS');
+      XLSX.writeFile(wb,'referentiel_cnps.xlsx');}catch(e){say('Excel indisponible : '+e.message);}};
+  g('cr_clr').onclick=async()=>{
+    if(!canEdit()){say('Permission refusée');return;}
+    if(!S.list.length)return;if(!confirm('Vider tout le référentiel CNPS ('+S.list.length+' personne(s)) ? Les fiches employés ne sont pas modifiées.'))return;
+    S.list=[];S.files=[];try{await save();}catch(e){say('Erreur : '+e.message);}render();afterChange();};
+  render();};
+
+/* chargement automatique (changement d'entreprise) */
+setInterval(()=>{try{if(typeof CO!=='undefined'&&CO&&S.co!==CO)load();}catch(e){}},1500);
+})();
+</script>
 <script>/* ===== TERH add-on : langue, CNPS, widgets, pieds de page, corpus IA ===== */
 (function(){
 const q=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -5552,9 +5839,10 @@ function conf(){const w=win(`<h2 style="margin:0 0 8px">🧩 Configuration</h2><
 function cnps(){const A=(typeof E!=='undefined'?E:[]),d=v=>String(v||'').replace(/\D/g,'');
  const ok=A.filter(r=>d(r.cnps).length===11),ko=A.filter(r=>!ok.includes(r));
  const w=win(`<h2 style="margin:0 0 8px">🏦 Module CNPS</h2><div class="kp"><div class="k g-blue"><b>${A.length}</b><span>Effectif</span></div><div class="k g-green"><b>${ok.length}</b><span>N° CNPS valides</span></div><div class="k g-red"><b>${ko.length}</b><span>N° manquants / invalides</span></div></div>
-<div class="f"><button class="p" id="x_dipe">📤 DIPE depuis bulletins (avec ancien DIPE)</button><button class="s" id="x_xl">📥 Exporter les manquants (Excel)</button></div>
+<div class="f"><button class="p" id="x_dipe">📤 DIPE depuis bulletins (avec ancien DIPE)</button><button class="s" id="x_xl">📥 Exporter les manquants (Excel)</button><button class="s" id="x_ref">📚 Référentiel CNPS (import Excel / PDF)</button></div>
 <div class="tw"><table><thead><tr><th>Nom</th><th>Poste</th><th>Contrat</th><th>N° CNPS</th><th>Statut</th></tr></thead><tbody>${A.map(r=>`<tr><td>${H(r.n)}</td><td>${H(r.p)}</td><td>${H(r.t)}</td><td>${H(r.cnps)}</td><td>${d(r.cnps).length===11?'✅':(d(r.cnps)?'⚠ invalide':'❌ manquant')}</td></tr>`).join('')}</tbody></table></div>`);
  w.querySelector('#x_dipe').onclick=()=>{w.parentNode.remove();window.TERH_openDipe?window.TERH_openDipe():T('DIPE indisponible : ouvrez Paie & droit')};
+ w.querySelector('#x_ref').onclick=()=>{w.parentNode.remove();window.TERH_CNPSREF?TERH_CNPSREF.open():T('Référentiel CNPS indisponible')};
  w.querySelector('#x_xl').onclick=async()=>{try{if(!window.XLSX)throw new Error('Excel pas chargé');const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ko.map(r=>({Nom:r.n,Poste:r.p,Contrat:r.t,CNPS:r.cnps||''}))),'CNPS');XLSX.writeFile(wb,'cnps_a_regulariser.xlsx');}catch(e){T('Erreur : '+e.message)}};}
 /* ===== boutons ===== */
 function mk(){const nav=q('nav');if(!nav)return;
