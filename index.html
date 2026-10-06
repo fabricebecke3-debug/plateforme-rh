@@ -5372,6 +5372,7 @@ async function openDipe3(){
       }catch(err){console.error(err);say('Lecture impossible : '+f.name+' ('+err.message+')');continue;}
       for(const s of slips){const r=parseSlip2(s,f.name.replace(/\.[^.]+$/,''));nread++;
         const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
+        if(window.TERH_DIPE&&TERH_DIPE.findRow){const j2=TERH_DIPE.findRow(R,r);if(j2>-1)j=j2;}
         if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(o);}catch(er){}}
         else{R.push(r);}}
       await new Promise(r=>setTimeout(r,0));}

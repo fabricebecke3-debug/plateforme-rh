@@ -17,7 +17,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.4';
+T.version='2026.10.5';
 T.custom=T.custom||{};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
@@ -125,8 +125,18 @@ T.enrich=function(r,text,fn){
   const mv=findMi(lines,C.mi,digits(r.cnps));if(mv){r.mi=mv.v;src.mi=mv.label;}
   let e=r.eid?E.find(y=>String(y.id)===String(r.eid)):null;
   if(r.mi){const byMi=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));
-    if(byMi){if(e&&e.id!==byMi.id)r.warn='le nom du bulletin ('+(e.n||r.nom)+') ne correspond pas à ce matricule : fiche « '+byMi.n+' » retenue';e=byMi;r.eid=byMi.id;r.nom=byMi.n;}}
+    if(byMi){
+      if(e&&e.id!==byMi.id){
+        /* le NOM du bulletin fait foi : on garde la fiche trouvée par le nom, et le matricule du bulletin est retenu */
+        r.warn='matricule du bulletin ('+r.mi+') ≠ fiche « '+(e.n||r.nom)+' » ('+(MAT[e.id]||'—')+') : nom confirmé, matricule du bulletin retenu';
+        r.miFromSlip=true;
+      }else{e=byMi;r.eid=byMi.id;r.nom=byMi.n;}
+    }}
   if(!e&&r.cnps&&digits(r.cnps).length===11)e=E.find(y=>digits(y.cnps)===digits(r.cnps));
+  /* N° CNPS erroné sur le bulletin : on prend celui de la fiche (le référentiel CNPS, appliqué ensuite, a le dernier mot) */
+  if(e&&digits(e.cnps).length===11&&digits(r.cnps)!==digits(e.cnps)){
+    const was=digits(r.cnps);if(was)r.cnpsWas=was;r.cnps=digits(e.cnps);r.cnpsAuto=true;
+    if(was)r.warn=(r.warn?r.warn+' · ':'')+'N° CNPS du bulletin ('+was+') ≠ fiche : N° de la fiche utilisé';}
   if(e){if(!r.eid){r.eid=e.id;r.nom=e.n;}
     if(!r.mi&&MAT[e.id]){r.mi=MAT[e.id];r.miAuto=true;src.mi='fiche employé';}
     else if(r.mi&&MAT[e.id]&&!sameMi(MAT[e.id],r.mi))r.warn=(r.warn?r.warn+' · ':'')+'matricule du bulletin ≠ fiche ('+MAT[e.id]+')';}
@@ -134,6 +144,23 @@ T.enrich=function(r,text,fn){
   return r;
 };
 T.find=function(R,r){if(!r.mi)return -1;return R.findIndex(y=>y.mi&&sameMi(y.mi,r.mi));};
+/* rapprochement bulletin → ligne du tableau : CNPS (si le nom ne le contredit pas) → fiche → matricule → NOM (même approximatif) */
+T.findRow=function(R,r){
+  const tk=s=>[...new Set(nz(s).split(' ').filter(w=>w.length>1))];
+  const sc=(a,b)=>{if(!a.length||!b.length)return 0;const c=a.filter(w=>b.includes(w)).length;if(!c)return 0;
+    const mn=Math.min(a.length,b.length),mx=Math.max(a.length,b.length);
+    if(c===a.length&&c===b.length)return 100;if(c>=2&&c===mn)return 80+c;if(c>=2&&c/mx>=.66)return 60+c;return 0;};
+  const names=[r.nom,r.nomBul].filter(Boolean).map(tk).filter(a=>a.length);
+  const ns=x=>x.nom?Math.max(0,...names.map(n=>sc(n,tk(x.nom)))):0;
+  let j=-1;
+  if(digits(r.cnps).length===11)j=R.findIndex(x=>digits(x.cnps)===digits(r.cnps)&&(!names.length||!x.nom||ns(x)>0));
+  if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&String(x.eid)===String(r.eid));
+  if(j<0)j=T.find(R,r);
+  if(j<0&&names.length){let best=-1,bs=0,amb=false;
+    R.forEach((x,i)=>{const v=ns(x);if(v>bs){bs=v;best=i;amb=false;}else if(v&&v===bs)amb=true;});
+    if(best>-1&&bs>=60&&!amb)j=best;}
+  return j;
+};
 T.merge=function(o,r){
   ['mi','net','poste','src','cotEst','warn','miAuto','per'].forEach(k=>{if(r[k]!==undefined&&r[k]!=='')o[k]=r[k];});
   if(r.mat)o.mat=r.mat;
