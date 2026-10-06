@@ -17,7 +17,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.5';
+T.version='2026.10.6';
 T.custom=T.custom||{};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
@@ -114,7 +114,15 @@ T.enrich=function(r,text,fn){
   if(c&&/pension|vieillesse/i.test(c.label)){const L0=lines[c.line],mm=new RegExp(c.label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+'),'i').exec(L0);let n0=mm?nums(L0.slice(mm.index+mm[0].length)):[];
     for(let k=1;n0.length<2&&k<=2&&lines[c.line+k];k++){const nx=lines[c.line+k];if((nx.match(/[A-Za-zÀ-ÿ]/g)||[]).length>6)break;n0=n0.concat(nums(nx));}
     if(n0.length<2)c=null;else c.v=n0[0].v;}  /* 1er montant après le libellé = colonne Base */
-  if(c&&r.brut&&c.v>r.brut*1.001)c=null;
+  /* « Total Brut » : montant souvent 1 à 3 lignes sous le libellé (après un trait) → recherche explicite */
+  const tb=(()=>{const i=lines.findIndex(l=>/total\s+brut/i.test(l));if(i<0)return 0;let best=0;
+    for(let k=i;k<Math.min(lines.length,i+5);k++){if(k>i&&/pension|vieillesse|accident|prestations|total\s+cotis/i.test(lines[k]))break;
+      const seg=k===i?lines[k].replace(/^.*total\s+brut/i,''):lines[k];nums(seg).forEach(x=>{if(x.v>=1000&&x.v>best)best=x.v;});}
+    return best;})();
+  if(tb){r.brut=tb;src.brut='Total Brut';}
+  if(c&&r.brut&&c.v>r.brut*1.001){
+    if(tb)c=null;
+    else r.warn=(r.warn?r.warn+' · ':'')+'brut lu ('+r.brut+') < cotisable : vérifiez le brut (🔎)';}
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
   else{r.cot=0;r.cotEst=false;src.cot='non trouvé sur le bulletin';}  /* aucune estimation : case vide et rouge */
   const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
@@ -122,7 +130,10 @@ T.enrich=function(r,text,fn){
   const x=findAmt(lines,R('exc'),'max',1000);if(x){r.exc=x.v;src.exc=x.label;}
   const po=/(?:emploi|poste|fonction|qualification)\s*[:\-]\s*([A-Za-zÀ-ÿ' \/\-]{3,40})/i.exec(lines.join('\n'));if(po)r.poste=po[1].split(/\s{2,}|\s+(?:matricule|cnps|date|cat)/i)[0].trim();
   /* matricule interne + rattachement à la fiche employé */
-  const mv=findMi(lines,C.mi,digits(r.cnps));if(mv){r.mi=mv.v;src.mi=mv.label;}
+  let mv=findMi(lines,C.mi,digits(r.cnps));
+  if(!mv){const i=lines.findIndex(l=>/\bmatricule\b/i.test(l));
+    if(i>=0)for(let k=1;k<=2&&lines[i+k];k++){const m=/^\s*(\d{3,8})(?!\d)/.exec(lines[i+k]);if(m&&miOk(m[1])&&m[1]!==digits(r.cnps)){mv={v:m[1],label:'Matricule (ligne suivante)'};break;}}}
+  if(mv){r.mi=mv.v;src.mi=mv.label;}
   let e=r.eid?E.find(y=>String(y.id)===String(r.eid)):null;
   if(r.mi){const byMi=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));
     if(byMi){
@@ -203,7 +214,7 @@ T.mount=function(ctx){
     '<button class="s" id="dpx_lab">🏷 Mes libellés</button>'+
    '</div>'+
    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
-    '<button class="s" id="dpx_exc">🚫 Exclure la sélection</button><button class="s" id="dpx_inc">✔ Réinclure la sélection</button><button class="s" id="dpx_excabs">🚫 Exclure les absents des bulletins</button>'+
+    '<button class="s" id="dpx_exc">🚫 Exclure la sélection</button><button class="s" id="dpx_inc">✔ Réinclure la sélection</button><button class="s" id="dpx_excabs">🚫 Exclure les absents des bulletins</button><button class="p" id="dpx_valabs">✅ Valider les absents des bulletins…</button>'+
     '<button class="s" id="dpx_addemp">➕ Ajouter les salariés des fiches absents du tableau</button><button class="s" id="dpx_merge">🔗 Fusionner 2 lignes cochées</button>'+
    '</div><div id="dpx_info" class="muted" style="font-size:12px"></div>';
   g('d_t').before(bar);
@@ -228,7 +239,7 @@ T.mount=function(ctx){
   const CHIPS=[['all','Tous'],['bad','À corriger'],['ok','Complets'],['excl','Exclus'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
   const cols=[['nom','Nom',150],['mi','Matricule interne',100],['cnps','N° CNPS',112],['jours','Jours',40],['brut','Brut',84],['exc','Except.',64],['cot','Cotisable',84],['mat','Matr. DIPE',54]];
   const status=(r,i)=>{const m=miss(r,i),b=[];
-    b.push(r.old&&!r.seen?'⚪ absent':r.old?'🔄 mis à jour':'🆕 nouveau');
+    b.push(r.old&&!r.seen?((r.keep&&!r.excl)?'✅ absent du bulletin · validé':'⚪ absent'):r.old?'🔄 mis à jour':'🆕 nouveau');
     if(!incl(r,i))b.push('🚫 exclu du DIPE');
     if(r.cnpsAuto)b.push('CNPS fiche');if(r.cnpsRef)b.push('📚 CNPS référentiel'+(r.cnpsWas?' (bulletin : '+esc(r.cnpsWas)+')':''));if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
     if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
@@ -301,6 +312,28 @@ T.mount=function(ctx){
   $('dpx_exc').onclick=()=>{if(!sel.size){say('Cochez d\'abord des lignes (case à gauche)');return;}const n=sel.size;setExcl([...sel],true);say('🚫 '+n+' ligne(s) exclue(s) du DIPE (toujours dans le tableau)');};
   $('dpx_inc').onclick=()=>{if(!sel.size){say('Cochez d\'abord des lignes (case à gauche)');return;}const n=sel.size;setExcl([...sel],false);say('✔ '+n+' ligne(s) réincluse(s)');};
   $('dpx_excabs').onclick=()=>{const a=R.filter(r=>r.old&&!r.seen);if(!a.length){say('Aucun ancien salarié absent des bulletins');return;}setExcl(a,true);say('🚫 '+a.length+' ancien(s) salarié(s) absent(s) des bulletins exclu(s)');};
+
+  /* --- valider les anciens salariés absents des bulletins --- */
+  $('dpx_valabs').onclick=()=>{
+    const A=R.filter(r=>r.old&&!r.seen);
+    if(!A.length){say('Aucun ancien salarié absent des bulletins');return;}
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">✅ Valider les absents des bulletins ('+A.length+')</h3><p class="muted" style="font-size:12px;margin:0 0 8px">Ces salariés sont dans l\'ancien DIPE mais aucun bulletin n\'a été trouvé. <b>Cochez ceux à garder</b> dans le DIPE (ils conservent leurs valeurs de l\'ancien DIPE, modifiables ensuite). Les non cochés seront exclus (sans être supprimés).</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="s" id="va_all">☑ Tout cocher</button><button class="s" id="va_none">☐ Tout décocher</button><button class="p" id="va_ok">✅ Appliquer (cochés = validés, autres = exclus)</button><button class="s" id="va_only">✔ Valider seulement les cochés (ne pas toucher aux autres)</button><button class="s" id="va_close">Fermer</button></div><div style="max-height:62vh;overflow:auto"><table id="va_t" style="border-collapse:collapse;width:100%;font-size:12px"></table></div>');
+    const t=w.querySelector('#va_t');
+    t.innerHTML='<tr><th></th><th style="text-align:left">Nom</th><th style="text-align:left">Matricule</th><th style="text-align:left">N° CNPS</th><th style="text-align:right">Brut</th><th style="text-align:right">Cotisable</th><th style="text-align:left">État</th></tr>'+
+      A.map((r,k)=>'<tr style="border-top:1px solid rgba(128,128,128,.25)"><td><input type="checkbox" data-a="'+k+'"'+((r.keep&&!r.excl)?' checked':'')+'></td><td>'+esc(r.nom||'(nom inconnu)')+'</td><td>'+esc(r.mi||r.mat||'')+'</td><td>'+esc(r.cnps||'')+'</td><td style="text-align:right">'+(r.brut||0).toLocaleString('fr-FR')+'</td><td style="text-align:right">'+(r.cot||0).toLocaleString('fr-FR')+'</td><td>'+((r.keep&&!r.excl)?'✅ validé':(r.excl?'🚫 exclu':'⚪ à décider'))+'</td></tr>').join('');
+    const cks=()=>[...t.querySelectorAll('[data-a]')];
+    w.querySelector('#va_all').onclick=()=>cks().forEach(c=>c.checked=true);
+    w.querySelector('#va_none').onclick=()=>cks().forEach(c=>c.checked=false);
+    w.querySelector('#va_close').onclick=()=>w.remove();
+    const apply=ex=>{let v=0,x=0;
+      cks().forEach(c=>{const r=A[+c.dataset.a];
+        if(c.checked){r.keep=true;r.excl=false;v++;}
+        else if(ex){r.excl=true;r.keep=false;x++;}});
+      w.remove();render();try{ctx.showAbs();}catch(e){}
+      say('✅ '+v+' absent(s) validé(s) dans le DIPE'+(x?' · 🚫 '+x+' exclu(s)':'')+' — vérifiez leur cotisable (case rouge si 0)');};
+    w.querySelector('#va_ok').onclick=()=>apply(true);
+    w.querySelector('#va_only').onclick=()=>apply(false);
+  };
 
   /* --- ajouter les salariés des fiches qui ne sont pas dans le tableau --- */
   $('dpx_addemp').onclick=()=>{
