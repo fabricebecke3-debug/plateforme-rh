@@ -1690,7 +1690,21 @@ $('fm').onsubmit=async e=>{
 /* ============ OCR ============ */
 async function getOcr(){if(ocrWorker)return ocrWorker;$('os').textContent='Chargement OCR…';ocrWorker=await Tesseract.createWorker('fra');return ocrWorker;}
 async function readDocx(f){const ab=await f.arrayBuffer();return(await mammoth.extractRawText({arrayBuffer:ab})).value;}
-async function readPdf(f){const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();t+=c.items.map(it=>it.str).join(' ')+'\n';}if(t.trim().length<80){$('os').textContent='PDF scanné — OCR…';t='';for(let i=1;i<=Math.min(pdf.numPages,5);i++){const p=await pdf.getPage(i);const v=p.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;await p.render({canvasContext:cv.getContext('2d'),viewport:v}).promise;const blob=await new Promise(r=>cv.toBlob(r,'image/png'));const w=await getOcr();const {data:{text:t2}}=await w.recognize(blob);t+=t2+'\n';}}return t;}
+/* PDF : reconstruit les lignes physiques d'une page (regroupe par hauteur Y, trie de gauche à droite X) */
+function pdfItemsToText(items){
+  const w=[];
+  (items||[]).forEach(it=>{if(!it||typeof it.str!=='string'||!it.str.trim()||!it.transform)return;
+    w.push({x:it.transform[4],y:it.transform[5],h:Math.abs(it.height||it.transform[3]||0)||9,w:it.width||0,s:it.str});});
+  w.sort((a,b)=>b.y-a.y);
+  const rows=[];
+  w.forEach(t=>{const r=rows[rows.length-1];
+    if(r&&Math.abs(r.y-t.y)<=Math.max(2,Math.min(r.h,t.h)*0.5))r.c.push(t);else rows.push({y:t.y,h:t.h,c:[t]});});
+  return rows.map(r=>{r.c.sort((a,b)=>a.x-b.x);let out='',end=null,prev='';
+    r.c.forEach(t=>{if(end!==null){const gap=t.x-end,glued=t.w>0&&gap<r.h*0.15&&!/\s$/.test(prev)&&!/^\s/.test(t.s);if(!glued)out+=' ';}
+      out+=t.s.trim();end=t.w>0?t.x+t.w:null;prev=t.s;});
+    return out;}).join('\n');}
+window.TERH_pdfText=pdfItemsToText;
+async function readPdf(f){const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();t+=pdfItemsToText(c.items)+'\n\n';}if(t.trim().length<80){$('os').textContent='PDF scanné — OCR…';t='';for(let i=1;i<=Math.min(pdf.numPages,5);i++){const p=await pdf.getPage(i);const v=p.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;await p.render({canvasContext:cv.getContext('2d'),viewport:v}).promise;const blob=await new Promise(r=>cv.toBlob(r,'image/png'));const w=await getOcr();const {data:{text:t2}}=await w.recognize(blob);t+=t2+'\n';}}return t;}
 async function readImg(f){const w=await getOcr();const {data:{text}}=await w.recognize(f);return text;}
 async function extText(f){const ex=f.name.toLowerCase().split('.').pop();await needLibs(ex);if(ex==='docx')return readDocx(f);if(ex==='doc')throw new Error('Format .doc non supporté.');if(ex==='pdf')return readPdf(f);if(ex==='txt')return await f.text();if(['jpg','jpeg','png','webp','bmp','gif','tif','tiff'].includes(ex))return readImg(f);throw new Error('Format non supporté : .'+ex);}
 async function upContrat(f){const ex=f.name.split('.').pop();const fn=(MULTI&&CO?CO+'/':'')+'contrat-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ex;const {error}=await db.storage.from('contrats').upload(fn,f,{cacheControl:'3600',upsert:false});if(error)throw error;return{url:fn,nom:f.name};}
@@ -4699,7 +4713,7 @@ async function pdfSlips(f,prog){
  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise,pages=[];
  for(let i=1;i<=pdf.numPages;i++){
-  const p=await pdf.getPage(i);let t=(await p.getTextContent()).items.map(it=>it.str).join(' ');
+  const p=await pdf.getPage(i);let t=pdfItemsToText((await p.getTextContent()).items);
   if(t.trim().length<40){const v=p.getViewport({scale:2}),cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
    await p.render({canvasContext:cx,viewport:v}).promise;t=await readImg(await new Promise(r=>cv.toBlob(r,'image/png')));cv.width=cv.height=0;}
   pages.push(t);p.cleanup();prog(i,pdf.numPages);await tick();}
@@ -5257,11 +5271,11 @@ function parseSlip2(text,fn){
   const exc=findAmt(lines,[/(?:prime|salaire|indemnit[ée]|gratification)\s+exceptionnel\w*/i],'max');
   let jr=0;for(const l of lines){const m=/(?:nombre\s+de\s+jours|nb\.?\s*(?:de\s*)?jours|jours?\s+(?:travaill\w+|pay\w+|pr[ée]sence|de\s+travail)|\bjours?\b)\D{0,15}(\d{1,2})(?:[,.]\d+)?\b/i.exec(l);if(m&&+m[1]>=1&&+m[1]<=31){jr=+m[1];break;}}
   const tmp=(()=>{const per=/(?:p[ée]riode|mois)\D{0,15}((?:janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c)\w*\.?\s*\/?\s*\d{2,4}|\d{1,2}\s*[\/\-]\s*\d{4})/i.exec(t);return per?per[1]:'';})();
-  return {nom:(e?e.n:(nom||fn||'')).slice(0,60),eid:e?e.id:'',cnps,cnpsAuto:fromEmp,jours:Math.min(30,jr||30),brut,cot,exc,mat:'',per:tmp,_t:t.slice(0,4000)};
+  const r0={nom:(e?e.n:(nom||fn||'')).slice(0,60),eid:e?e.id:'',cnps,cnpsAuto:fromEmp,jours:Math.min(30,jr||30),brut,cot,exc,mat:'',per:tmp,_t:t.slice(0,8000)};
+  try{if(window.TERH_DIPE&&TERH_DIPE.enrich)TERH_DIPE.enrich(r0,t,fn);}catch(er){console.warn('dipe-plus enrich',er);}
+  return r0;
 }
-function pageText(items){
-  const rows=[];items.forEach(it=>{if(!it.str||!it.str.trim()&&!it.str)return;const y=Math.round(it.transform[5]/3),x=it.transform[4];let r=rows.find(r=>Math.abs(r.y-y)<=1);if(!r){r={y,c:[]};rows.push(r);}r.c.push({x,s:it.str});});
-  rows.sort((a,b)=>b.y-a.y);return rows.map(r=>r.c.sort((a,b)=>a.x-b.x).map(c=>c.s).join(' ')).join('\n');}
+function pageText(items){return (window.TERH_pdfText||pdfItemsToText)(items);}
 async function pdfPages(f,prog){
   if(!window.pdfjsLib)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -5279,8 +5293,10 @@ function dipeLine(o){const R=(v,n)=>String(v).padStart(n,' ');
   return (o.pre||'C0400000').padEnd(23,' ')+o.mm+o.emp+(o.suf||'000D1')+o.yyyy+o.cnps+R(o.jours,2).replace(' ','0')+R(o.brut,10)+R(o.exc||0,10)+R(o.cot,10)+R(o.cot,10)+R(o.cot,10)+''.padEnd(7,' ')+String(o.seq).padStart(9,'0')+''.padEnd(10,' ')+R(o.mat||'',4);}
 const parseEmp=v=>{v=String(v||'').replace(/\s/g,'').toUpperCase();const m=v.match(/^(\d{10})([0-9A-Z]{5})?$/);return m?{emp:m[1],suf:m[2]||'000D1'}:{emp:'',suf:''};};
 
+const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{if(window.TERH_DIPE&&TERH_DIPE.mount)return ok(true);const sc=document.createElement('script');sc.src='dipe-plus.js?v=2026.10.2';sc.onload=()=>ok(true);sc.onerror=()=>{window.__dipePlusP=null;console.warn('dipe-plus.js introuvable : placez-le à côté de index.html');ok(false);};document.head.appendChild(sc);}));
 async function openDipe3(){
   document.getElementById('dpm2')?.remove();
+  const plusOk=await loadDipePlus();
   const cfg=(await rd('dipe_cfg'))||{},PC={...DEFC,...((await rd('paie_json'))||{})},MAT=(await rd('matricules_json'))||{};
   cfg.ordres=cfg.ordres||{};cfg.mats=cfg.mats||{};
   let R=[],raw={};const per0=(()=>{const p=$('pyper');return p&&p.value?p.value:new Date().toISOString().slice(0,7);})();
@@ -5300,20 +5316,21 @@ async function openDipe3(){
   const g=id=>el.querySelector('#'+id);
   const cols=[['nom','Nom',170],['cnps','N° CNPS (11 chiffres)',130],['jours','Jours',46],['brut','Brut',88],['exc','Except.',70],['cot','Cotisable',88],['mat','Matr.',54]];
   const dupAt=(r,i)=>R.findIndex(x=>x.cnps&&x.cnps===r.cnps)!==i;
-  const miss=(r,i)=>{const m=[];if(!/^\d{11}$/.test(r.cnps||''))m.push('cnps');if(!(r.brut>0))m.push('brut');if(!(r.jours>=1&&r.jours<=30))m.push('jours');if(r.cnps&&dupAt(r,i))m.push('cnps');return m;};
-  const incl=(r,i)=>!(g('d_drop').checked&&r.old&&!r.seen);
+  const miss=(r,i)=>{const m=[];if(!/^\d{11}$/.test(r.cnps||''))m.push('cnps');if(!(r.brut>0))m.push('brut');if(!(r.jours>=1&&r.jours<=30))m.push('jours');if(!(r.cot>0))m.push('cot');if(r.cnps&&dupAt(r,i))m.push('cnps');return m;};
+  const incl=(r,i)=>r.excl?false:(r.keep?true:!(g('d_drop').checked&&r.old&&!r.seen));
   const okRow=(r,i)=>!miss(r,i).length;
-  const draw=()=>{const bad=R.filter((r,i)=>incl(r,i)&&!okRow(r,i)).length;
+  let drawX=null;const draw=()=>(drawX||drawBase)();
+  const drawBase=()=>{const bad=R.filter((r,i)=>incl(r,i)&&!okRow(r,i)).length;
     g('d_t').innerHTML=R.length?`<table class="d3" style="border-collapse:collapse;width:100%"><tr><th>#</th>${cols.map(c=>'<th style="text-align:left">'+c[1]+'</th>').join('')}<th>État</th><th></th></tr>${R.map((r,i)=>{if(g('d_flt').checked&&okRow(r,i))return '';const m=miss(r,i);
       return `<tr class="${r.old&&!r.seen?'old':''}"><td>${i+1}</td>${cols.map(c=>`<td><input data-i="${i}" data-k="${c[0]}" value="${ESC(r[c[0]]??'')}" class="${m.includes(c[0])?'bad':(r[c[0]]?'ok':'')}" style="width:${c[2]}px"></td>`).join('')}<td>${r.old&&!r.seen?'⚪ ancien (absent)':r.old?'🔄 mis à jour':'🆕 nouveau'}${r.cnpsAuto?' · CNPS fiche':''}${m.length?' · ⚠ '+[...new Set(m)].join(', '):' · ✅'}</td><td><button data-t="${i}" title="Texte lu">🔎</button><button data-del="${i}">✕</button></td></tr>`;}).join('')}</table><p class="muted" style="font-size:12px">${R.length} ligne(s) · ${bad} à corriger. Cases rouges = information manquante ou invalide (modifiable). 🔎 montre le texte lu dans le bulletin.</p>`:'<p class="muted">Aucune ligne. Chargez des bulletins puis « Lire ».</p>';
-    el.querySelectorAll('#d_t input').forEach(x=>x.onchange=()=>{const k=x.dataset.k,r=R[+x.dataset.i];r[k]=['jours','brut','cot','exc'].includes(k)?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value);if(k==='brut'&&!r.cot)r.cot=Math.min(r.brut,PC.plafond);draw();});
+    el.querySelectorAll('#d_t input').forEach(x=>x.onchange=()=>{const k=x.dataset.k,r=R[+x.dataset.i];r[k]=['jours','brut','cot','exc'].includes(k)?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value);draw();});
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{R.splice(+b.dataset.del,1);draw();});
     el.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=R[+b.dataset.t];const w=openWin('<h3>🔎 Texte lu — '+ESC(r.nom||'')+'</h3><pre style="white-space:pre-wrap;font-size:12px;max-height:70vh;overflow:auto">'+ESC(r._t||'(ligne issue de l\'ancien modèle ou saisie manuelle)')+'</pre>');});};
   const fillFromEmp=()=>{let n=0;R.forEach(r=>{let e=r.eid?(E.find(x=>String(x.id)===String(r.eid))):matchEmp(r.nom,r.nom);if(!e&&r.cnps)e=E.find(x=>String(x.cnps||'').replace(/\D/g,'')===r.cnps);
       if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');if(!/^\d{11}$/.test(r.cnps||'')&&c.length===11){r.cnps=c;r.cnpsAuto=true;n++;}
         const mt=String(MAT[e.id]||'').slice(-4);if(!r.mat&&mt)r.mat=mt;}
       if(r.cnps&&!r.mat&&cfg.mats[r.cnps])r.mat=cfg.mats[r.cnps];
-      if(r.brut>0&&!(r.cot>0))r.cot=Math.min(r.brut,PC.plafond);});return n;};
+      });return n;};
   g('d_fill').onclick=()=>{const n=fillFromEmp();draw();say('🧩 '+n+' N° CNPS complété(s) depuis les fiches');};
   g('d_add').onclick=()=>{R.push({nom:'',cnps:'',jours:30,brut:0,cot:0,exc:0,mat:''});draw();};
   g('d_flt').onchange=draw;g('d_drop').onchange=draw;
@@ -5339,21 +5356,21 @@ async function openDipe3(){
     const A=R.filter(r=>r.old&&!r.seen);
     b.innerHTML=A.length?'<b>⚠ '+A.length+' salarié(s) dans l\'ancien DIPE mais absent(s) des bulletins :</b><br>'+A.map(r=>ESC(r.nom||'(nom inconnu)')+' — CNPS '+ESC(r.cnps||'?')).join('<br>')+'<br><i>Ils gardent leurs anciennes valeurs (lignes grisées). Vérifiez : départ, absence de paie ou bulletin non fourni.</i>':'✅ Tous les salariés de l\'ancien DIPE ont un bulletin.';};
   /* lecture des bulletins */
-  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;let nread=0;
+  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;let nread=0;R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
     try{for(const f of fs){const ex=f.name.toLowerCase().split('.').pop();let slips;
       try{
         if(ex==='pdf')slips=groupSlips(await pdfPages(f,(i,n)=>{g('d_s').textContent='⏳ '+f.name+' : page '+i+'/'+n;}));
         else{g('d_s').textContent='⏳ Lecture de '+f.name+'… (OCR possible, patientez)';const txt=await extText(f);slips=groupSlips([txt]);}
       }catch(err){console.error(err);say('Lecture impossible : '+f.name+' ('+err.message+')');continue;}
       for(const s of slips){const r=parseSlip2(s,f.name.replace(/\.[^.]+$/,''));nread++;
-        const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
-        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.cot)o.cot=r.cot;else if(r.brut)o.cot=Math.min(r.brut,PC.plafond);if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;o._t=r._t;}
-        else{if(!r.cot&&r.brut)r.cot=Math.min(r.brut,PC.plafond);R.push(r);}}
+        const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
+        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;}
+        else{R.push(r);}}
       await new Promise(r=>setTimeout(r,0));}
     }finally{g('d_go').disabled=false;}
     const n=fillFromEmp();
     const per=R.find(r=>r.per);if(per&&per.per){/* période détectée : indicative */}
-    g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+'. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();};
+    g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();};
   /* export DIPE */
   g('d_dl').onclick=async()=>{try{
     const E5=parseEmp(g('d_em').value),p=g('d_mo').value,pre=(g('d_pre').value||'C0400000').trim();
@@ -5362,8 +5379,8 @@ async function openDipe3(){
     cfg.emp=E5.emp;cfg.suf=E5.suf;cfg.pre=pre;
     const next=()=>Math.max(0,...Object.values(cfg.ordres))+1;
     const txt=good.map(r=>{if(!cfg.ordres[r.cnps])cfg.ordres[r.cnps]=next();if(r.mat)cfg.mats[r.cnps]=r.mat;
-      return dipeLine({pre,suf:E5.suf,mm:p.slice(5,7),emp:E5.emp,yyyy:p.slice(0,4),cnps:r.cnps,jours:r.jours,exc:r.exc||0,brut:r.brut,cot:Math.min(r.cot||r.brut,PC.plafond),seq:cfg.ordres[r.cnps],mat:r.mat||''});}).join('\r\n')+'\r\n';
-    cfg.last=good.map(r=>({nom:r.nom,eid:r.eid||'',cnps:r.cnps,jours:r.jours,brut:r.brut,exc:r.exc||0,cot:r.cot,mat:r.mat||''}));cfg.lastPer=p;
+      return dipeLine({pre,suf:E5.suf,mm:p.slice(5,7),emp:E5.emp,yyyy:p.slice(0,4),cnps:r.cnps,jours:r.jours,exc:r.exc||0,brut:r.brut,cot:r.cot,seq:cfg.ordres[r.cnps],mat:r.mat||''});}).join('\r\n')+'\r\n';
+    cfg.last=good.map(r=>({nom:r.nom,eid:r.eid||'',mi:r.mi||'',cnps:r.cnps,jours:r.jours,brut:r.brut,exc:r.exc||0,cot:r.cot,mat:r.mat||''}));cfg.lastPer=p;
     await wr('dipe_cfg',cfg);
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=us-ascii'}));a.download='DIPE_'+p.replace('-','_')+'.txt';document.body.appendChild(a);a.click();a.remove();
     const ex=R.filter((r,i)=>incl(r,i)&&!okRow(r,i)).length;say('📄 DIPE : '+good.length+' salarié(s)'+(ex?' — '+ex+' exclu(s) (à corriger)':''));
@@ -5386,6 +5403,10 @@ async function openDipe3(){
       fillFromEmp();if(R.length)g('d_s').textContent='🧩 '+R.length+' salarié(s) repris des fiches employés : ajoutez les bulletins pour les bruts.';}
   }catch(err){console.warn('seed DIPE',err);}
   draw();showAbs();
+  try{
+    if(plusOk&&window.TERH_DIPE&&TERH_DIPE.mount)TERH_DIPE.mount({R,el,g,get E(){return typeof E!=='undefined'?E:[];},MAT,PC,rd,wr,say,openWin,incl,getMiss:()=>miss,setDraw:f=>{drawX=f;},fillFromEmp,matchEmp,parseSlip2,showAbs});
+    else if(!plusOk)g('d_s').textContent='ℹ️ dipe-plus.js introuvable : placez-le à côté de index.html pour activer matricule interne, cotisable, suppression en lot et exclusions.';
+  }catch(err){console.error('dipe-plus',err);drawX=null;draw();}
 }
 /* remplace l'ancien bouton « DIPE depuis bulletins » (capture : passe avant l'ancien code) */
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#pdipeb');if(!b)return;e.stopPropagation();e.preventDefault();openDipe3().catch(err=>{console.error(err);say('Erreur : '+err.message);});},true);

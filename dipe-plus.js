@@ -2,12 +2,14 @@
  * TERH · dipe-plus.js — améliorations du module « DIPE depuis les bulletins »
  * Fichier d'appoint (comme sage-data.json) : à garder à côté de index.html.
  *
- *  ✔ Lecture du salaire COTISABLE (plusieurs libellés, contrôle brut/plafond)
+ *  ✔ Lecture du salaire COTISABLE recopié tel quel depuis Sage (aucun calcul ni estimation)
  *  ✔ Lecture du MATRICULE INTERNE (lié à la fiche employé)
  *  ✔ Colonnes : matricule interne, CNPS, période, jours, brut, cotisable, net
  *  ✔ Suppression en lot (sélection, vides, doublons, absents) + Annuler
  *  ✔ Compléter les manquants (fiches, matricules à générer, enregistrement)
  *  ✔ « Apprendre un libellé » : cliquez une ligne du bulletin → mémorisé
+ *  ✔ Exclure / réinclure des lignes (sans les supprimer), fusionner 2 lignes,
+ *    ajouter les salariés des fiches absents du tableau, supprimer les lignes complètes
  *
  * Personnaliser les libellés reconnus : modifiez T.LABELS ci-dessous
  * (expressions régulières, sans tenir compte des majuscules).
@@ -15,17 +17,18 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.1';
+T.version='2026.10.2';
 T.custom=T.custom||{};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
 T.LABELS={
- mi:['matricule\\s+interne','n[°o]?\\s*matricule','\\bmatricule\\b','\\bmatr?\\.(?=\\s*[:\\-]?\\s*[A-Za-z0-9])','\\bmle\\b','n[°o]\\s*(?:interne|employ[ée]|salari[ée]|agent|personnel)','code\\s+(?:salari[ée]|employ[ée]|agent)'],
- cot:['salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable'],
- brut:['salaire\\s+brut|total\\s+brut|brut\\s+total|gains?\\s+bruts?','total\\s+(?:des\\s+)?gains|total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
- net:['net\\s+[àa]\\s+payer','net\\s+pay[ée]'],
- jours:['nombre\\s+de\\s+jours','nb\\.?\\s*(?:de\\s*)?jours','jours?\\s+(?:travaill\\w+|pay\\w+|pr[ée]sence|de\\s+travail)'],
- exc:['(?:prime|salaire|indemnit[ée]|gratification)\\s+exceptionnel\\w*']
+  mi:['matricule\\s+interne','n[°o]?\\s*matricule','\\bmatricule\\b','\\bmatr?\\.(?=\\s*[:\\-]?\\s*[A-Za-z0-9])','\\bmle\\b','n[°o]\\s*(?:interne|employ[ée]|salari[ée]|agent|personnel)','code\\s+(?:salari[ée]|employ[ée]|agent)'],
+  /* « pension vieillesse cnps » cible directement la ligne de la base de calcul (vérifiée : montant ≈ base × taux) */
+  cot:['salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable','pension\\s+vieillesse\\s+cnps'],
+  brut:['salaire\\s+brut','total\\s+brut','brut\\s+total','gains?\\s+bruts?','total\\s+(?:des\\s+)?gains','total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
+  net:['net\\s+[àa]\\s+payer','net\\s+pay[ée]'],
+  jours:['nombre\\s+de\\s+jours','nb\\.?\\s*(?:de\\s*)?jours','jours?\\s+(?:travaill\\w+|pay\\w+|pr[ée]sence|de\\s+travail)'],
+  exc:['(?:prime|salaire|indemnit[ée]|gratification)\\s+exceptionnel\\w*']
 };
 
 /* ---------- outils ---------- */
@@ -107,11 +110,12 @@ T.enrich=function(r,text,fn){
   const b=findAmt(lines,R('brut'),'max',1000);if(b){r.brut=b.v;src.brut=b.label;}
   /* cotisable : jamais supérieur au brut, jamais le simple « plafond » */
   let c=findAmt(lines,R('cot'),'max',1000);
+  /* ligne « pension vieillesse » : on recopie UNIQUEMENT le 1er montant (la base), et seulement si la ligne en porte au moins 2 (base + retenue) ; un seul montant = la retenue, pas la base */
+  if(c&&/pension|vieillesse/i.test(c.label)){const L0=lines[c.line],mm=new RegExp(c.label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+'),'i').exec(L0),n0=mm?nums(L0.slice(mm.index+mm[0].length)):[];
+    if(n0.length<2)c=null;else c.v=n0[0].v;}  /* 1er montant après le libellé = colonne Base */
   if(c&&r.brut&&c.v>r.brut*1.001)c=null;
-  if(c&&c.v===PC.plafond&&r.brut&&r.brut<PC.plafond)c=null;
-  if(!c){const v=baseFromRetenue(lines,PC);if(v&&(!r.brut||v<=r.brut*1.001))c={v,label:'base de la retenue CNPS'};}
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
-  else{r.cot=r.brut?Math.min(r.brut,PC.plafond):0;r.cotEst=!!r.brut;src.cot='estimé (brut limité au plafond)';}
+  else{r.cot=0;r.cotEst=false;src.cot='non trouvé sur le bulletin';}  /* aucune estimation : case vide et rouge */
   const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
   const j=findAmt(lines,R('jours'),'first',0);if(j&&j.v>=1&&j.v<=31){r.jours=j.v;src.jours=j.label;}
   const x=findAmt(lines,R('exc'),'max',1000);if(x){r.exc=x.v;src.exc=x.label;}
@@ -150,7 +154,7 @@ T.mount=function(ctx){
    '#d_t table.d3 input.dx{font-size:12px;padding:3px}'+
    '#d_t table.d3 input.dx.bad{outline:2px solid #d33;background:rgba(220,50,50,.12)}'+
    '#d_t table.d3 input.dx.est{outline:2px solid #e69500;background:rgba(230,150,0,.12)}'+
-   '#d_t table.d3 tr.sel{background:rgba(31,95,191,.10)}#d_t table.d3 tr.old td{opacity:.6}'+
+   '#d_t table.d3 tr.sel{background:rgba(31,95,191,.10)}#d_t table.d3 tr.old td{opacity:.6}#d_t table.d3 tr.exc td{opacity:.45}'+
    '#d_t .st{font-size:11px;white-space:nowrap}';
   el.appendChild(css);
   const bar=document.createElement('div');bar.id='dpx_bar';bar.style.cssText='margin:6px 0';
@@ -160,7 +164,7 @@ T.mount=function(ctx){
     '<input id="dpx_q" placeholder="🔍 Nom, CNPS, matricule…" style="min-width:180px">'+
     '<button class="s" id="dpx_all">☑ Tout (filtre)</button><button class="s" id="dpx_none">☐ Aucun</button>'+
     '<button class="s" id="dpx_delsel">🗑 Supprimer la sélection</button>'+
-    '<select id="dpx_del"><option value="">🗑 Supprimer…</option><option value="empty">les lignes vides (sans CNPS ni brut)</option><option value="nobrut">les lignes sans bulletin (brut 0)</option><option value="abs">les anciens absents des bulletins</option><option value="dup">les doublons (même CNPS ou matricule)</option><option value="bad">toutes les lignes à corriger</option></select>'+
+    '<select id="dpx_del"><option value="">🗑 Supprimer…</option><option value="empty">les lignes vides (sans CNPS ni brut)</option><option value="nobrut">les lignes sans bulletin (brut 0)</option><option value="abs">les anciens absents des bulletins</option><option value="dup">les doublons (même CNPS ou matricule)</option><option value="bad">toutes les lignes à corriger (incomplètes)</option><option value="ok">les lignes complètes (bonnes)</option><option value="excl">les lignes exclues</option><option value="new">les nouveaux (hors ancien modèle)</option><option value="nomi">les lignes sans matricule interne</option><option value="nocnps">les lignes sans CNPS valide</option></select>'+
     '<button class="s" id="dpx_undo" disabled>↩ Annuler</button>'+
    '</div>'+
    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
@@ -169,16 +173,23 @@ T.mount=function(ctx){
     '<button class="s" id="dpx_save">💾 Enregistrer dans les fiches</button>'+
     '<button class="s" id="dpx_re">↻ Relire avec les libellés appris</button>'+
     '<button class="s" id="dpx_lab">🏷 Mes libellés</button>'+
+   '</div>'+
+   '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
+    '<button class="s" id="dpx_exc">🚫 Exclure la sélection</button><button class="s" id="dpx_inc">✔ Réinclure la sélection</button><button class="s" id="dpx_excabs">🚫 Exclure les absents des bulletins</button>'+
+    '<button class="s" id="dpx_addemp">➕ Ajouter les salariés des fiches absents du tableau</button><button class="s" id="dpx_merge">🔗 Fusionner 2 lignes cochées</button>'+
    '</div><div id="dpx_info" class="muted" style="font-size:12px"></div>';
   g('d_t').before(bar);
   const $=id=>el.querySelector('#'+id);
   let filter='all',limit=150,sel=new Set(),undo=[];
   const miss=(r,i)=>ctx.getMiss()(r,i);
+  const incl=(r,i)=>ctx.incl?ctx.incl(r,i):!(r.excl||(r.old&&!r.seen));
   const isDup=(()=>{let c={};return {build(){c={};R.forEach(r=>{[digits(r.cnps).length===11?'c'+digits(r.cnps):'',r.mi?'m'+normMi(r.mi):''].forEach(k=>{if(k)c[k]=(c[k]||0)+1;});});},
     has(r){return (digits(r.cnps).length===11&&c['c'+digits(r.cnps)]>1)||(r.mi&&c['m'+normMi(r.mi)]>1);}};})();
   const cats={
     all:r=>true,
     bad:(r,i)=>miss(r,i).length>0,
+    ok:(r,i)=>miss(r,i).length===0,
+    excl:(r,i)=>!incl(r,i),
     new:r=>!r.old,
     abs:r=>r.old&&!r.seen,
     dup:r=>isDup.has(r),
@@ -186,10 +197,11 @@ T.mount=function(ctx){
     nomi:r=>!r.mi,
     nocnps:r=>digits(r.cnps).length!==11
   };
-  const CHIPS=[['all','Tous'],['bad','À corriger'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
+  const CHIPS=[['all','Tous'],['bad','À corriger'],['ok','Complets'],['excl','Exclus'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
   const cols=[['nom','Nom',150],['mi','Matricule interne',100],['cnps','N° CNPS',112],['jours','Jours',40],['brut','Brut',84],['exc','Except.',64],['cot','Cotisable',84],['mat','Matr. DIPE',54]];
   const status=(r,i)=>{const m=miss(r,i),b=[];
     b.push(r.old&&!r.seen?'⚪ absent':r.old?'🔄 mis à jour':'🆕 nouveau');
+    if(!incl(r,i))b.push('🚫 exclu du DIPE');
     if(r.cnpsAuto)b.push('CNPS fiche');if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
     if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
     if(isDup.has(r))b.push('⚠ doublon');
@@ -207,17 +219,18 @@ T.mount=function(ctx){
     const box=g('d_t'),top=box.scrollTop;chips();
     if(!R.length){box.innerHTML='<p class="muted">Aucune ligne. Chargez des bulletins puis « Lire les bulletins ».</p>';return;}
     const V=visible(),shown=V.slice(0,limit);
-    box.innerHTML='<table class="d3" style="border-collapse:collapse;width:100%"><tr><th><input type="checkbox" id="dpx_ck"></th><th>#</th>'+cols.map(c=>'<th style="text-align:left">'+c[1]+'</th>').join('')+'<th>Net</th><th>Période</th><th>État</th><th></th></tr>'+
+    box.innerHTML='<table class="d3" style="border-collapse:collapse;width:100%"><tr><th><input type="checkbox" id="dpx_ck"></th><th>#</th><th title="Inclure dans le DIPE">Incl.</th>'+cols.map(c=>'<th style="text-align:left">'+c[1]+'</th>').join('')+'<th>Net</th><th>Période</th><th>État</th><th></th></tr>'+
     shown.map(([r,i])=>{const m=miss(r,i);
-      return '<tr data-r="'+i+'" class="'+(sel.has(r)?'sel ':'')+(r.old&&!r.seen?'old':'')+'"><td><input type="checkbox" data-s="'+i+'"'+(sel.has(r)?' checked':'')+'></td><td>'+(i+1)+'</td>'+
+      return '<tr data-r="'+i+'" class="'+(sel.has(r)?'sel ':'')+(r.old&&!r.seen?'old':'')+(incl(r,i)?'':' exc')+'"><td><input type="checkbox" data-s="'+i+'"'+(sel.has(r)?' checked':'')+'></td><td>'+(i+1)+'</td><td><input type="checkbox" data-x="'+i+'"'+(incl(r,i)?' checked':'')+' title="Décochez pour exclure du DIPE sans supprimer"></td>'+
       cols.map(c=>'<td><input class="'+cls(r,i,c[0],m)+'" data-i="'+i+'" data-k="'+c[0]+'" value="'+esc(r[c[0]]==null?'':r[c[0]])+'" style="width:'+c[2]+'px"'+(r.src&&r.src[c[0]]?' title="Lu sur : '+esc(r.src[c[0]])+'"':'')+'></td>').join('')+
       '<td style="font-size:11px;text-align:right">'+(r.net?Math.round(r.net).toLocaleString('fr-FR'):'')+'</td><td style="font-size:11px">'+esc(r.per||'')+'</td>'+
       '<td class="st">'+status(r,i)+'</td><td style="white-space:nowrap"><button data-t="'+i+'" title="Texte lu / apprendre un libellé">🔎</button><button data-del="'+i+'" title="Supprimer cette ligne">✕</button></td></tr>';}).join('')+'</table>'+
-    '<p class="muted" style="font-size:12px">'+V.length+' ligne(s) affichée(s) sur '+R.length+(V.length>shown.length?' · <a href="#" id="dpx_more">afficher '+Math.min(150,V.length-shown.length)+' de plus</a>':'')+' · '+sel.size+' sélectionnée(s). Rouge = à corriger · orange = cotisable estimé (non lu). Survolez une case lue pour voir le libellé trouvé.</p>';
+    '<p class="muted" style="font-size:12px">'+V.length+' ligne(s) affichée(s) sur '+R.length+(V.length>shown.length?' · <a href="#" id="dpx_more">afficher '+Math.min(150,V.length-shown.length)+' de plus</a>':'')+' · '+sel.size+' sélectionnée(s) · <b>'+R.filter((r,i)=>incl(r,i)&&!miss(r,i).length).length+'</b> prête(s) pour le DIPE · '+R.filter((r,i)=>!incl(r,i)).length+' exclue(s) · '+R.filter((r,i)=>incl(r,i)&&miss(r,i).length).length+' à corriger. Rouge = à corriger · orange = cotisable estimé (non lu). Survolez une case lue pour voir le libellé trouvé.</p>';
     box.scrollTop=top;
     const more=box.querySelector('#dpx_more');if(more)more.onclick=ev=>{ev.preventDefault();limit+=150;render();};
     box.querySelector('#dpx_ck').onclick=ev=>{shown.forEach(([r])=>ev.target.checked?sel.add(r):sel.delete(r));render();};
     box.querySelectorAll('[data-s]').forEach(x=>x.onchange=()=>{const r=R[+x.dataset.s];x.checked?sel.add(r):sel.delete(r);x.closest('tr').classList.toggle('sel',x.checked);chips();});
+    box.querySelectorAll('[data-x]').forEach(x=>x.onchange=()=>{const r=R[+x.dataset.x];if(x.checked){r.excl=false;r.keep=true;}else{r.excl=true;r.keep=false;}render();});
     box.querySelectorAll('input.dx').forEach(x=>x.onchange=()=>edit(x));
     box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>removeRows([R[+b.dataset.del]]));
     box.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>openText(+b.dataset.t));
@@ -226,7 +239,6 @@ T.mount=function(ctx){
     const i=+x.dataset.i,k=x.dataset.k,r=R[i],num=['jours','brut','cot','exc'].includes(k);
     r[k]=num?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value.trim());
     if(k==='mi'){r.miAuto=false;r.miGen=false;if(r.mi)r.mat=String(r.mi).slice(-4);const e=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));if(e&&!r.eid){r.eid=e.id;if(!r.nom)r.nom=e.n;}}
-    if(k==='brut'&&r.brut>0&&!(r.cot>0)){r.cot=Math.min(r.brut,(ctx.PC||{}).plafond||750000);r.cotEst=true;}
     if(k==='cot')r.cotEst=false;
     if(k==='cnps')r.cnpsAuto=false;
     /* mise à jour de la ligne seulement : le focus reste dans le tableau */
@@ -252,8 +264,35 @@ T.mount=function(ctx){
     if(v==='nobrut')rows=R.filter(r=>!(r.brut>0));
     if(v==='abs')rows=R.filter(r=>r.old&&!r.seen);
     if(v==='bad')rows=R.filter((r,i)=>miss(r,i).length>0);
+    if(['ok','excl','new','nomi','nocnps'].includes(v)){rows=R.filter((r,i)=>cats[v](r,i));if(v==='ok'&&rows.length&&!confirm('⚠ Supprimer les '+rows.length+' ligne(s) COMPLÈTES (bonnes) ? Seules les lignes à corriger resteront. (Vous pourrez annuler.)'))return;}
     if(v==='dup'){const seen=new Map();R.forEach(r=>{[digits(r.cnps).length===11?'c'+digits(r.cnps):'',r.mi?'m'+normMi(r.mi):''].forEach(k=>{if(!k)return;const a=seen.get(k);if(!a)seen.set(k,r);else{const keep=(r.brut>0&&!(a.brut>0))?r:a,drop=keep===r?a:r;if(!rows.includes(drop))rows.push(drop);seen.set(k,keep);}});});}
     removeRows(rows);};
+
+  /* --- exclure / réinclure (sans supprimer) --- */
+  const setExcl=(rows,on)=>{rows.forEach(r=>{if(on){r.excl=true;r.keep=false;}else{r.excl=false;r.keep=true;}});render();};
+  $('dpx_exc').onclick=()=>{if(!sel.size){say('Cochez d\'abord des lignes (case à gauche)');return;}const n=sel.size;setExcl([...sel],true);say('🚫 '+n+' ligne(s) exclue(s) du DIPE (toujours dans le tableau)');};
+  $('dpx_inc').onclick=()=>{if(!sel.size){say('Cochez d\'abord des lignes (case à gauche)');return;}const n=sel.size;setExcl([...sel],false);say('✔ '+n+' ligne(s) réincluse(s)');};
+  $('dpx_excabs').onclick=()=>{const a=R.filter(r=>r.old&&!r.seen);if(!a.length){say('Aucun ancien salarié absent des bulletins');return;}setExcl(a,true);say('🚫 '+a.length+' ancien(s) salarié(s) absent(s) des bulletins exclu(s)');};
+
+  /* --- ajouter les salariés des fiches qui ne sont pas dans le tableau --- */
+  $('dpx_addemp').onclick=()=>{
+    const haveE=new Set(R.map(r=>r.eid).filter(Boolean).map(String)),haveC=new Set(R.map(r=>digits(r.cnps)).filter(c=>c.length===11)),haveN=new Set(R.map(r=>nz(r.nom)).filter(Boolean));
+    const add=E.filter(e=>{if(haveE.has(String(e.id)))return false;const c=digits(e.cnps);if(c.length===11&&haveC.has(c))return false;return !haveN.has(nz(e.n));});
+    if(!add.length){say('Tous les salariés des fiches sont déjà dans le tableau');return;}
+    if(!confirm('Ajouter '+add.length+' salarié(s) des fiches employés (brut à saisir ou à lire sur leur bulletin) ?'))return;
+    add.forEach(e=>{const c=digits(e.cnps),m=MAT[e.id]||'';R.push({nom:e.n,eid:e.id,cnps:c.length===11?c:'',cnpsAuto:c.length===11,jours:30,brut:0,cot:0,exc:0,mat:String(m).slice(-4),mi:m,miAuto:!!m});});
+    filter='all';render();$('dpx_info').textContent='➕ '+add.length+' salarié(s) ajouté(s) : lisez leurs bulletins ou saisissez le brut ; supprimez ensuite ceux qui n\'ont pas de paie ce mois (🗑 Supprimer… → « lignes sans bulletin »).';};
+
+  /* --- fusionner 2 lignes (ex. ancien absent + nouveau bulletin du même salarié) --- */
+  $('dpx_merge').onclick=()=>{
+    const a=[...sel].filter(r=>R.includes(r));if(a.length!==2){say('Cochez exactement 2 lignes (ex. l\'ancien « absent » et le « nouveau » du même salarié)');return;}
+    const keep=(a[0]._t&&!a[1]._t)?a[0]:(a[1]._t&&!a[0]._t)?a[1]:((a[0].brut||0)>=(a[1].brut||0)?a[0]:a[1]),don=keep===a[0]?a[1]:a[0];
+    if(!confirm('Fusionner « '+(don.nom||'?')+' » dans « '+(keep.nom||'?')+' » ? La ligne « '+(don.nom||'?')+' » sera retirée (vous pourrez annuler).'))return;
+    ['nom','eid','mi','mat','poste'].forEach(k=>{if(!keep[k]&&don[k])keep[k]=don[k];});
+    if(digits(keep.cnps).length!==11&&digits(don.cnps).length===11){keep.cnps=digits(don.cnps);keep.cnpsAuto=false;}
+    if(!(keep.brut>0)&&don.brut>0){keep.brut=don.brut;keep.cot=don.cot;keep.cotEst=don.cotEst;}
+    keep.old=keep.old||don.old;keep.seen=true;keep.excl=false;keep.mem=keep.mem||don.mem;
+    undo.push([{r:don,i:R.indexOf(don)}]);R.splice(R.indexOf(don),1);sel.clear();render();try{ctx.showAbs();}catch(e){}say('🔗 Lignes fusionnées — « Annuler » remet la ligne retirée');};
 
   /* --- compléter les manquants --- */
   function fillAll(){let n=0,nm=0,nc=0;
@@ -266,7 +305,6 @@ T.mount=function(ctx){
         const c=digits(e.cnps);if(digits(r.cnps).length!==11&&c.length===11){r.cnps=c;r.cnpsAuto=true;nc++;}
         if(!r.mi&&MAT[e.id]){r.mi=MAT[e.id];r.miAuto=true;nm++;}}
       if(r.mi&&!r.mat)r.mat=String(r.mi).slice(-4);
-      if(r.brut>0&&!(r.cot>0)){r.cot=Math.min(r.brut,(ctx.PC||{}).plafond||750000);r.cotEst=true;}
       if(!(r.jours>=1&&r.jours<=30))r.jours=30;});
     return {nm,nc};}
   function genMis(){
@@ -343,6 +381,7 @@ try{(window.TERH_I18N_add||function(o){window.TERH_I18N=Object.assign(window.TER
  'Nom, CNPS, matricule…':'Name, CNPS, employee no.…','Tout (filtre)':'All (filtered)','Aucun':'None','Supprimer la sélection':'Delete selection','Supprimer…':'Delete…',
  'les lignes vides (sans CNPS ni brut)':'empty rows (no CNPS nor gross)','les lignes sans bulletin (brut 0)':'rows without payslip (gross 0)','les anciens absents des bulletins':'old rows missing from payslips','les doublons (même CNPS ou matricule)':'duplicates (same CNPS or employee no.)','toutes les lignes à corriger':'all rows to fix',
  'Annuler':'Undo','Compléter les manquants':'Complete missing data','Générer les matricules manquants':'Generate missing employee numbers','Enregistrer dans les fiches':'Save to employee records','Relire avec les libellés appris':'Re-read with learned labels','Mes libellés':'My labels',
+ 'Exclure la sélection':'Exclude selection','Réinclure la sélection':'Re-include selection','Exclure les absents des bulletins':'Exclude those missing from payslips','Ajouter les salariés des fiches absents du tableau':'Add employees from records missing in the table','Fusionner 2 lignes cochées':'Merge 2 ticked rows','Complets':'Complete','Exclus':'Excluded','Incl.':'Incl.',
  'Tous':'All','À corriger':'To fix','Nouveaux':'New','Absents des bulletins':'Missing from payslips','Doublons':'Duplicates','Cotisable estimé':'Estimated contributory salary','Sans matricule interne':'No internal employee no.','Sans CNPS valide':'No valid CNPS',
  'Matricule interne':'Internal employee no.','Matr. DIPE':'DIPE no.','Cotisable':'Contributory salary','Période':'Period','État':'Status','Net':'Net',
  'Texte lu — ':'Text read — ','Mes libellés appris':'My learned labels','Aucune ligne. Chargez des bulletins puis « Lire les bulletins ».':'No rows. Load payslips then “Read payslips”.'
