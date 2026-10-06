@@ -1,0 +1,350 @@
+/* =====================================================================
+ * TERH · dipe-plus.js — améliorations du module « DIPE depuis les bulletins »
+ * Fichier d'appoint (comme sage-data.json) : à garder à côté de index.html.
+ *
+ *  ✔ Lecture du salaire COTISABLE (plusieurs libellés, contrôle brut/plafond)
+ *  ✔ Lecture du MATRICULE INTERNE (lié à la fiche employé)
+ *  ✔ Colonnes : matricule interne, CNPS, période, jours, brut, cotisable, net
+ *  ✔ Suppression en lot (sélection, vides, doublons, absents) + Annuler
+ *  ✔ Compléter les manquants (fiches, matricules à générer, enregistrement)
+ *  ✔ « Apprendre un libellé » : cliquez une ligne du bulletin → mémorisé
+ *
+ * Personnaliser les libellés reconnus : modifiez T.LABELS ci-dessous
+ * (expressions régulières, sans tenir compte des majuscules).
+ * ===================================================================== */
+(function(){
+'use strict';
+const T=window.TERH_DIPE=window.TERH_DIPE||{};
+T.version='2026.10.1';
+T.custom=T.custom||{};
+
+/* ---------- libellés reconnus (modifiables) ---------- */
+T.LABELS={
+ mi:['matricule\\s+interne','n[°o]?\\s*matricule','\\bmatricule\\b','\\bmatr?\\.(?=\\s*[:\\-]?\\s*[A-Za-z0-9])','\\bmle\\b','n[°o]\\s*(?:interne|employ[ée]|salari[ée]|agent|personnel)','code\\s+(?:salari[ée]|employ[ée]|agent)'],
+ cot:['salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable'],
+ brut:['salaire\\s+brut|total\\s+brut|brut\\s+total|gains?\\s+bruts?','total\\s+(?:des\\s+)?gains|total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
+ net:['net\\s+[àa]\\s+payer','net\\s+pay[ée]'],
+ jours:['nombre\\s+de\\s+jours','nb\\.?\\s*(?:de\\s*)?jours','jours?\\s+(?:travaill\\w+|pay\\w+|pr[ée]sence|de\\s+travail)'],
+ exc:['(?:prime|salaire|indemnit[ée]|gratification)\\s+exceptionnel\\w*']
+};
+
+/* ---------- outils ---------- */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nz=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const digits=s=>String(s||'').replace(/\D/g,'');
+const pNum=v=>{if(v==null)return 0;let s=String(v).replace(/[\s\u00a0\u202f]/g,'');s=s.replace(/,\d{1,2}$/,'').replace(/\.\d{1,2}$/,m=>m.length===4?m:'');s=s.replace(/[.,]/g,'');return parseInt(s,10)||0;};
+const normMi=s=>{s=String(s||'').toUpperCase().replace(/[\s\-\/.]/g,'');return /^\d+$/.test(s)?(s.replace(/^0+/,'')||'0'):s;};
+const sameMi=(a,b)=>{const na=normMi(a),nb=normMi(b);if(!na||!nb)return false;if(na===nb)return true;
+  const da=((na.match(/\d+$/)||[''])[0]).replace(/^0+/,''),db=((nb.match(/\d+$/)||[''])[0]).replace(/^0+/,'');
+  return !!da&&da===db&&(/^\d+$/.test(na)||/^\d+$/.test(nb));};
+const custRe=t=>new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+'),'i');
+const normLines=t=>String(t||'').replace(/[\u00a0\u202f]/g,' ').split(/\n+/).map(l=>l.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
+const say=m=>{try{(T.ctx&&T.ctx.say)?T.ctx.say(m):(window.toast&&toast(m));}catch(e){}};
+
+/* montants d'une ligne : ignore dates, taux (%) et années */
+function nums(line){
+  const out=[],re=/(\d{1,3}(?:[ \u00a0\u202f.]\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;let m;
+  const hasDate=/(janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c|p[ée]riode|mois|ann[ée]e|date)/i.test(line);
+  while((m=re.exec(line))){
+    const s=m.index,e=s+m[0].length,prev=line[s-1]||'',next=line.slice(e);
+    if(/[\/\-]/.test(prev)&&/\d/.test(line[s-2]||''))continue;
+    if(/^\s*%/.test(next)||/^\/\d/.test(next))continue;
+    if(hasDate&&/^(19|20)\d{2}$/.test(m[0]))continue;
+    const v=pNum(m[0]);if(v>0)out.push({v,raw:m[0],i:s});
+  }
+  return out;
+}
+function findAmt(lines,res,mode,minV){
+  for(const re of res){
+    for(let i=0;i<lines.length;i++){
+      const m=re.exec(lines[i]);if(!m)continue;
+      let n=nums(lines[i].slice(m.index+m[0].length)),k=0;
+      while(!n.length&&k<2&&lines[i+1+k]){const nx=lines[i+1+k];if((nx.match(/[A-Za-zÀ-ÿ]/g)||[]).length>6)break;n=nums(nx);k++;}
+      if(minV)n=n.filter(x=>x.v>=minV);
+      if(n.length)return {v:mode==='first'?n[0].v:Math.max(...n.map(x=>x.v)),label:m[0].trim(),line:i};
+    }
+  }
+  return null;
+}
+/* base de la retenue CNPS : on cherche (base, montant) avec montant ≈ base × taux */
+function baseFromRetenue(lines,PC){
+  const rate=(+PC.cnps_sal||4.2)/100;
+  for(const L of lines){
+    if(!/(pension|vieillesse|pvid|cnps)/i.test(L))continue;
+    const n=nums(L).map(x=>x.v);
+    for(const b of n){if(b<5000)continue;for(const a of n){if(a!==b&&Math.abs(b*rate-a)<=1.5)return b;}}
+  }
+  return 0;
+}
+/* matricule interne */
+function miOk(t){t=String(t||'').trim();if(t.length<2||t.length>16||!/\d/.test(t))return false;
+  if(digits(t).length===11&&/^[\d\s.\-]+$/.test(t))return false;
+  if(/^(19|20)\d{2}$/.test(t)||/^\d{1,2}[\/\-]\d{2,4}$/.test(t))return false;return true;}
+function miToken(s){const m=/^[\s:.\-–=]*([A-Za-z]{0,6}[-\/]?\d{1,12}[A-Za-z]?|[A-Za-z0-9][A-Za-z0-9\-\/]{2,14})/.exec(s);if(!m)return '';const t=m[1].trim();return miOk(t)?t:'';}
+function findMi(lines,custom,cnpsDigits){
+  const res=(custom||[]).map(custRe).concat(T.LABELS.mi.map(s=>new RegExp(s,'i')));
+  for(const re of res){
+    for(let i=0;i<lines.length;i++){
+      const L=lines[i],m=re.exec(L);if(!m)continue;
+      const after=L.slice(m.index+m[0].length);
+      if(/^\s*(?:n[°o]?\s*)?(?:cnps|c\.n\.p\.s|s[ée]curit|immatric|ss\b)/i.test(after))continue;
+      let tok=miToken(after);
+      if(!tok&&lines[i+1]){
+        const hw=L.split(/\s+/),vw=lines[i+1].split(/\s+/),idx=hw.findIndex(w=>/matricule|matr|mle/i.test(w));
+        tok=(idx>=0&&hw.length===vw.length&&miOk(vw[idx]))?vw[idx]:miToken(lines[i+1]);
+      }
+      if(tok&&digits(tok)!==cnpsDigits)return {v:tok,label:m[0].trim()};
+    }
+  }
+  return null;
+}
+
+/* ---------- 1. lecture enrichie d'un bulletin (appelée par l'index) ---------- */
+T.enrich=function(r,text,fn){
+  const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||(typeof window.E!=='undefined'?window.E:[]),MAT=ctx.MAT||{};
+  const lines=normLines(text),C=T.custom||{},src=r.src={};
+  const R=k=>(C[k]||[]).map(custRe).concat((T.LABELS[k]||[]).map(s=>new RegExp(s,'i')));
+  const b=findAmt(lines,R('brut'),'max',1000);if(b){r.brut=b.v;src.brut=b.label;}
+  /* cotisable : jamais supérieur au brut, jamais le simple « plafond » */
+  let c=findAmt(lines,R('cot'),'max',1000);
+  if(c&&r.brut&&c.v>r.brut*1.001)c=null;
+  if(c&&c.v===PC.plafond&&r.brut&&r.brut<PC.plafond)c=null;
+  if(!c){const v=baseFromRetenue(lines,PC);if(v&&(!r.brut||v<=r.brut*1.001))c={v,label:'base de la retenue CNPS'};}
+  if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
+  else{r.cot=r.brut?Math.min(r.brut,PC.plafond):0;r.cotEst=!!r.brut;src.cot='estimé (brut limité au plafond)';}
+  const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
+  const j=findAmt(lines,R('jours'),'first',0);if(j&&j.v>=1&&j.v<=31){r.jours=j.v;src.jours=j.label;}
+  const x=findAmt(lines,R('exc'),'max',1000);if(x){r.exc=x.v;src.exc=x.label;}
+  const po=/(?:emploi|poste|fonction|qualification)\s*[:\-]\s*([A-Za-zÀ-ÿ' \/\-]{3,40})/i.exec(lines.join('\n'));if(po)r.poste=po[1].split(/\s{2,}|\s+(?:matricule|cnps|date|cat)/i)[0].trim();
+  /* matricule interne + rattachement à la fiche employé */
+  const mv=findMi(lines,C.mi,digits(r.cnps));if(mv){r.mi=mv.v;src.mi=mv.label;}
+  let e=r.eid?E.find(y=>String(y.id)===String(r.eid)):null;
+  if(r.mi){const byMi=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));
+    if(byMi){if(e&&e.id!==byMi.id)r.warn='le nom du bulletin ('+(e.n||r.nom)+') ne correspond pas à ce matricule : fiche « '+byMi.n+' » retenue';e=byMi;r.eid=byMi.id;r.nom=byMi.n;}}
+  if(!e&&r.cnps&&digits(r.cnps).length===11)e=E.find(y=>digits(y.cnps)===digits(r.cnps));
+  if(e){if(!r.eid){r.eid=e.id;r.nom=e.n;}
+    if(!r.mi&&MAT[e.id]){r.mi=MAT[e.id];r.miAuto=true;src.mi='fiche employé';}
+    else if(r.mi&&MAT[e.id]&&!sameMi(MAT[e.id],r.mi))r.warn=(r.warn?r.warn+' · ':'')+'matricule du bulletin ≠ fiche ('+MAT[e.id]+')';}
+  if(r.mi&&!r.mat)r.mat=String(r.mi).slice(-4);
+  return r;
+};
+T.find=function(R,r){if(!r.mi)return -1;return R.findIndex(y=>y.mi&&sameMi(y.mi,r.mi));};
+T.merge=function(o,r){
+  ['mi','net','poste','src','cotEst','warn','miAuto','per'].forEach(k=>{if(r[k]!==undefined&&r[k]!=='')o[k]=r[k];});
+  if(r.mat)o.mat=r.mat;
+  if(r.cot&&!r.cotEst)o.cot=r.cot;
+};
+
+/* ---------- 2. interface (appelée à l'ouverture du module DIPE) ---------- */
+T.mount=function(ctx){
+  T.ctx=ctx;const R=ctx.R,el=ctx.el,g=ctx.g,E=ctx.E,MAT=ctx.MAT;
+  if(el.querySelector('#dpx_bar'))return;
+  /* libellés mémorisés pour cette entreprise */
+  Promise.resolve(ctx.rd('dipe_labels')).then(v=>{if(v&&typeof v==='object')T.custom=v;}).catch(()=>{});
+  const css=document.createElement('style');css.textContent=
+   '#dpx_bar .chip{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--bd,#bbb);font-size:11px;margin:2px 3px 2px 0;cursor:pointer;background:var(--card,#fff);color:inherit}'+
+   '#dpx_bar .chip.on{background:var(--pr,#1f5fbf);color:#fff;border-color:transparent}'+
+   '#dpx_bar button,#dpx_bar select,#dpx_bar input{font-size:12px}'+
+   '#d_t table.d3 th{position:sticky;top:0;background:var(--card,#fff);z-index:1;font-size:11px;padding:4px}'+
+   '#d_t table.d3 td{padding:2px 3px;vertical-align:middle}'+
+   '#d_t table.d3 input.dx{font-size:12px;padding:3px}'+
+   '#d_t table.d3 input.dx.bad{outline:2px solid #d33;background:rgba(220,50,50,.12)}'+
+   '#d_t table.d3 input.dx.est{outline:2px solid #e69500;background:rgba(230,150,0,.12)}'+
+   '#d_t table.d3 tr.sel{background:rgba(31,95,191,.10)}#d_t table.d3 tr.old td{opacity:.6}'+
+   '#d_t .st{font-size:11px;white-space:nowrap}';
+  el.appendChild(css);
+  const bar=document.createElement('div');bar.id='dpx_bar';bar.style.cssText='margin:6px 0';
+  bar.innerHTML=
+   '<div id="dpx_chips"></div>'+
+   '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
+    '<input id="dpx_q" placeholder="🔍 Nom, CNPS, matricule…" style="min-width:180px">'+
+    '<button class="s" id="dpx_all">☑ Tout (filtre)</button><button class="s" id="dpx_none">☐ Aucun</button>'+
+    '<button class="s" id="dpx_delsel">🗑 Supprimer la sélection</button>'+
+    '<select id="dpx_del"><option value="">🗑 Supprimer…</option><option value="empty">les lignes vides (sans CNPS ni brut)</option><option value="nobrut">les lignes sans bulletin (brut 0)</option><option value="abs">les anciens absents des bulletins</option><option value="dup">les doublons (même CNPS ou matricule)</option><option value="bad">toutes les lignes à corriger</option></select>'+
+    '<button class="s" id="dpx_undo" disabled>↩ Annuler</button>'+
+   '</div>'+
+   '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
+    '<button class="p" id="dpx_comp">🧩 Compléter les manquants</button>'+
+    '<button class="s" id="dpx_gen">🔢 Générer les matricules manquants</button>'+
+    '<button class="s" id="dpx_save">💾 Enregistrer dans les fiches</button>'+
+    '<button class="s" id="dpx_re">↻ Relire avec les libellés appris</button>'+
+    '<button class="s" id="dpx_lab">🏷 Mes libellés</button>'+
+   '</div><div id="dpx_info" class="muted" style="font-size:12px"></div>';
+  g('d_t').before(bar);
+  const $=id=>el.querySelector('#'+id);
+  let filter='all',limit=150,sel=new Set(),undo=[];
+  const miss=(r,i)=>ctx.getMiss()(r,i);
+  const isDup=(()=>{let c={};return {build(){c={};R.forEach(r=>{[digits(r.cnps).length===11?'c'+digits(r.cnps):'',r.mi?'m'+normMi(r.mi):''].forEach(k=>{if(k)c[k]=(c[k]||0)+1;});});},
+    has(r){return (digits(r.cnps).length===11&&c['c'+digits(r.cnps)]>1)||(r.mi&&c['m'+normMi(r.mi)]>1);}};})();
+  const cats={
+    all:r=>true,
+    bad:(r,i)=>miss(r,i).length>0,
+    new:r=>!r.old,
+    abs:r=>r.old&&!r.seen,
+    dup:r=>isDup.has(r),
+    est:r=>r.cotEst&&r.brut>0,
+    nomi:r=>!r.mi,
+    nocnps:r=>digits(r.cnps).length!==11
+  };
+  const CHIPS=[['all','Tous'],['bad','À corriger'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
+  const cols=[['nom','Nom',150],['mi','Matricule interne',100],['cnps','N° CNPS',112],['jours','Jours',40],['brut','Brut',84],['exc','Except.',64],['cot','Cotisable',84],['mat','Matr. DIPE',54]];
+  const status=(r,i)=>{const m=miss(r,i),b=[];
+    b.push(r.old&&!r.seen?'⚪ absent':r.old?'🔄 mis à jour':'🆕 nouveau');
+    if(r.cnpsAuto)b.push('CNPS fiche');if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
+    if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
+    if(isDup.has(r))b.push('⚠ doublon');
+    if(r.warn)b.push('⚠ '+esc(r.warn));
+    if(m.length)b.push('⚠ '+[...new Set(m)].join(', '));else b.push('✅');
+    return b.join(' · ');};
+  const cls=(r,i,k,m)=>{if(k==='cot'&&r.cotEst&&r.brut>0)return 'dx est';if(m.includes(k))return 'dx bad';return 'dx'+(r[k]?' ok':'');};
+  function counts(){isDup.build();const o={};Object.keys(cats).forEach(k=>o[k]=0);R.forEach((r,i)=>{Object.keys(cats).forEach(k=>{if(cats[k](r,i))o[k]++;});});return o;}
+  function visible(){const q=nz($('dpx_q').value),qd=digits($('dpx_q').value);
+    return R.map((r,i)=>[r,i]).filter(([r,i])=>cats[filter](r,i)&&(!g('d_flt').checked||miss(r,i).length>0)&&(!q||nz(r.nom).includes(q)||(qd&&digits(r.cnps).includes(qd))||nz(r.mi).includes(q)));}
+  function chips(){const c=counts();$('dpx_chips').innerHTML=CHIPS.map(([k,l])=>'<span class="chip'+(filter===k?' on':'')+'" data-f="'+k+'">'+l+' ('+c[k]+')</span>').join('');
+    $('dpx_chips').querySelectorAll('.chip').forEach(x=>x.onclick=()=>{filter=x.dataset.f;limit=150;render();});
+    $('dpx_undo').disabled=!undo.length;}
+  function render(){
+    const box=g('d_t'),top=box.scrollTop;chips();
+    if(!R.length){box.innerHTML='<p class="muted">Aucune ligne. Chargez des bulletins puis « Lire les bulletins ».</p>';return;}
+    const V=visible(),shown=V.slice(0,limit);
+    box.innerHTML='<table class="d3" style="border-collapse:collapse;width:100%"><tr><th><input type="checkbox" id="dpx_ck"></th><th>#</th>'+cols.map(c=>'<th style="text-align:left">'+c[1]+'</th>').join('')+'<th>Net</th><th>Période</th><th>État</th><th></th></tr>'+
+    shown.map(([r,i])=>{const m=miss(r,i);
+      return '<tr data-r="'+i+'" class="'+(sel.has(r)?'sel ':'')+(r.old&&!r.seen?'old':'')+'"><td><input type="checkbox" data-s="'+i+'"'+(sel.has(r)?' checked':'')+'></td><td>'+(i+1)+'</td>'+
+      cols.map(c=>'<td><input class="'+cls(r,i,c[0],m)+'" data-i="'+i+'" data-k="'+c[0]+'" value="'+esc(r[c[0]]==null?'':r[c[0]])+'" style="width:'+c[2]+'px"'+(r.src&&r.src[c[0]]?' title="Lu sur : '+esc(r.src[c[0]])+'"':'')+'></td>').join('')+
+      '<td style="font-size:11px;text-align:right">'+(r.net?Math.round(r.net).toLocaleString('fr-FR'):'')+'</td><td style="font-size:11px">'+esc(r.per||'')+'</td>'+
+      '<td class="st">'+status(r,i)+'</td><td style="white-space:nowrap"><button data-t="'+i+'" title="Texte lu / apprendre un libellé">🔎</button><button data-del="'+i+'" title="Supprimer cette ligne">✕</button></td></tr>';}).join('')+'</table>'+
+    '<p class="muted" style="font-size:12px">'+V.length+' ligne(s) affichée(s) sur '+R.length+(V.length>shown.length?' · <a href="#" id="dpx_more">afficher '+Math.min(150,V.length-shown.length)+' de plus</a>':'')+' · '+sel.size+' sélectionnée(s). Rouge = à corriger · orange = cotisable estimé (non lu). Survolez une case lue pour voir le libellé trouvé.</p>';
+    box.scrollTop=top;
+    const more=box.querySelector('#dpx_more');if(more)more.onclick=ev=>{ev.preventDefault();limit+=150;render();};
+    box.querySelector('#dpx_ck').onclick=ev=>{shown.forEach(([r])=>ev.target.checked?sel.add(r):sel.delete(r));render();};
+    box.querySelectorAll('[data-s]').forEach(x=>x.onchange=()=>{const r=R[+x.dataset.s];x.checked?sel.add(r):sel.delete(r);x.closest('tr').classList.toggle('sel',x.checked);chips();});
+    box.querySelectorAll('input.dx').forEach(x=>x.onchange=()=>edit(x));
+    box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>removeRows([R[+b.dataset.del]]));
+    box.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>openText(+b.dataset.t));
+  }
+  function edit(x){
+    const i=+x.dataset.i,k=x.dataset.k,r=R[i],num=['jours','brut','cot','exc'].includes(k);
+    r[k]=num?pNum(x.value):(k==='cnps'?x.value.replace(/\D/g,''):x.value.trim());
+    if(k==='mi'){r.miAuto=false;r.miGen=false;if(r.mi)r.mat=String(r.mi).slice(-4);const e=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));if(e&&!r.eid){r.eid=e.id;if(!r.nom)r.nom=e.n;}}
+    if(k==='brut'&&r.brut>0&&!(r.cot>0)){r.cot=Math.min(r.brut,(ctx.PC||{}).plafond||750000);r.cotEst=true;}
+    if(k==='cot')r.cotEst=false;
+    if(k==='cnps')r.cnpsAuto=false;
+    /* mise à jour de la ligne seulement : le focus reste dans le tableau */
+    const tr=x.closest('tr'),m=miss(r,i);isDup.build();
+    tr.querySelectorAll('input.dx').forEach(inp=>{const kk=inp.dataset.k;if(document.activeElement!==inp&&String(r[kk]==null?'':r[kk])!==inp.value)inp.value=r[kk]==null?'':r[kk];inp.className=cls(r,i,kk,m);});
+    tr.querySelector('.st').innerHTML=status(r,i);chips();
+  }
+  function removeRows(rows){
+    rows=rows.filter(r=>R.includes(r));if(!rows.length){say('Rien à supprimer');return;}
+    if(rows.length>1&&!confirm('Supprimer '+rows.length+' ligne(s) ? (vous pourrez annuler)'))return;
+    undo.push(rows.map(r=>({r,i:R.indexOf(r)})).sort((a,b)=>a.i-b.i));
+    rows.forEach(r=>{const j=R.indexOf(r);if(j>-1)R.splice(j,1);sel.delete(r);});
+    render();try{ctx.showAbs();}catch(e){}say('🗑 '+rows.length+' ligne(s) supprimée(s) — « Annuler » pour les remettre');
+  }
+  $('dpx_undo').onclick=()=>{const last=undo.pop();if(!last)return;last.forEach(({r,i})=>R.splice(Math.min(i,R.length),0,r));render();try{ctx.showAbs();}catch(e){}say('↩ '+last.length+' ligne(s) remise(s)');};
+  $('dpx_all').onclick=()=>{visible().forEach(([r])=>sel.add(r));render();};
+  $('dpx_none').onclick=()=>{sel.clear();render();};
+  $('dpx_delsel').onclick=()=>removeRows([...sel]);
+  $('dpx_q').oninput=()=>{limit=150;render();};
+  $('dpx_del').onchange=ev=>{
+    const v=ev.target.value;ev.target.value='';if(!v)return;isDup.build();let rows=[];
+    if(v==='empty')rows=R.filter(r=>digits(r.cnps).length!==11&&!(r.brut>0));
+    if(v==='nobrut')rows=R.filter(r=>!(r.brut>0));
+    if(v==='abs')rows=R.filter(r=>r.old&&!r.seen);
+    if(v==='bad')rows=R.filter((r,i)=>miss(r,i).length>0);
+    if(v==='dup'){const seen=new Map();R.forEach(r=>{[digits(r.cnps).length===11?'c'+digits(r.cnps):'',r.mi?'m'+normMi(r.mi):''].forEach(k=>{if(!k)return;const a=seen.get(k);if(!a)seen.set(k,r);else{const keep=(r.brut>0&&!(a.brut>0))?r:a,drop=keep===r?a:r;if(!rows.includes(drop))rows.push(drop);seen.set(k,keep);}});});}
+    removeRows(rows);};
+
+  /* --- compléter les manquants --- */
+  function fillAll(){let n=0,nm=0,nc=0;
+    try{n=ctx.fillFromEmp()||0;}catch(e){}
+    R.forEach(r=>{
+      let e=r.eid?E.find(y=>String(y.id)===String(r.eid)):null;
+      if(!e&&r.nom)e=ctx.matchEmp(r.nom,r.nom);
+      if(!e&&r.mi)e=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));
+      if(e){if(!r.eid){r.eid=e.id;if(!r.nom)r.nom=e.n;}
+        const c=digits(e.cnps);if(digits(r.cnps).length!==11&&c.length===11){r.cnps=c;r.cnpsAuto=true;nc++;}
+        if(!r.mi&&MAT[e.id]){r.mi=MAT[e.id];r.miAuto=true;nm++;}}
+      if(r.mi&&!r.mat)r.mat=String(r.mi).slice(-4);
+      if(r.brut>0&&!(r.cot>0)){r.cot=Math.min(r.brut,(ctx.PC||{}).plafond||750000);r.cotEst=true;}
+      if(!(r.jours>=1&&r.jours<=30))r.jours=30;});
+    return {nm,nc};}
+  function genMis(){
+    const pool=[...Object.values(MAT),...R.map(r=>r.mi).filter(Boolean)].map(String),cnt={};
+    pool.forEach(v=>{const m=v.match(/^(.*?)(\d+)$/);if(m){const k=m[1]+'\u0001'+m[2].length;cnt[k]=(cnt[k]||0)+1;}});
+    const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];let prefix='',width=4;if(best){const p=best[0].split('\u0001');prefix=p[0];width=+p[1];}
+    let max=0;pool.forEach(v=>{const m=v.match(/^(.*?)(\d+)$/);if(m&&m[1]===prefix)max=Math.max(max,parseInt(m[2],10));});
+    let n=0;R.forEach(r=>{if(r.mi||!(r.nom||digits(r.cnps)))return;max++;r.mi=prefix+String(max).padStart(width,'0');r.miGen=true;r.mat=r.mi.slice(-4);n++;});
+    return {n,sample:prefix+String(max+1).padStart(width,'0')};}
+  $('dpx_comp').onclick=()=>{const a=fillAll();render();
+    const left=R.filter((r,i)=>miss(r,i).length||!r.mi).length;
+    $('dpx_info').innerHTML='🧩 Depuis les fiches : '+a.nc+' N° CNPS et '+a.nm+' matricule(s) complété(s). '+(left?left+' ligne(s) restent incomplètes : filtrez « À corriger » ou « Sans matricule interne », saisissez les valeurs, ou utilisez « Générer les matricules manquants ».':'✅ Tout est complet.');};
+  $('dpx_gen').onclick=()=>{const miss0=R.filter(r=>!r.mi&&(r.nom||digits(r.cnps))).length;if(!miss0){say('Aucun matricule à générer');return;}
+    if(!confirm('Générer '+miss0+' matricule(s) interne(s) à la suite de la numérotation existante ?'))return;
+    const o=genMis();render();$('dpx_info').textContent='🔢 '+o.n+' matricule(s) généré(s) (prochain : '+o.sample+'). Vérifiez puis « Enregistrer dans les fiches ».';};
+  $('dpx_save').onclick=async()=>{
+    try{if(window.CAN&&CAN.edit&&!CAN.edit()){say('Permission refusée');return;}}catch(e){}
+    const mats={},ciu=[];
+    R.forEach(r=>{if(!r.eid)return;if(r.mi&&String(MAT[r.eid]||'')!==String(r.mi))mats[r.eid]=r.mi;
+      const e=E.find(y=>String(y.id)===String(r.eid));if(e&&digits(r.cnps).length===11&&digits(e.cnps).length!==11)ciu.push([e,digits(r.cnps)]);});
+    const nm=Object.keys(mats).length;
+    if(!nm&&!ciu.length){say('Rien de nouveau à enregistrer (seules les lignes rattachées à une fiche employé sont concernées)');return;}
+    if(!confirm(nm+' matricule(s) et '+ciu.length+' N° CNPS seront enregistrés dans les fiches employés (les N° CNPS déjà renseignés ne sont jamais modifiés). Continuer ?'))return;
+    let ko=0;
+    try{if(nm){Object.assign(MAT,mats);await ctx.wr('matricules_json',MAT);}}catch(e){ko++;console.error(e);}
+    for(const [e,c] of ciu){try{await updateEmp(e.id,{...e,cnps:c});e.cnps=c;}catch(er){ko++;console.error(er);}}
+    say(ko?'⚠ Enregistré avec '+ko+' erreur(s) (voir la console)':'✅ Fiches mises à jour');};
+
+  /* --- texte lu + apprentissage de libellé --- */
+  function learn(i,line,k,next){
+    const r=R[i];let label='',val=null;
+    if(k==='mi'){const m=/([A-Za-z]{0,6}[-\/]?\d{1,12}[A-Za-z]?)/.exec(line.replace(/^[^:]*:/,m=>m));
+      const re=/[A-Za-z]{0,6}[-\/]?\d{1,12}[A-Za-z]?/g;let mm,tok=null;while((mm=re.exec(line))){if(miOk(mm[0])){tok=mm;break;}}
+      if(!tok){say('Aucun matricule sur cette ligne');return;}
+      val=tok[0];label=line.slice(0,tok.index);}
+    else{let n=nums(line);if(!n.length&&next)n=nums(next);if(!n.length){say('Aucun montant sur cette ligne (ni sur la suivante)');return;}
+      val=k==='jours'?n[0].v:Math.max(...n.map(x=>x.v));label=nums(line).length?line.slice(0,nums(line)[0].i):line;}
+    label=label.replace(/[\s:.\-–=]+$/,'').replace(/^[\s:.\-–=]+/,'').trim();
+    if(label.length<3){label=(prompt('Libellé trop court. Recopiez le nom de la rubrique (ex. « Salaire cotisable ») :',label)||'').trim();if(label.length<3)return;}
+    T.custom[k]=[label].concat((T.custom[k]||[]).filter(x=>x!==label));
+    Promise.resolve(ctx.wr('dipe_labels',T.custom)).catch(()=>{try{localStorage.setItem('terh_dipe_labels',JSON.stringify(T.custom));}catch(e){}});
+    if(k==='mi'){r.mi=val;r.mat=String(val).slice(-4);r.miAuto=false;}else{r[k]=val;if(k==='cot')r.cotEst=false;}
+    r.src=r.src||{};r.src[k]=label;render();say('🏷 Libellé « '+label+' » mémorisé pour '+({mi:'le matricule',cot:'le cotisable',brut:'le brut',jours:'les jours'}[k])+' — valeur lue : '+val);}
+  function openText(i){
+    const r=R[i],lines=normLines(r._t||'');
+    if(!lines.length){say('Pas de texte lu pour cette ligne (ancien modèle ou saisie manuelle)');return;}
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">🔎 Texte lu — '+esc(r.nom||'')+'</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Cliquez le bouton d\'une ligne pour dire « cette ligne est le brut / cotisable / matricule / jours » : le libellé est mémorisé et servira pour tous les bulletins.</p><div id="dpx_ln" style="max-height:68vh;overflow:auto;font-size:12px"></div>');
+    const box=w.querySelector('#dpx_ln');
+    box.innerHTML='<table style="border-collapse:collapse;width:100%">'+lines.map((L,j)=>'<tr style="border-bottom:1px solid rgba(128,128,128,.25)"><td style="padding:2px 4px;font-family:monospace;white-space:pre-wrap">'+esc(L)+'</td><td style="white-space:nowrap;padding:2px"><button data-l="'+j+'" data-k="brut">Brut</button><button data-l="'+j+'" data-k="cot">Cotis.</button><button data-l="'+j+'" data-k="mi">Matr.</button><button data-l="'+j+'" data-k="jours">Jours</button></td></tr>').join('')+'</table>';
+    box.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>learn(i,lines[+b.dataset.l],b.dataset.k,lines[+b.dataset.l+1]));}
+  $('dpx_re').onclick=()=>{const rows=R.filter(r=>r._t);if(!rows.length){say('Aucun bulletin lu à relire');return;}
+    if(!confirm('Relire '+rows.length+' bulletin(s) avec vos libellés ? Les valeurs corrigées à la main seront remplacées.'))return;
+    let n=0;rows.forEach(r=>{try{const x=ctx.parseSlip2(r._t,r.nom||'');['brut','cot','exc','jours','mi','mat','net','poste','src','cotEst','warn'].forEach(k=>{if(x[k]!==undefined&&x[k]!=='')r[k]=x[k];});n++;}catch(e){}});
+    render();say('↻ '+n+' bulletin(s) relu(s)');};
+  $('dpx_lab').onclick=()=>{
+    const C=T.custom,rows=Object.entries(C).filter(([k,v])=>v&&v.length);
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">🏷 Mes libellés appris</h3><p class="muted" style="font-size:12px">Ils s\'ajoutent aux libellés standard. Supprimez ceux qui sont faux. Les libellés standard se modifient dans dipe-plus.js (T.LABELS).</p><div id="dpx_lb"></div>');
+    const nm={mi:'Matricule interne',cot:'Cotisable',brut:'Brut',jours:'Jours',exc:'Exceptionnel',net:'Net'};
+    const box=w.querySelector('#dpx_lb');
+    box.innerHTML=rows.length?rows.map(([k,v])=>v.map((l,j)=>'<div style="display:flex;gap:8px;align-items:center;margin:3px 0"><b style="min-width:130px">'+nm[k]+'</b><span style="flex:1">'+esc(l)+'</span><button data-k="'+k+'" data-j="'+j+'">🗑</button></div>').join('')).join(''):'<p class="muted">Aucun libellé appris pour l\'instant.</p>';
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>{C[b.dataset.k].splice(+b.dataset.j,1);Promise.resolve(ctx.wr('dipe_labels',C)).catch(()=>{});b.closest('div').remove();say('Libellé supprimé');});};
+
+  /* le module appelle draw() après lecture : on le remplace par notre rendu */
+  ctx.setDraw(render);
+  g('d_flt').onchange=render;g('d_drop').onchange=render;
+  const stat=el.querySelector('#d_s');
+  if(stat&&!stat._dpx){stat._dpx=1;new MutationObserver(()=>{if(/bulletin\(s\) lu\(s\)/.test(stat.textContent)&&!stat.dataset.x){const rs=R.filter(r=>r._t);const c=rs.filter(r=>r.src&&r.src.cot&&!r.cotEst).length,mi=rs.filter(r=>r.mi&&!r.miAuto).length;
+      $('dpx_info').innerHTML='📊 '+rs.length+' bulletin(s) : cotisable lu sur <b>'+c+'</b> · matricule interne lu sur <b>'+mi+'</b>'+(rs.length-c?' · <span style="color:#e69500">'+(rs.length-c)+' cotisable(s) estimé(s)</span> (filtre « Cotisable estimé », puis 🔎 pour apprendre le libellé)':'')+'.';}}).observe(stat,{childList:true,characterData:true,subtree:true});}
+  render();
+};
+
+/* traductions anglaises de cette interface */
+try{(window.TERH_I18N_add||function(o){window.TERH_I18N=Object.assign(window.TERH_I18N||{},o);})({
+ 'Nom, CNPS, matricule…':'Name, CNPS, employee no.…','Tout (filtre)':'All (filtered)','Aucun':'None','Supprimer la sélection':'Delete selection','Supprimer…':'Delete…',
+ 'les lignes vides (sans CNPS ni brut)':'empty rows (no CNPS nor gross)','les lignes sans bulletin (brut 0)':'rows without payslip (gross 0)','les anciens absents des bulletins':'old rows missing from payslips','les doublons (même CNPS ou matricule)':'duplicates (same CNPS or employee no.)','toutes les lignes à corriger':'all rows to fix',
+ 'Annuler':'Undo','Compléter les manquants':'Complete missing data','Générer les matricules manquants':'Generate missing employee numbers','Enregistrer dans les fiches':'Save to employee records','Relire avec les libellés appris':'Re-read with learned labels','Mes libellés':'My labels',
+ 'Tous':'All','À corriger':'To fix','Nouveaux':'New','Absents des bulletins':'Missing from payslips','Doublons':'Duplicates','Cotisable estimé':'Estimated contributory salary','Sans matricule interne':'No internal employee no.','Sans CNPS valide':'No valid CNPS',
+ 'Matricule interne':'Internal employee no.','Matr. DIPE':'DIPE no.','Cotisable':'Contributory salary','Période':'Period','État':'Status','Net':'Net',
+ 'Texte lu — ':'Text read — ','Mes libellés appris':'My learned labels','Aucune ligne. Chargez des bulletins puis « Lire les bulletins ».':'No rows. Load payslips then “Read payslips”.'
+});}catch(e){}
+})();
