@@ -19,3 +19,7 @@
 /sw.js
   Content-Type: application/javascript
   Cache-Control: no-cache
+
+/lang-en.js
+  Content-Type: application/javascript
+  Cache-Control: no-cache

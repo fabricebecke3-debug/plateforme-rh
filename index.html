@@ -3405,7 +3405,7 @@ function entFormHTML(p){
   const v=k=>esc(k==='ent_mode'?(entGet(k)||'auto'):entGet(k));
   const P=PARAMS,f=(id,lab,val,ph)=>`<label>${lab}<input id="${p}${id}" value="${esc(val||'')}" placeholder="${esc(ph||'')}"></label>`;
   return `<h3 style="margin:0 0 6px">✏️ En-tête des lettres de démobilisation</h3>
-<p class="muted" style="font-size:12px;margin:0 0 8px">Modifiez la société et ses informations affichées en haut des lettres (variable <code>{{ENTETE_BLOC}}</code>). En cas de <b>mise à disposition</b>, la société mère figure sur le papier à en-tête.</p>
+<p class="muted" style="font-size:12px;margin:0 0 8px">Modifiez la société et ses informations affichées en haut des lettres. En cas de mise à disposition, la société mère figure sur le papier à en-tête.</p>
 <div class="fm" style="max-width:900px">
 ${f('soc','Société',P.soc)}${f('lieu','Ville (lieu de la lettre)',P.lieu)}
 ${f('adresse','Adresse',P.adresse)}${f('tel','Téléphone(s)',P.tel)}
@@ -3415,7 +3415,7 @@ ${f('mere','Société mère (nom)',entGet('ent_mere'),'ex. TOTAL EMPLOI RH (vide
 ${f('mereadr','Adresse de la société mère',entGet('ent_mere_adr'),'vide = adresse ci-dessus')}${f('madlabel','Libellé de mise à disposition',entGet('ent_mad_label'),'Mis à disposition auprès de')}
 <label style="grid-column:1/-1">Mentions légales (RCCM, NIU, BP… une ligne par mention)<textarea id="${p}mentions" rows="3">${v('ent_mentions')}</textarea></label>
 </div>
-<p class="muted" style="font-size:12px;margin:8px 0 2px">Aperçu de l'en-tête :</p>
+<p class="muted" style="font-size:12px;margin:8px 0 2px">Aperçu de l'en-tête</p>
 <div id="${p}prev" style="border:1px dashed var(--bd,#bbb);border-radius:8px;padding:10px;font:11pt/1.5 'Times New Roman',serif;background:#fff;color:#000;max-width:420px"></div>
 <p style="margin-top:10px"><button class="p" type="button" id="${p}save">💾 Enregistrer l'en-tête</button> <button class="s" type="button" id="${p}reset">↺ Valeurs par défaut</button></p>`;
 }
@@ -3498,7 +3498,7 @@ function _toJpegW(file,max){return new Promise((ok,ko)=>{const im=new Image(),u=
 
 /* ---- Onglet « Papier à en-tête » ---- */
 OWX.ent=async()=>{const c=curCo()||{};return `<div class="c" id="ent_form_box"></div>
-<div class="c"><h3 style="margin:0 0 6px">📂 Importer un nouveau modèle — ${esc(c.nom||'')}</h3><p class="muted" style="font-size:12px;margin:0 0 8px">Fichier Word (.docx), PDF, .txt, .html, .rtf ou image (OCR). Le contenu est chargé dans le modèle choisi ; vérifiez-le puis enregistrez. Ajoutez <code>{{ENTETE_BLOC}}</code> là où l'en-tête société doit apparaître.</p>
+<div class="c"><h3 style="margin:0 0 6px">📂 Importer un nouveau modèle<small> — ${esc(c.nom||'')}</small></h3><p class="muted" style="font-size:12px;margin:0 0 8px">Fichier Word (.docx), PDF, .txt, .html, .rtf ou image (OCR). Le contenu est chargé dans le modèle choisi ; vérifiez-le puis enregistrez.</p><p class="muted" style="font-size:12px;margin:0 0 8px"><code>{{ENTETE_BLOC}}</code></p>
 <div class="f"><select id="ent_k">${Object.entries(TPLS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select><label class="s" style="cursor:pointer;padding:8px 12px">📂 Choisir un fichier<input type="file" id="ent_imp" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf,.jpg,.jpeg,.png,.webp" hidden></label></div>
 <textarea id="ent_t" style="width:100%;min-height:260px;margin-top:8px" placeholder="Le modèle importé s'affiche ici"></textarea>
 <p><button class="p" id="ent_tsave">💾 Enregistrer ce modèle</button> <span class="muted" id="ent_tmsg"></span></p></div>`;};
@@ -3512,8 +3512,8 @@ OWP.ent=()=>{
 };
 
 /* ---- Onglet « Bibliothèque » ---- */
-OWX.bib=async()=>{const co=curCo()||{};return `<div class="c"><h2>📚 Bibliothèque — ${esc(co.nom||'')}</h2>
-<p class="muted">Livres, conventions collectives, codes, procédures. Les textes sont enregistrés dans <b>IndexedDB</b> : ils restent lisibles par l'IA et l'assistant <b>même sans internet</b>.</p>
+OWX.bib=async()=>{const co=curCo()||{};return `<div class="c"><h2>📚 Bibliothèque<small> — ${esc(co.nom||'')}</small></h2>
+<p class="muted">Livres, conventions collectives, codes, procédures. Les textes sont enregistrés dans IndexedDB : ils restent lisibles par l'IA et l'assistant même sans internet.</p>
 <div class="f"><label class="s" style="cursor:pointer;padding:8px 12px">📎 Ajouter des fichiers (PDF, DOCX, TXT, HTML, RTF)<input type="file" id="bib_f" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf" hidden multiple></label><span id="bib_s" class="muted"></span></div>
 <div id="bib_list" style="margin-top:10px"></div></div>`;};
 OWP.bib=()=>{
@@ -5678,6 +5678,7 @@ function mk(){const nav=q('nav'),pb=q('#npaie');if(!nav||!pb)return;let b=q('#tx
 setInterval(mk,1500);window.TERH_calcPaie=calc;window.TERH_DEF=DEF;
 })();
 </script>
+<script src="lang-en.js"></script>
 <script>/* ===== TRADUCTION COMPLÈTE FR→EN (DOM) ===== */
 (function(){
 const RAW=`CTT (1 mois renouvelable, 12 max)|CTT (1 month renewable, 12 max)
@@ -6769,6 +6770,8 @@ Plateforme RH, propriété de |HR Platform, property of
 En congé|On leave
 En congés|On leave`;
 const D=new Map();RAW.split('\n').forEach(l=>{const i=l.indexOf('|');if(i>0)D.set(l.slice(0,i),l.slice(i+1));});
+function _i18nAdd(o){try{Object.keys(o||{}).forEach(k=>D.set(k,o[k]));_TC.clear();DS=null;if(typeof sched==='function')sched();}catch(e){}}
+_i18nAdd(window.TERH_I18N);window.TERH_I18N_add=_i18nAdd;
 const G=[[/\bemployés\b/gi,'employees'],[/\bemployé\b/gi,'employee'],[/\bcontrats\b/gi,'contracts'],[/\bcontrat\b/gi,'contract'],[/\bjours\b/gi,'days'],[/\bjour\b/gi,'day'],[/\bmois\b/gi,'month'],[/\bsalariés\b/gi,'employees'],[/\bsalarié\b/gi,'employee'],[/\béchéance\b/gi,'expiry'],[/\bactifs\b/gi,'active'],[/\bprochains?\b/gi,'next'],[/\bdans les\b/gi,'within'],[/\bsur\b/gi,'on'],[/\bet\b/g,'and'],[/\bde\b/g,'of'],[/\ben retard\b/gi,'late'],[/\bretard\b/gi,'late'],[/\bvisites?\b/gi,'visits'],[/\bmédicales?\b/gi,'medical'],[/\bd'embauche\b/gi,'of hire'],[/\bnombre\b/gi,'number'],[/\bjanvier\b/gi,'January'],[/\bfévrier\b/gi,'February'],[/\bmars\b/gi,'March'],[/\bavril\b/gi,'April'],[/\bmai\b/gi,'May'],[/\bjuin\b/gi,'June'],[/\bjuillet\b/gi,'July'],[/\baoût\b/gi,'August'],[/\bseptembre\b/gi,'September'],[/\boctobre\b/gi,'October'],[/\bnovembre\b/gi,'November'],[/\bdécembre\b/gi,'December']];
 const _TC=new Map();let DS=null;
 function trCore(c){const k=c.trim();if(D.has(k))return D.get(k);if(_TC.has(k))return _TC.get(k);const r=trCore0(k);if(_TC.size>5000)_TC.clear();_TC.set(k,r);return r;}
@@ -6777,7 +6780,7 @@ function trCore0(k){
  if(!DS)DS=[...D.entries()].filter(e=>e[0].length>10).sort((a,b)=>b[0].length-a[0].length);
  let o=k,ch=false;for(const [kk,v] of DS){if(o.includes(kk)){o=o.split(kk).join(v);ch=true;}}const FRW=/\b(vous|votre|vos|nous|notre|nos|pour|dans|avec|des|les|une|qui|que|sont|est|aux|ce|cette|ces|sur|par|afin|leur|leurs)\b/i;
  const o1=o,ch1=ch;if(FRW.test(k)&&FRW.test(o)){return ch1?o1:k;}
- G.forEach(([r,v])=>{r.lastIndex=0;const n=o.replace(r,v);if(n!==o){ch=true;o=n;}});return ch?o:k;}
+ const o2=o;let chG=false;G.forEach(([r,v])=>{r.lastIndex=0;const n=o.replace(r,v);if(n!==o){chG=true;ch=true;o=n;}});if(chG&&/[àâçéèêëîïôùûüœÀÉÈ]|\b(les|des|une|pour|dans|avec|vous|votre|sont)\b/i.test(o))return ch1?o2:k;return ch?o:k;}
 let trText=function(t){const f=D.get(t.trim());if(f!==undefined)return t.replace(t.trim(),f);const m=/^([^A-Za-zÀ-ÿ{0-9]*)([\s\S]*?)([\s:*…?!.]*)$/.exec(t);if(!m||!m[2])return t;const f2=D.get((m[2]+m[3]).trim());if(f2!==undefined)return m[1]+f2;return m[1]+trCore(m[2])+m[3];};
 const XT={Filiale:'Subsidiary',Agence:'Branch',Site:'Site',Département:'Department',Chantier:'Site',Cliente:'Client'};
 const TPLN={"Demande d'explication":"Request for explanation","Demande d’explication":"Request for explanation","Notification de sanction":"Notification of sanction","Lettre":"Letter","Certificat":"Certificate"};
