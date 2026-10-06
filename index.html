@@ -5293,7 +5293,7 @@ function dipeLine(o){const R=(v,n)=>String(v).padStart(n,' ');
   return (o.pre||'C0400000').padEnd(23,' ')+o.mm+o.emp+(o.suf||'000D1')+o.yyyy+o.cnps+R(o.jours,2).replace(' ','0')+R(o.brut,10)+R(o.exc||0,10)+R(o.cot,10)+R(o.cot,10)+R(o.cot,10)+''.padEnd(7,' ')+String(o.seq).padStart(9,'0')+''.padEnd(10,' ')+R(o.mat||'',4);}
 const parseEmp=v=>{v=String(v||'').replace(/\s/g,'').toUpperCase();const m=v.match(/^(\d{10})([0-9A-Z]{5})?$/);return m?{emp:m[1],suf:m[2]||'000D1'}:{emp:'',suf:''};};
 
-const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{if(window.TERH_DIPE&&TERH_DIPE.mount)return ok(true);const sc=document.createElement('script');sc.src='dipe-plus.js?v=2026.10.2';sc.onload=()=>ok(true);sc.onerror=()=>{window.__dipePlusP=null;console.warn('dipe-plus.js introuvable : placez-le à côté de index.html');ok(false);};document.head.appendChild(sc);}));
+const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{if(window.TERH_DIPE&&TERH_DIPE.mount)return ok(true);const sc=document.createElement('script');sc.src='dipe-plus.js?t='+Date.now();sc.onload=()=>ok(true);sc.onerror=()=>{window.__dipePlusP=null;console.warn('dipe-plus.js introuvable : placez-le à côté de index.html');ok(false);};document.head.appendChild(sc);}));
 async function openDipe3(){
   document.getElementById('dpm2')?.remove();
   const plusOk=await loadDipePlus();

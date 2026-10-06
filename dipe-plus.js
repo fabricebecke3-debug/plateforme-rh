@@ -17,7 +17,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.2';
+T.version='2026.10.3';
 T.custom=T.custom||{};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
@@ -370,6 +370,7 @@ T.mount=function(ctx){
 
   /* le module appelle draw() après lecture : on le remplace par notre rendu */
   ctx.setDraw(render);
+  $('dpx_info').textContent='🧩 dipe-plus.js v'+T.version+' actif — brut lu sur « Total Brut », cotisable sur la colonne Base de « Pension vieillesse CNPS » (aucun calcul).';
   g('d_flt').onchange=render;g('d_drop').onchange=render;
   const stat=el.querySelector('#d_s');
   if(stat&&!stat._dpx){stat._dpx=1;new MutationObserver(()=>{if(/bulletin\(s\) lu\(s\)/.test(stat.textContent)&&!stat.dataset.x){const rs=R.filter(r=>r._t);const c=rs.filter(r=>r.cot>0&&r.src&&r.src.cot&&!r.cotEst).length,mi=rs.filter(r=>r.mi&&!r.miAuto).length;
