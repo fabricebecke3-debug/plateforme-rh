@@ -176,8 +176,9 @@ X.analyze=function(){
 /* contrôle de la ligne « Pension vieillesse » d'un bulletin */
 X.pension=function(txt){
   const L=linesOf(txt).find(l=>/pension\s+vieillesse/i.test(l));if(!L)return {found:false};
-  const ns=numsOf(L).filter(n=>n.v>=100);
-  return {found:true,line:L,base:ns.length?ns[0].v:0};
+  /* uniquement les montants APRÈS le libellé (le code de ligne Sage, ex. « 8100 », n'est pas un montant) ; 1er = base, il faut au moins base + retenue */
+  const m=/pension\s+vieillesse(?:\s+cnps)?/i.exec(L),ns=numsOf(L.slice(m.index+m[0].length)).filter(n=>n.v>=100);
+  return {found:true,line:L,base:ns.length>=2?ns[0].v:0};
 };
 
 /* ---------- interface commune ---------- */
