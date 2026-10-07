@@ -477,6 +477,12 @@ T.mount=function(ctx){
     w.querySelector('#rp_ai').onclick=()=>runAI(an.filter(a=>a.p.some(t=>/^(❌|⚠ matricule non lu)/.test(t))).slice(0,25));
     t.addEventListener('click',ev=>{const b=ev.target.closest('[data-ai]');if(b)runAI([an[+b.dataset.ai]]);});
     w.querySelector('#rp_only').onchange=draw;w.querySelector('#rp_close').onclick=()=>w.remove();draw();};
+  /* --- triangulation AUTOMATIQUE à la fin de la lecture des bulletins --- */
+  T.afterRead=()=>T.ia(x=>{
+    const A=x.analyze(),info=$('dpx_info');if(!info||!A.rows.length)return;
+    const jd=A.rows.filter(o=>o.r.jMode==='def').length,col=A.verdict==='block'?'#d33':A.verdict==='warn'?'#e69500':'#2a9d55';
+    info.innerHTML='<div style="border-left:4px solid '+col+';padding:6px 10px;margin:6px 0"><b>🔺 Triangulation automatique : '+(A.verdict==='block'?'❌ bloquant':A.verdict==='warn'?'⚠ à vérifier':'✅ prêt')+'</b> — '+A.rows.length+' salarié(s) : '+A.okN+' conformes, '+A.warnN+' à vérifier, '+A.errN+' en erreur · fiabilité '+A.score+' %'+(jd?' · '+jd+' sans info de jours (30 par défaut)':'')+' <button class="s" id="dpx_tri2">Voir le détail</button></div>';
+    const b=info.querySelector('#dpx_tri2');if(b)b.onclick=()=>x.openTriangulation();});
   /* --- validation obligatoire avant de générer le DIPE --- */
   const dlb=g('d_dl');
   const reason={cnps:'N° CNPS invalide',brut:'brut manquant',jours:'jours invalides',cot:'pas de Pension vieillesse CNPS (cotisable 0)'};

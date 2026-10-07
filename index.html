@@ -5379,7 +5379,7 @@ async function openDipe3(){
     }finally{g('d_go').disabled=false;}
     const n=fillFromEmp();
     const per=R.find(r=>r.per);if(per&&per.per){/* période détectée : indicative */}
-    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();try{if(window.TERH_DIPE&&TERH_DIPE.report)TERH_DIPE.report(true);}catch(er){console.warn(er);}};
+    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();try{if(window.TERH_DIPE&&TERH_DIPE.report)TERH_DIPE.report(true);}catch(er){console.warn(er);}try{if(window.TERH_DIPE&&TERH_DIPE.afterRead)TERH_DIPE.afterRead();}catch(er){console.warn(er);}};
   /* export DIPE */
   g('d_dl').onclick=async()=>{try{
     const E5=parseEmp(g('d_em').value),p=g('d_mo').value,pre=(g('d_pre').value||'C0400000').trim();
