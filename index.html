@@ -5275,7 +5275,8 @@ function parseSlip2(text,fn){
   let nom='';
   for(const l of lines){const m=/(?:nom(?:\s*(?:et|&)\s*pr[ée]noms?)?|salari[ée]e?|employ[ée]e?|agent|collaborateur|mme|m\.|monsieur|madame)\s*[:\-]\s*([A-Za-zÀ-ÿ' \-]{4,60})/i.exec(l);if(m){nom=m[1].split(/\s+(?:matricule|mat\b|n[°o]\b|cnps|date|poste|emploi|cat[ée]gorie|service|fonction)/i)[0].trim();if(nom.length>=4)break;nom='';}}
   const e=matchEmp(t,nom||fn);
-  let cnps=findCnps(t,lines);const fromEmp=!cnps&&e&&e.cnps&&String(e.cnps).replace(/\D/g,'').length===11;if(fromEmp)cnps=String(e.cnps).replace(/\D/g,'');
+  /* N° CNPS : jamais lu sur le bulletin ni repris de la fiche ; il est cherché dans le référentiel CNPS à partir du nom */
+  let cnps='';const fromEmp=false;
   const brut=findAmt(lines,[/salaire\s+brut|total\s+brut|brut\s+total|gains\s+bruts/i,/total\s+(?:des\s+)?gains|total\s+r[ée]mun[ée]ration/i,/brut\s+imposable/i,/\bbrut\b/i],'max');
   const cot=findAmt(lines,[/salaire\s+cotisable|assiette\s+(?:cnps|de\s+cotisation\w*|cotisable|plafonn\w+)|base\s+(?:cnps|cotisable|plafonn\w+)|brut\s+plafonn\w+/i,/\bplafonn\w+|cotisable/i],'max');
   const exc=findAmt(lines,[/(?:prime|salaire|indemnit[ée]|gratification)\s+exceptionnel\w*/i],'max');
@@ -5340,7 +5341,7 @@ async function openDipe3(){
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{R.splice(+b.dataset.del,1);draw();});
     el.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=R[+b.dataset.t];const w=openWin('<h3>🔎 Texte lu — '+ESC(r.nom||'')+'</h3><pre style="white-space:pre-wrap;font-size:12px;max-height:70vh;overflow:auto">'+ESC(r._t||'(ligne issue de l\'ancien modèle ou saisie manuelle)')+'</pre>');});};
   const fillFromEmp=()=>{let n=0;R.forEach(r=>{let e=r.eid?(E.find(x=>String(x.id)===String(r.eid))):matchEmp(r.nom,r.nom);if(!e&&r.cnps)e=E.find(x=>String(x.cnps||'').replace(/\D/g,'')===r.cnps);
-      if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');if(!/^\d{11}$/.test(r.cnps||'')&&c.length===11&&!r.cnpsNoRef){r.cnps=c;r.cnpsAuto=true;n++;}
+      if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');/* N° CNPS de la fiche non repris : le référentiel CNPS fait seul foi */
         const mt=String(MAT[e.id]||'').slice(-4);if(!r.mat&&mt)r.mat=mt;}
       if(r.cnps&&!r.mat&&cfg.mats[r.cnps])r.mat=cfg.mats[r.cnps];
       });

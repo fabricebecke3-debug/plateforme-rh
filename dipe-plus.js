@@ -20,7 +20,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.10';
+T.version='2026.10.12';
 T.custom=T.custom||{};
 /* chargement à la demande de cnps-ia.js (triangulation, IA, assistant CNPS) */
 T.ia=function(cb,fallback){
@@ -120,7 +120,7 @@ T.refSyncRows=function(R,E,MAT){
     const ow=before.length===11&&C.S.byC?C.S.byC.get(before):null;
     const owned=!!ow;                                         /* ce N° appartient à quelqu'un d'autre dans le référentiel */
     if(m.amb){addW(r,'plusieurs personnes du référentiel portent ce nom : '+m.cands.slice(0,3).map(o=>cleanN(o.n)+' → '+o.c).join(' / ')+' : saisissez le bon N°');}
-    else{addW(r,'introuvable dans le référentiel CNPS'+(before?' (N° '+before+(owned?' appartenant à « '+cleanN(ow.n)+' »':'')+' ignoré)':'')+
+    else{addW(r,'introuvable dans le référentiel CNPS — N° CNPS à fournir (voir « Imprimer le rapport »)'+(before?' (N° '+before+(owned?' appartenant à « '+cleanN(ow.n)+' »':'')+' ignoré)':'')+
       (m.near&&m.near.length?' · proches : '+m.near.map(o=>cleanN(o.n)+' → '+o.c).join(' / '):''));}
     if(T.strictRef||owned||m.amb){
       if(before){r.cnpsWas=before;r.cnpsWasOwned=owned;n++;}
@@ -236,11 +236,9 @@ T.enrich=function(r,text,fn){
   const lines=normLines(text),C=T.custom||{},src=r.src={};
   const R=k=>(C[k]||[]).map(custRe).concat((T.LABELS[k]||[]).map(s=>new RegExp(s,'i')));
   /* nom : ligne « M NOM PRENOMS » (sans deux-points) */
-  if(!r.nomBul){for(const L of lines){const m=/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+([A-ZÀ-Ý][A-ZÀ-Ý'’\-]{2,}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*){0,5})$/.exec(L);if(m){r.nomBul=m[1].trim();if(!r.nom)r.nom=r.nomBul;break;}}}
-  /* N° CNPS de l'en-tête : « 392-1033274 / 0 » (le chiffre final est parfois séparé) */
-  if(digits(r.cnps).length!==11){const AMT=/pension|vieillesse|cotis|retenue|taux|\bbase\b|patronal|accident|prestations|familiales|brut|net\s+[àa]\s+payer|salaire|imp[oô]t|irpp|\bcac\b|fonds|\bfne\b|cr[ée]dit|crtv|prime|indemnit/i,mc=/(?<![\d.,])(\d{3})\s*-\s*(\d{7})\s*\/\s*(\d)(?![\d.,])/.exec(lines.filter(l=>!AMT.test(l)).join('\n'));if(mc){r.cnps=mc[1]+mc[2]+mc[3];r.cnpsBul=true;}
-    else{/* écriture Sage sans tirets : « 3561069686 / 2 » (10 chiffres + chiffre final) */
-      const m2=/(?<![\d.,])(\d{10})\s*\/\s*(\d)(?![\d.,])/.exec(lines.filter(l=>!AMT.test(l)).join('\n'));if(m2){r.cnps=m2[1]+m2[2];r.cnpsBul=true;}}}
+  if(!r.nomBul){for(const L of lines){const m=/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+([A-ZÀ-Ý][A-ZÀ-Ý'’\-]{2,}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*){0,5})$/.exec(L);if(m){r.nomBul=m[1].trim();if(!r.nom||(!r.eid&&fn&&r.nom===String(fn).slice(0,60)))r.nom=r.nomBul;break;}}}
+  /* N° CNPS : JAMAIS lu sur le bulletin. Seul le NOM est lu ; le N° vient du référentiel CNPS (voir T.refSyncRows / fixRow). */
+  r.cnps='';r.cnpsBul=false;
   const b=findAmt(lines,R('brut'),'max',1000);if(b){r.brut=b.v;src.brut=b.label;}
   /* cotisable : jamais supérieur au brut, jamais le simple « plafond » */
   let c=findAmt(lines,R('cot'),'max',1000);
@@ -260,7 +258,7 @@ T.enrich=function(r,text,fn){
   /* garde-fou : cotisable lu == brut alors que la ligne « Pension vieillesse » donne une autre base (ex. libellé appris faux) */
   if(c&&r.brut&&c.v===r.brut){const pb=baseFromRetenue(lines,PC);
     if(pb&&pb!==c.v){c={v:pb,label:'Pension vieillesse CNPS (base)',line:c.line};r.warn=(r.warn?r.warn+' · ':'')+'cotisable = brut : corrigé avec la base de la ligne Pension vieillesse ('+pb+') — vérifiez vos libellés appris';}
-    else r.warn=(r.warn?r.warn+' · ':'')+'cotisable identique au brut : vérifiez le bulletin (libellé appris faux ?)';}
+    else if(!pb)r.warn=(r.warn?r.warn+' · ':'')+'cotisable identique au brut, base Pension vieillesse non lue : vérifiez le bulletin';}
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
   else{r.cot=0;r.cotEst=false;src.cot='non trouvé sur le bulletin';}  /* aucune estimation : case vide et rouge */
   const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
@@ -547,17 +545,18 @@ T.mount=function(ctx){
   T.report=function(auto){
     const log=(window.__slipLog||[]).filter(x=>x&&x.row);
     if(!log.length){if(!auto)say('Aucun bulletin lu : lancez d\'abord « Lire les bulletins »');return;}
+    const refOk=!!(window.TERH_CNPSREF&&TERH_CNPSREF.S&&TERH_CNPSREF.S.list&&TERH_CNPSREF.S.list.length);
     const an=log.map(x=>{const r=x.row,sl=x.slip,p=[];
       if(!x.matched)p.push('🆕 non rattaché à une ligne existante (nouvelle ligne)');
       if(!(sl.cot>0))p.push('❌ pas de « Pension vieillesse CNPS » → cotisable 0 → exclu du DIPE');
       if(!(sl.brut>0))p.push('❌ brut non lu');
       if(!sl.mi)p.push('⚠ matricule non lu sur le bulletin');
-      if(digits(r.cnps).length!==11)p.push('⚠ N° CNPS invalide');
+      if(digits(r.cnps).length!==11)p.push(refOk?'❌ N° CNPS introuvable dans le référentiel CNPS — à fournir / compléter':'❌ référentiel CNPS non chargé : N° CNPS non renseigné');
       if(r.warn)p.push('⚠ '+r.warn);
       return {x,p,bad:p.some(t=>/^(❌|🆕)/.test(t))||p.length>0};});
     const nb=an.filter(a=>a.p.length).length;
     if(auto&&!nb)return;
-    const w=ctx.openWin('<h3 style="margin:0 0 6px">📋 Rapport de lecture des bulletins ('+log.length+')</h3><p class="muted" style="font-size:12px;margin:0 0 8px"><b>'+nb+'</b> bulletin(s) avec remarque. Pour chacun : ce qui a été lu sur le bulletin (matricule, brut, Pension vieillesse CNPS = cotisable) et la ligne du tableau où c\'est placé. 🔎 ouvre le texte lu pour apprendre un libellé.</p><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><label><input type="checkbox" id="rp_only" checked> Remarques seulement</label><button class="p" id="rp_ai">🤖 Relire les bulletins signalés avec l\'IA</button><button class="s" id="rp_close">Fermer</button></div><div style="max-height:64vh;overflow:auto"><table id="rp_t" style="border-collapse:collapse;width:100%;font-size:12px"></table></div>');
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">📋 Rapport de lecture des bulletins ('+log.length+')</h3><p class="muted" style="font-size:12px;margin:0 0 8px"><b>'+nb+'</b> bulletin(s) avec remarque. Pour chacun : ce qui a été lu sur le bulletin (matricule, brut, Pension vieillesse CNPS = cotisable) et la ligne du tableau où c\'est placé. 🔎 ouvre le texte lu pour apprendre un libellé.</p><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><label><input type="checkbox" id="rp_only" checked> Remarques seulement</label><button class="p" id="rp_ai">🤖 Relire les bulletins signalés avec l\'IA</button><button class="p" id="rp_print">🖨 Imprimer le rapport</button><button class="s" id="rp_close">Fermer</button></div><div style="max-height:64vh;overflow:auto"><table id="rp_t" style="border-collapse:collapse;width:100%;font-size:12px"></table></div>');
     const t=w.querySelector('#rp_t');
     const draw=()=>{const only=w.querySelector('#rp_only').checked;
       t.innerHTML='<tr><th style="text-align:left">Nom (ligne)</th><th>Matr. bulletin</th><th>CNPS retenu</th><th style="text-align:right">Brut lu</th><th style="text-align:right">Cotisable lu</th><th style="text-align:left">Remarques</th><th></th></tr>'+
@@ -575,7 +574,20 @@ T.mount=function(ctx){
       aiPropose(out);};
     w.querySelector('#rp_ai').onclick=()=>runAI(an.filter(a=>a.p.some(t=>/^(❌|⚠ matricule non lu)/.test(t))).slice(0,25));
     t.addEventListener('click',ev=>{const b=ev.target.closest('[data-ai]');if(b)runAI([an[+b.dataset.ai]]);});
-    w.querySelector('#rp_only').onchange=draw;w.querySelector('#rp_close').onclick=()=>w.remove();draw();};
+    w.querySelector('#rp_only').onchange=draw;w.querySelector('#rp_close').onclick=()=>w.remove();
+    w.querySelector('#rp_print').onclick=()=>{
+      const only=w.querySelector('#rp_only').checked,fm=v=>(v||0).toLocaleString('fr-FR');
+      const rows=an.filter(a=>!only||a.p.length),noRef=an.filter(a=>digits(a.x.row.cnps).length!==11);
+      const per=(typeof ctx.g==='function'&&ctx.g('d_mo'))?(ctx.g('d_mo').value||''):'';
+      const tr=a=>{const r=a.x.row,sl=a.x.slip;return '<tr><td>'+esc(r.nom||sl.nomBul||'(nom inconnu)')+'</td><td>'+esc(sl.mi||'—')+'</td><td>'+esc(r.cnps||'—')+'</td><td style="text-align:right">'+fm(sl.brut)+'</td><td style="text-align:right">'+fm(sl.cot)+'</td><td>'+(a.p.length?a.p.map(esc).join('<br>'):'OK')+'</td></tr>';};
+      const th='<tr><th>Nom (lu sur le bulletin)</th><th>Matricule</th><th>N° CNPS</th><th>Brut</th><th>Cotisable</th><th>Remarques</th></tr>';
+      const body='<h2>Rapport de lecture des bulletins de paie'+(per?' — '+esc(per):'')+'</h2><p>'+log.length+' bulletin(s) lu(s) · '+an.filter(a=>a.p.length).length+' avec remarque · <b>'+noRef.length+' sans N° CNPS (introuvable dans le référentiel)</b>. Le N° CNPS n\'est jamais lu sur le bulletin : il est cherché dans le référentiel CNPS à partir du nom.</p>'+
+        (noRef.length?'<h3>Salariés sans N° CNPS — à traiter</h3><table>'+th+noRef.map(tr).join('')+'</table>':'')+
+        '<h3>'+(only?'Bulletins avec remarque':'Tous les bulletins')+'</h3><table>'+th+rows.map(tr).join('')+'</table>';
+      if(typeof window.printHTML==='function'){try{window.printHTML('Rapport de lecture des bulletins',body);return;}catch(e){}}
+      const pw=window.open('','_blank');if(!pw){say('Autorisez les fenêtres pop-up pour imprimer');return;}
+      pw.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Rapport de lecture</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;font-size:12px}table{border-collapse:collapse;width:100%;margin-bottom:12px}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}</style></head><body>'+body+'</body></html>');pw.document.close();setTimeout(()=>{try{pw.focus();pw.print();}catch(e){}},300);};
+    draw();};
   /* --- triangulation AUTOMATIQUE à la fin de la lecture des bulletins --- */
   T.refresh=()=>render();
   T.focus=i=>{filter='all';render();const tr=el.querySelector('tr[data-r="'+i+'"]');if(!tr)return false;tr.scrollIntoView({block:'center'});const inp=tr.querySelector('input.dx[data-k="brut"]');if(inp)inp.focus();tr.style.outline='2px solid #1f5fbf';setTimeout(()=>{tr.style.outline='';},3000);return true;};
@@ -703,12 +715,41 @@ T.mount=function(ctx){
   $('dpx_tri').onclick=()=>T.ia(x=>x.openTriangulation());
   $('dpx_ia').onclick=()=>T.ia(x=>x.openAssistant());
   $('dpx_lab').onclick=()=>{
-    const C=T.custom,rows=Object.entries(C).filter(([k,v])=>v&&v.length);
-    const w=ctx.openWin('<h3 style="margin:0 0 6px">🏷 Mes libellés appris</h3><p class="muted" style="font-size:12px">Ils s\'ajoutent aux libellés standard. Supprimez ceux qui sont faux. Les libellés standard se modifient dans dipe-plus.js (T.LABELS).</p><div id="dpx_lb"></div>');
-    const nm={mi:'Matricule interne',cot:'Cotisable',brut:'Brut',jours:'Jours',exc:'Exceptionnel',net:'Net'};
-    const box=w.querySelector('#dpx_lb');
-    box.innerHTML=rows.length?rows.map(([k,v])=>v.map((l,j)=>'<div style="display:flex;gap:8px;align-items:center;margin:3px 0"><b style="min-width:130px">'+nm[k]+'</b><span style="flex:1">'+esc(l)+'</span><button data-k="'+k+'" data-j="'+j+'">🗑</button></div>').join('')).join(''):'<p class="muted">Aucun libellé appris pour l\'instant.</p>';
-    box.querySelectorAll('button').forEach(b=>b.onclick=()=>{C[b.dataset.k].splice(+b.dataset.j,1);Promise.resolve(ctx.wr('dipe_labels',C)).catch(()=>{});b.closest('div').remove();say('Libellé supprimé');});};
+    const NM={mi:'Matricule interne',brut:'Brut',cot:'Cotisable',jours:'Jours',exc:'Exceptionnel',net:'Net'};
+    const save=()=>Promise.resolve(ctx.wr('dipe_labels',T.custom)).catch(()=>{try{localStorage.setItem('terh_dipe_labels',JSON.stringify(T.custom));}catch(e){}});
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">🏷 Mes libellés</h3><p class="muted" style="font-size:12px;margin:0 0 8px">Ajoutez, modifiez ou supprimez les libellés que l\'application cherche sur les bulletins (ex. « Pension vieillesse CNPS » pour le cotisable). Ils passent <b>avant</b> les libellés standard. Un libellé ne doit contenir ni chiffre ni montant. Après un changement, relancez « Lire les bulletins ».</p><div id="dpx_lb"></div><div id="dpx_lbadd" style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(128,128,128,.35)"></div><div id="dpx_lbstd" style="margin-top:10px;font-size:11px" class="muted"></div>');
+    const box=w.querySelector('#dpx_lb'),add=w.querySelector('#dpx_lbadd'),std=w.querySelector('#dpx_lbstd');
+    const mk=(tag,props,css)=>{const e=document.createElement(tag);Object.assign(e,props||{});if(css)e.style.cssText=css;return e;};
+    const check=(k,l)=>{l=String(l||'').trim();if(l.length<3){say('⛔ Libellé trop court (3 caractères minimum)');return null;}
+      if(T.badLabel(k,l)){say('⛔ Libellé refusé : « '+l+' » contient un chiffre, des traits, ou est une rubrique incompatible avec « '+NM[k]+' ».');return null;}return l;};
+    function draw(){
+      box.innerHTML='';let n=0;
+      Object.keys(NM).forEach(k=>{(T.custom[k]||[]).forEach((l,j)=>{n++;
+        const row=mk('div',null,'display:flex;gap:6px;align-items:center;margin:3px 0');
+        row.appendChild(mk('b',{textContent:NM[k]},'min-width:130px'));
+        const inp=mk('input',{type:'text',value:l},'flex:1;min-width:0');
+        const ok=mk('button',{textContent:'💾',title:'Enregistrer la modification'}),del=mk('button',{textContent:'🗑',title:'Supprimer'});
+        ok.onclick=()=>{const v=check(k,inp.value);if(!v)return;
+          if(v!==l&&(T.custom[k]||[]).some((x,i)=>i!==j&&x.toLowerCase()===v.toLowerCase())){say('Ce libellé existe déjà pour « '+NM[k]+' »');return;}
+          T.custom[k][j]=v;save();say('✏ Libellé modifié : « '+v+' »');draw();};
+        inp.onkeydown=e=>{if(e.key==='Enter')ok.click();};
+        del.onclick=()=>{T.custom[k].splice(j,1);if(!T.custom[k].length)delete T.custom[k];save();say('🗑 Libellé supprimé');draw();};
+        row.append(inp,ok,del);box.appendChild(row);});});
+      if(!n)box.appendChild(mk('p',{className:'muted',textContent:'Aucun libellé personnalisé pour l\'instant.'}));
+      /* formulaire d'ajout */
+      add.innerHTML='';add.appendChild(mk('b',{textContent:'➕ Ajouter un libellé'},'display:block;margin-bottom:4px'));
+      const r2=mk('div',null,'display:flex;gap:6px;align-items:center');
+      const sel=mk('select',null,'min-width:130px');Object.keys(NM).forEach(k=>sel.appendChild(mk('option',{value:k,textContent:NM[k]})));
+      const ni=mk('input',{type:'text',placeholder:'ex. Pension vieillesse CNPS'},'flex:1;min-width:0'),ab=mk('button',{textContent:'Ajouter',className:'p'});
+      ab.onclick=()=>{const k=sel.value,v=check(k,ni.value);if(!v)return;
+        T.custom[k]=T.custom[k]||[];if(T.custom[k].some(x=>x.toLowerCase()===v.toLowerCase())){say('Ce libellé existe déjà pour « '+NM[k]+' »');return;}
+        T.custom[k].unshift(v);save();say('➕ Libellé ajouté pour « '+NM[k]+' » : '+v);draw();};
+      ni.onkeydown=e=>{if(e.key==='Enter')ab.click();};
+      r2.append(sel,ni,ab);add.appendChild(r2);
+      std.innerHTML='<b>Libellés standard (toujours actifs, en second) :</b><br>'+Object.keys(NM).map(k=>'<u>'+NM[k]+'</u> : '+((T.LABELS[k]||[]).map(x=>esc(x.replace(/\(\?!.*$/,'').replace(/\\s\+/g,' ').replace(/\\b|\\/g,''))).join(' · ')||'—')).join('<br>');
+    }
+    draw();
+  };
 
   /* --- N° CNPS du référentiel : appliqué automatiquement --- */
   T.refSync=silent=>{const n=T.refSyncRows(R,E,MAT);if(n&&!silent)say('📚 '+n+' N° CNPS remplacé(s) par ceux du référentiel CNPS');return n;};
