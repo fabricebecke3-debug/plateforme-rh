@@ -12,13 +12,17 @@
  *  🤖 ANALYSE IA : synthèse priorisée des anomalies (données anonymisées, rien d'appliqué).
  *  💬 ASSISTANT CNPS : répond d'abord avec VOS données (sans IA, hors ligne), puis avec l'IA.
  *
- * Règle d'or : aucune valeur n'est modifiée automatiquement. L'IA n'envoie jamais
- * de nom ni de N° CNPS (remplacés par L1, L2…).
+ *  🧠 ÉTAPE ② (X.step2) : après l'exclusion validée des lignes brut = 0 / pension = 0, l'IA s'assure de l'EXACTITUDE
+ *     des infos (relecture croisée locale + relecture IA) et améliore la lecture : une valeur n'est corrigée
+ *     AUTOMATIQUEMENT que si elle figure réellement dans le texte du bulletin ET si la case n'a pas été saisie
+ *     à la main ; tout est journalisé et annulable (↩). Le reste est seulement PROPOSÉ à la validation.
+ *
+ * L'IA n'envoie jamais de nom ni de N° CNPS (remplacés/masqués).
  * ===================================================================== */
 (function(){
 'use strict';
 const X=window.TERH_CNPSIA=window.TERH_CNPSIA||{};
-X.version='2026.10.1';
+X.version='2026.10.2';
 X.alt=null;      /* contexte de repli (module CNPS ouvert sans DIPE) */
 X.ctx=null;      /* contexte DIPE (fourni par dipe-plus.js) */
 
@@ -127,6 +131,7 @@ X.analyze=function(){
       const P=X.pension(txt);
       if(P.found){
         if(P.base&&cot>0&&P.base!==cot)add('err','cot-line','Cotisable '+fmt(cot)+' ≠ base lue sur la ligne « Pension vieillesse » ('+fmt(P.base)+')');
+        if(P.base&&P.cons===false)add('warn','pens-ret','Pension vieillesse : la retenue lue ne correspond pas à base × taux (base lue '+fmt(P.base)+', attendu ≈ '+fmt(P.expected)+') : vérifiez la base (cotisable)');
         src.cot.R=P.base?P.base:'';
       }else if(cot>0)add('info','no-line','Ligne « Pension vieillesse » non retrouvée dans le texte (cotisable saisi à la main ?)');
     }
@@ -179,7 +184,14 @@ X.pension=function(txt){
   const L=linesOf(txt).find(l=>/pension\s+vieillesse/i.test(l));if(!L)return {found:false};
   /* uniquement les montants APRÈS le libellé (le code de ligne Sage, ex. « 8100 », n'est pas un montant) ; 1er = base, il faut au moins base + retenue */
   const m=/pension\s+vieillesse(?:\s+cnps)?/i.exec(L),ns=numsOf(L.slice(m.index+m[0].length)).filter(n=>n.v>=100);
-  return {found:true,line:L,base:ns.length>=2?ns[0].v:0};
+  const base=ns.length>=2?ns[0].v:0;
+  /* exactitude : la retenue lue sur la ligne doit être ≈ base × taux salarié (base éventuellement plafonnée) */
+  let cons=null,expected=0;
+  try{const PC=env().PC||{},rate=(+PC.cnps_sal||4.2)/100,pl=+PC.plafond||750000;
+    if(base){const exp=[base,Math.min(base,pl)].map(b=>b*rate);expected=Math.round(exp[0]);
+      const others=ns.slice(1).map(n=>n.v).filter(v=>v>=500);
+      cons=others.length?others.some(a=>exp.some(e=>Math.abs(e-a)<=2)):null;}}catch(er){}
+  return {found:true,line:L,base,cons,expected};
 };
 
 /* ---------- interface commune ---------- */
@@ -203,7 +215,7 @@ const SEV={err:['❌','e'],warn:['⚠','w'],info:['ℹ️','i']};
 const fiab=s=>'<div class="bar" title="Fiabilité '+s+' %"><i style="width:'+s+'%;background:'+(s>=85?'#2a9d55':s>=60?'#e69500':'#d33')+'"></i></div>';
 const rich=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
 const maskTxt=(txt,names)=>{let t=String(txt||'');
-  t=t.replace(/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+[A-ZÀ-Ý][A-ZÀ-Ý'’\- ]{4,60}$/gm,'M [NOM MASQUÉ]');
+  t=t.replace(/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+[A-ZÀ-Ý][A-ZÀ-Ý'’\-]{2,}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\-]*){0,5}$/gm,'M [NOM MASQUÉ]');
   t=t.replace(/(?<!\d)\d{3}[ .\-]?\d{7}\s*[\/\-]?\s*\d(?!\d)/g,'[CNPS MASQUÉ]');
   (names||[]).forEach(n=>String(n||'').split(/\s+/).filter(w=>w.length>=3).forEach(w=>{t=t.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'***');}));
   return t;};
@@ -318,6 +330,154 @@ X.aiAnalyse=async function(A){
     (A.glob.length?'Alertes globales : '+A.glob.map(g=>g.msg.replace(/: .*/, '')).join(' | ')+'\n':'')+'\nANOMALIES :\n'+(lines.join('\n')||'(aucune anomalie individuelle)')+
     '\n\nRéponds en français, court et actionnable : **Verdict** (peut-on générer la DIPE ?), **Priorités** (ordre de correction), **Causes probables** (regroupées), **Quoi vérifier concrètement**. Base-toi UNIQUEMENT sur ces données : n\'invente ni chiffre, ni règle légale, ni salarié.';
   return ask([{role:'user',content:prompt}],800);
+};
+
+/* ---------- 6. ÉTAPE ② : vérification IA + lecture améliorée + corrections vérifiées ---------- */
+X.autoLog=X.autoLog||[];
+/* « Total Brut » : montant sur la ligne du libellé ou 1 à 4 lignes plus bas (avant les lignes de cotisations) */
+X.totBrut=function(txt){
+  const T=window.TERH_DIPE,nums=T&&T.nums?(l=>T.nums(l).map(x=>x.v)):(l=>numsOf(l).map(x=>x.v));
+  const L=linesOf(txt),i=L.findIndex(l=>/total\s+brut/i.test(l));if(i<0)return 0;let best=0;
+  for(let k=i;k<Math.min(L.length,i+5);k++){
+    if(k>i&&/pension|vieillesse|accident|prestations|total\s+cotis/i.test(L[k]))break;
+    const seg=k===i?L[k].replace(/^.*total\s+brut/i,''):L[k];
+    nums(seg).forEach(v=>{if(v>=1000&&v>best)best=v;});}
+  return best;};
+/* apprentissage automatique d'un libellé : seulement si la valeur est vérifiée dans le bulletin ET si le libellé n'était pas déjà reconnu */
+function learnLabel(k,txt,val){
+  const T=window.TERH_DIPE,ctx=X.ctx;if(!T||!val||!ctx)return '';
+  const want={brut:/brut|gain|r[ée]mun|total/i,cot:/pension|cotis|base|assiette|plafon/i,mi:/matr|mle|n[°o]/i}[k];if(!want)return '';
+  const sv=String(val);
+  for(const l of linesOf(txt)){
+    let label='';
+    if(k==='mi'){const ix=l.search(new RegExp('(?<!\\d)'+sv.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?!\\d)'));if(ix<0)continue;label=l.slice(0,ix);}
+    else{if(!numsOf(l).some(n=>n.v===val))continue;const d=/\d/.exec(l);label=l.slice(0,d?d.index:l.length);}
+    label=label.replace(/[\s:.\-–=]+$/,'').replace(/^[\s:.\-–=]+/,'').trim();
+    if(label.length<3||label.length>40||/\d/.test(label)||!want.test(label))continue;
+    if(T.badLabel(k,label))continue;
+    if((T.LABELS[k]||[]).some(re=>new RegExp(re,'i').test(label)))continue;
+    T.custom=T.custom||{};
+    if((T.custom[k]||[]).some(z=>String(z).toLowerCase()===label.toLowerCase()))continue;
+    T.custom[k]=[label].concat(T.custom[k]||[]);
+    try{Promise.resolve(ctx.wr('dipe_labels',T.custom)).catch(()=>{});}catch(er){}
+    return label;}
+  return '';}
+
+X.step2=async function(opts){
+  opts=opts||{};
+  const T=window.TERH_DIPE,e=env();
+  if(!T||e.mode!=='dipe')return null;
+  if(X._busy)return null;X._busy=true;
+  try{
+  const R=e.R,ctx=X.ctx,SL=slipLog();
+  const inc=(r,i)=>e.incl?e.incl(r,i):!r.excl;
+  const rows=R.map((r,i)=>({r,i})).filter(o=>inc(o.r,o.i));
+  const edited=(r,k)=>!!(r.ed&&r.ed[k]);
+  const fixes=[],props=[],learned=[];let err=0,asked=0;
+  const slOf=r=>SL.get(r)||{};
+  const txtOf=r=>r._t||slOf(r)._t||'';
+  const setv=(r,k,now,why)=>{
+    const was=r[k],sl=slOf(r);r[k]=now;sl[k]=now;
+    if(k==='cot')r.cotEst=false;
+    if(k==='mi'){r.mat=String(now).slice(-4);r.miAuto=false;r.miGen=false;}
+    r.src=r.src||{};r.src[k]=why;r.auto=r.auto||{};if(!r.auto[k])r.auto[k]={was};r.auto[k].now=now;
+    const o={r,k,was,now,why};fixes.push(o);X.autoLog.push(o);};
+  const info=()=>{let b=document.getElementById('dpx_s2_info');return b||{style:{},innerHTML:''};};
+
+  /* A. relecture croisée LOCALE (sans réseau) : on recopie ce que le bulletin dit, jamais de calcul */
+  let nRead=0;
+  for(const {r} of rows){
+    const txt=txtOf(r);if(!txt)continue;nRead++;
+    const fl=flatTxt(txt),inTxt=v=>v>0&&fl.includes(String(Math.round(v)));
+    const P=X.pension(txt);
+    if(P.found&&P.base&&P.base!==(+r.cot||0)&&!edited(r,'cot')&&(!(r.brut>0)||P.base<=r.brut*1.001))
+      setv(r,'cot',P.base,'relecture ligne « Pension vieillesse » (auto)');
+    const tb=X.totBrut(txt);
+    if(tb&&tb!==(+r.brut||0)&&!edited(r,'brut')&&tb>=(+r.cot||0)&&(!(r.brut>0)||!inTxt(r.brut)))
+      setv(r,'brut',tb,'relecture « Total Brut » (auto)');
+  }
+  try{T.fixBadMi(R);}catch(er){}
+
+  /* B. relecture IA (en ligne, anonymisée) des bulletins douteux — une seule confirmation */
+  if(!opts.local&&typeof window.TERH_callAI==='function'&&T.aiRead){
+    const doubt=rows.filter(({r})=>{const t=txtOf(r);if(!t)return false;const P=X.pension(t);
+      return !(r.brut>0)||!(r.cot>0)||!r.mi||(P.found&&P.cons===false);}).slice(0,25);
+    if(doubt.length){
+      const go=opts.ask===false||confirm('🧠 Étape ② — Vérification IA\n\n'+doubt.length+' bulletin(s) présentent un doute (brut, cotisable ou matricule manquant / incohérent).\nLeur texte sera envoyé au service IA en ligne (noms et N° CNPS masqués).\n\n• Une valeur trouvée par l\'IA n\'est appliquée AUTOMATIQUEMENT que si elle figure réellement dans le bulletin (annulable) ;\n• les autres cas vous sont seulement proposés.\n\nContinuer ?');
+      if(go){
+        const bx=info();
+        for(let n=0;n<doubt.length;n++){
+          const {r}=doubt[n],sl=slOf(r),txt=txtOf(r);
+          bx.innerHTML='<div class="muted">🧠 Étape ② : relecture IA '+(n+1)+'/'+doubt.length+'…</div>';
+          const res=await window.TERH_DIPE.aiRead({x:{slip:sl,row:r}});asked++;
+          if(!res||res.err){err++;continue;}
+          const fl=flatTxt(txt),inTxt=v=>v>0&&fl.includes(String(Math.round(v)));
+          const pr={},vr={};
+          ['mi','brut','cot'].forEach(k=>{
+            const now=res.prop[k];if(!now||!res.ver[k])return;           /* introuvable dans le bulletin : ignoré */
+            const cur=k==='mi'?(r.mi||''):(+r[k]||0);
+            if(String(cur)===String(now)||edited(r,k))return;
+            const auto=k==='mi'?(!r.mi||r.miAuto||r.miGen):(!(cur>0)||!inTxt(cur));
+            if(auto){setv(r,k,now,'IA — valeur retrouvée dans le bulletin (auto)');const lb=learnLabel(k,txt,now);if(lb)learned.push(lb);}
+            else{pr[k]=now;vr[k]=true;}});
+          if(Object.keys(pr).length)props.push({a:{x:{slip:sl,row:r}},res:{prop:Object.assign({mi:'',brut:0,cot:0,jours:0},pr),ver:Object.assign({mi:false,brut:false,cot:false,jours:false},vr)}});
+          await new Promise(ok=>setTimeout(ok,0));}
+      }
+    }
+  }
+
+  /* C. lecture améliorée : les libellés appris servent à relire les autres bulletins (on ne remplit que les cases vides) */
+  if(learned.length&&ctx&&typeof ctx.parseSlip2==='function'){
+    for(const {r} of rows){
+      const txt=txtOf(r);if(!txt||(r.brut>0&&r.cot>0&&r.mi))continue;
+      let x=null;try{x=ctx.parseSlip2(txt,r.nom||'');}catch(er){}if(!x)continue;
+      if(!(r.brut>0)&&x.brut>0&&!edited(r,'brut'))setv(r,'brut',x.brut,'relecture avec un libellé appris (auto)');
+      if(!(r.cot>0)&&x.cot>0&&!edited(r,'cot')&&(!(r.brut>0)||x.cot<=r.brut*1.001))setv(r,'cot',x.cot,'relecture avec un libellé appris (auto)');
+      if(!r.mi&&x.mi&&!edited(r,'mi'))setv(r,'mi',x.mi,'relecture avec un libellé appris (auto)');}
+  }
+
+  /* D. opérations automatiques : N° CNPS du référentiel, compléments depuis les fiches, matricules incohérents */
+  let nRef=0;
+  try{nRef=T.refSync?T.refSync(true):0;}catch(er){}
+  try{ctx&&ctx.fillFromEmp&&ctx.fillFromEmp();}catch(er){}
+  try{T.fixBadMi(R);}catch(er){}
+  try{T.refresh&&T.refresh();}catch(er){}
+
+  /* E. contrôle d'exactitude final + compte rendu */
+  let A=null;try{A=X.analyze();}catch(er){console.warn(er);}
+  const sum={read:nRead,fixes:fixes.length,proposals:props.length,learned:learned.length,ai:asked,aiErr:err,ref:nRef,
+    score:A?A.score:0,errN:A?A.errN:0,warnN:A?A.warnN:0,okN:A?A.okN:0};
+  X.lastStep2=sum;
+  const col=!A?'#888':A.verdict==='block'?'#d33':A.verdict==='warn'?'#e69500':'#2a9d55';
+  const bx=info();bx.style.display='';
+  bx.innerHTML='<div style="border-left:4px solid '+col+';padding:6px 10px;margin:6px 0"><b>🧠 Étape ② — Vérification IA terminée</b> : '+sum.read+' bulletin(s) relu(s) · <b>'+sum.fixes+'</b> valeur(s) corrigée(s) automatiquement (vérifiées dans le bulletin) · '+sum.proposals+' à valider · '+sum.learned+' libellé(s) appris'+(sum.ref?' · '+sum.ref+' N° CNPS du référentiel appliqué(s)':'')+(sum.ai?' · IA : '+(sum.ai-sum.aiErr)+'/'+sum.ai+' réponse(s)':'')+(A?' · exactitude '+sum.score+' % ('+sum.okN+' conformes, '+sum.warnN+' à vérifier, '+sum.errN+' en erreur)':'')+' <button class="s" id="dpx_s2_log">Voir le journal</button></div>';
+  const lb=bx.querySelector&&bx.querySelector('#dpx_s2_log');if(lb)lb.onclick=()=>X.openLog();
+  if(learned.length)say('🏷 Libellé(s) appris automatiquement : '+[...new Set(learned)].join(', '));
+  say('🧠 Étape ② : '+fixes.length+' correction(s) automatique(s) vérifiée(s), '+props.length+' proposition(s) à valider');
+  if(props.length&&T.aiPropose)T.aiPropose(props);
+  return sum;
+  }finally{X._busy=false;}
+};
+
+/* journal des corrections automatiques + annulation */
+const FLAB={mi:'Matricule',brut:'Total brut',cot:'Cotisable (Pension vieillesse)'};
+X.undoAuto=function(){
+  const L=X.autoLog.splice(0);let n=0;
+  L.reverse().forEach(o=>{if(!o.r)return;
+    o.r[o.k]=o.k==='mi'?(o.was||''):(+o.was||0);
+    if(o.k==='mi')o.r.mat=String(o.was||'').slice(-4);
+    if(o.k==='cot')o.r.cotEst=false;
+    if(o.r.auto)delete o.r.auto[o.k];
+    o.r.src=o.r.src||{};o.r.src[o.k]='valeur d\'avant la correction automatique';n++;});
+  try{window.TERH_DIPE&&window.TERH_DIPE.refresh&&window.TERH_DIPE.refresh();}catch(er){}
+  say('↩ '+n+' correction(s) automatique(s) annulée(s)');return n;};
+X.openLog=function(){
+  css();const L=X.autoLog;
+  const w=panel('<h2 style="margin:0 0 4px">🧠 Journal de l\'étape ②</h2><p class="muted" style="font-size:12px;margin:0 0 8px">Corrections appliquées automatiquement : chaque valeur a été retrouvée dans le texte du bulletin. Les cases que vous avez saisies à la main ne sont jamais modifiées.</p>'+
+    '<div style="margin-bottom:8px"><button class="p" id="lg_undo"'+(L.length?'':' disabled')+'>↩ Annuler les '+L.length+' correction(s) automatique(s)</button></div>'+
+    '<table><tr><th align="left">Salarié</th><th align="left">Champ</th><th align="right">Avant</th><th align="right">Après</th><th align="left">Source</th></tr>'+
+    (L.length?L.map(o=>'<tr class="t"><td>'+esc(o.r.nom||'')+'</td><td>'+(FLAB[o.k]||o.k)+'</td><td align="right">'+(o.k==='mi'?esc(o.was||'—'):(o.was?fmt(o.was):'—'))+'</td><td align="right"><b>'+(o.k==='mi'?esc(o.now):fmt(o.now))+'</b></td><td>'+esc(o.why)+'</td></tr>').join(''):'<tr><td colspan="5" class="muted">Aucune correction automatique pour l\'instant.</td></tr>')+'</table>',820);
+  const b=w.querySelector('#lg_undo');if(b)b.onclick=()=>{X.undoAuto();w.parentNode.remove();};
 };
 
 /* ---------- 4. PORTE avant génération du DIPE ---------- */

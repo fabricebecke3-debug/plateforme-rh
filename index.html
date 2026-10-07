@@ -5248,10 +5248,18 @@ function findAmt(lines,labels,pick){
   return 0;}
 function findCnps(t,lines){
   const clean=s=>s.replace(/\D/g,'');
-  for(const l of lines){const m=/(cnps|s[ée]curit[ée]\s+sociale|immatriculation|n[°o]?\s*ss\b|assur[ée])/i.exec(l);if(!m)continue;
-    const r=l.slice(m.index+m[0].length).match(/\d[\d \u00a0.\-\/]{8,16}\d/g)||[];for(const x of r){const c=clean(x);if(c.length===11)return c;}}
-  const a=t.match(/\b(\d{3})[ .\-]?(\d{7})[ .\-]?(\d)\b/);if(a)return a[1]+a[2]+a[3];
-  const b=t.match(/(?<!\d)\d{11}(?!\d)/);return b?b[0]:'';}
+  /* lignes de MONTANTS (ex. « Pension vieillesse CNPS 157813.000 4.200 6628 ») : jamais un N° CNPS */
+  const AMT=/pension|vieillesse|cotis|retenue|taux|\bbase\b|patronal|accident|prestations|familiales|brut|net\s+[àa]\s+payer|salaire|imp[oô]t|irpp|\bcac\b|fonds|\bfne\b|cr[ée]dit|crtv|prime|indemnit/i;
+  const STRICT=/(?<![\d.,])(\d{3})\s*-\s*(\d{7})\s*\/\s*(\d)(?![\d.,])/;   /* 324-1051762 / 1 */
+  const L=lines.filter(l=>!AMT.test(l));
+  for(let i=0;i<lines.length;i++){const l=lines[i];if(AMT.test(l))continue;
+    const m=/(s[ée]curit[ée]\s+sociale|immatriculation|n[°o]?\s*ss\b|assur[ée]|\bcnps\b)/i.exec(l);if(!m)continue;
+    const same=l.slice(m.index+m[0].length);
+    let a=STRICT.exec(same)||STRICT.exec(lines[i+1]&&!AMT.test(lines[i+1])?lines[i+1]:'');if(a)return a[1]+a[2]+a[3];
+    const r=same.match(/\d[\d  .\-\/]{8,16}\d/g)||[];for(const x of r){if(/[.,]\d{3}\b/.test(x)&&!/-/.test(x))continue;const c=clean(x);if(c.length===11)return c;}}
+  for(const l of L){const a=STRICT.exec(l);if(a)return a[1]+a[2]+a[3];}
+  for(const l of L){const b=/(?<![\d.,])\d{11}(?![\d.,])/.exec(l);if(b)return b[0];}
+  return '';}
 function empIndex(){const L=(typeof E!=='undefined'?E:[]).map(e=>({e,n:nz2(e.n),tk:nz2(e.n).split(' ').filter(w=>w.length>1)}));return L;}
 function matchEmp(text,hint){
   const T=' '+nz2(text)+' ',idx=empIndex();let best=null,sc=0;
