@@ -5308,11 +5308,13 @@ const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{
 async function openDipe3(){
   document.getElementById('dpm2')?.remove();
   const plusOk=await loadDipePlus();
+  /* le référentiel CNPS doit être chargé AVANT de reprendre le dernier DIPE / les fiches : son N° CNPS fait foi dans le DIPE */
+  try{if(window.TERH_CNPSREF)await TERH_CNPSREF.load();}catch(er){console.warn('référentiel CNPS',er);}
   const cfg=(await rd('dipe_cfg'))||{},PC={...DEFC,...((await rd('paie_json'))||{})},MAT=(await rd('matricules_json'))||{};
   cfg.ordres=cfg.ordres||{};cfg.mats=cfg.mats||{};
   let R=[],raw={};const per0=(()=>{const p=$('pyper');return p&&p.value?p.value:new Date().toISOString().slice(0,7);})();
   const el=openWin(`<h2 style="margin:0 0 6px">📤 DIPE depuis les bulletins</h2>
-  <p class="muted" style="font-size:12px;margin:0 0 8px"><b>Étapes :</b> ① (facultatif) ancien DIPE .txt ou modèle Excel → ② bulletins PDF / photos / Word → ③ « Lire » → ④ corrigez les cases rouges → ⑤ télécharger ou imprimer l'état.</p>
+  <p class="muted" style="font-size:12px;margin:0 0 8px"><b>Étapes :</b> ① (facultatif) ancien DIPE .txt ou modèle Excel → ② bulletins PDF / photos / Word → ③ « Lire » → ④ corrigez les cases rouges → ⑤ télécharger ou imprimer l'état. <b>Le N° CNPS du référentiel est appliqué automatiquement</b> (il passe avant celui du bulletin) ; les salariés dont le <b>Total brut</b> et la <b>Pension vieillesse CNPS</b> sont à 0 vous sont proposés à l'exclusion (avec votre validation) ; ensuite l'IA vérifie et améliore la lecture.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
    <label>Mois<br><input id="d_mo" type="month" value="${ESC(per0)}"></label>
    <label>N° employeur<br><input id="d_em" maxlength="15" value="${ESC((cfg.emp||'3560009435')+(cfg.suf||'000D1'))}"></label>
@@ -5338,7 +5340,7 @@ async function openDipe3(){
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{R.splice(+b.dataset.del,1);draw();});
     el.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const r=R[+b.dataset.t];const w=openWin('<h3>🔎 Texte lu — '+ESC(r.nom||'')+'</h3><pre style="white-space:pre-wrap;font-size:12px;max-height:70vh;overflow:auto">'+ESC(r._t||'(ligne issue de l\'ancien modèle ou saisie manuelle)')+'</pre>');});};
   const fillFromEmp=()=>{let n=0;R.forEach(r=>{let e=r.eid?(E.find(x=>String(x.id)===String(r.eid))):matchEmp(r.nom,r.nom);if(!e&&r.cnps)e=E.find(x=>String(x.cnps||'').replace(/\D/g,'')===r.cnps);
-      if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');if(!/^\d{11}$/.test(r.cnps||'')&&c.length===11){r.cnps=c;r.cnpsAuto=true;n++;}
+      if(e){if(!r.nom)r.nom=e.n;r.eid=e.id;const c=String(e.cnps||'').replace(/\D/g,'');if(!/^\d{11}$/.test(r.cnps||'')&&c.length===11&&!r.cnpsNoRef){r.cnps=c;r.cnpsAuto=true;n++;}
         const mt=String(MAT[e.id]||'').slice(-4);if(!r.mat&&mt)r.mat=mt;}
       if(r.cnps&&!r.mat&&cfg.mats[r.cnps])r.mat=cfg.mats[r.cnps];
       });
@@ -5380,7 +5382,7 @@ async function openDipe3(){
       }catch(err){console.error(err);say('Lecture impossible : '+f.name+' ('+err.message+')');continue;}
       for(const s of slips){const r=parseSlip2(s,f.name.replace(/\.[^.]+$/,''));nread++;
         const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
-        if(window.TERH_DIPE&&TERH_DIPE.findRow){const j2=TERH_DIPE.findRow(R,r);if(j2>-1)j=j2;}
+        if(window.TERH_DIPE&&TERH_DIPE.findRow){j=TERH_DIPE.findRow(R,r);}
         if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(o);}catch(er){}}
         else{R.push(r);}try{(window.__slipLog=window.__slipLog||[]).push({row:j>-1?R[j]:r,slip:r,matched:j>-1});}catch(er){}}
       await new Promise(r=>setTimeout(r,0));}
@@ -5443,6 +5445,10 @@ const nz=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const STOPW=new Set(['de','du','la','le','des','et','ep','epse','nee']);
 const toks=s=>[...new Set(nz(s).split(' ').filter(w=>w.length>1&&!STOPW.has(w)))];
+/* « NKEKA MARTIN ARMEL THIBAULT NKEKA MARTIN ARMEL THIBAULT » → nom écrit une seule fois */
+const fixName=s=>{let w=String(s||'').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  if(w.length>=2&&w.length%2===0){const h=w.length/2,a=w.slice(0,h).map(nz).join(' '),b=w.slice(h).map(nz).join(' ');if(a&&a===b)w=w.slice(0,h);}
+  return w.join(' ');};
 const say=m=>{try{toast(m);}catch(e){alert(m);}};
 const canEdit=()=>{try{return typeof CAN==='undefined'||!CAN.edit||CAN.edit();}catch(e){return true;}};
 const tick=()=>new Promise(r=>setTimeout(r,0));
@@ -5475,7 +5481,7 @@ async function load(force){
   if(!force&&S.loaded&&S.co===co)return S.list;
   let v=null;try{v=await rd(KEY);}catch(e){}
   if(!v){try{v=JSON.parse(localStorage.getItem('terh_cnpsref_'+co)||'null');}catch(e){}}
-  S.co=co;S.loaded=true;S.list=(v&&Array.isArray(v.list)?v.list:[]).filter(o=>o&&dg(o.c).length===11).map(o=>({...o,c:dg(o.c)}));
+  S.co=co;S.loaded=true;S.list=(v&&Array.isArray(v.list)?v.list:[]).filter(o=>o&&dg(o.c).length===11).map(o=>({...o,c:dg(o.c),n:fixName(o.n)}));
   S.files=(v&&v.files)||[];S.at=(v&&v.at)||'';reindex();return S.list;}
 async function save(){
   const o={list:S.list,files:S.files.slice(-30),at:new Date().toISOString()};S.at=o.at;reindex();
@@ -5546,7 +5552,7 @@ async function readExcel(f){
       if(!c){const k=r.find(isCnpsCell);if(k!==undefined)c=dg(k);}
       if(!c)continue;
       let n='';
-      if(nc>=0){n=String(r[nc]||'').trim();if(pc>=0&&r[pc])n=(n+' '+String(r[pc]).trim()).trim();n=n.replace(/\s+/g,' ');}
+      if(nc>=0){n=String(r[nc]||'').trim();if(pc>=0&&r[pc]){const pn=String(r[pc]).trim(),nt=toks(n),pt=toks(pn);if(!(pt.length&&pt.every(w=>nt.includes(w))))n=(n+' '+pn).trim();}n=n.replace(/\s+/g,' ');}
       if(!n)for(const cell of r){if(isCnpsCell(cell))continue;const t=nameFrom(cell);if(t&&t.split(' ').length>=2){n=t;break;}}
       if(!n)for(const cell of r){if(isCnpsCell(cell))continue;const t=nameFrom(cell);if(t){n=t;break;}}
       rows.push({c,n,p:periodOf(mc>=0?r[mc]:r.join(' '))});}
@@ -5574,6 +5580,7 @@ async function readPdfRows(f,prog){
 
 /* ---------- fusion (simulation, puis validation) ---------- */
 function merge(base,rows,src){
+  rows.forEach(r=>{r.n=fixName(r.n);});
   const list=base.map(o=>({...o})),by=new Map(list.map(o=>[o.c,o])),st={lus:rows.length,nouveaux:0,connus:0,maj:0,sansNom:0},warns=[];
   rows.forEach(r=>{
     const o=by.get(r.c);

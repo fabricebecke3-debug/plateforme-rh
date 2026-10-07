@@ -65,22 +65,64 @@ T.miIsAmount=(mi,r)=>{const d=digits(mi);if(!d)return false;return [r.brut,r.cot
 T.fixBadMi=R=>{let n=0;(R||[]).forEach(r=>{if(r.mi&&T.miIsAmount(r.mi,r)){r.mi='';r.mat='';r.miAuto=false;r.miGen=false;n++;}});return n;};
 
 T.nums=l=>nums(l);
-/* N° CNPS : le RÉFÉRENTIEL fait foi (référentiel > fiche employé > bulletin). Les lignes saisies à la main (cnpsManual) ne sont pas touchées. */
+/* N° CNPS : le RÉFÉRENTIEL CNPS est la SEULE source (référentiel > rien). Le N° lu sur le bulletin ou la fiche n'est PAS retenu :
+   il peut appartenir à un autre salarié. Mettre T.strictRef=false pour tolérer un N° hors référentiel (conservé mais signalé). */
+T.strictRef=true;
+const _stop=new Set(['de','du','la','le','des','et','ep','epse','nee']);
+const tkz=s=>[...new Set(nz(s).split(' ').filter(w=>w.length>1&&!_stop.has(w)))];
+const lev1=(a,b)=>{if(a===b)return true;if(Math.abs(a.length-b.length)>1)return false;let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;
+  if(a.length===b.length)return a.slice(i+1)===b.slice(i+1)||(a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2));
+  return a.length>b.length?a.slice(i+1)===b.slice(i):b.slice(i+1)===a.slice(i);};
+const tokEq=(a,b,fz)=>a===b||(fz&&a.length>=5&&b.length>=5&&lev1(a,b));
+function nameScore2(A,B,fz){if(!A.length||!B.length)return 0;const used=new Set();let c=0;
+  A.forEach(a=>{const j=B.findIndex((b,ix)=>!used.has(ix)&&tokEq(a,b,fz));if(j>-1){used.add(j);c++;}});if(!c)return 0;
+  const mn=Math.min(A.length,B.length),mx=Math.max(A.length,B.length);
+  if(c===A.length&&c===B.length)return 100;if(c>=2&&c===mn)return 80+c;if(c>=2&&c/mx>=.66)return 60+c;return 0;}
+const cleanN=s=>{let w=String(s||'').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  if(w.length>=2&&w.length%2===0){const h=w.length/2;if(w.slice(0,h).map(nz).join(' ')===w.slice(h).map(nz).join(' '))w=w.slice(0,h);}return w.join(' ');};
+/* cherche la personne dans le référentiel PAR SON NOM (exact d'abord, puis orthographe approchante) */
+T.refFind=function(names,cur){
+  const C=window.TERH_CNPSREF,list=(C&&C.S&&C.S.list)||[];
+  const A=(names||[]).filter(Boolean).map(tkz).filter(a=>a.length);
+  if(!A.length)return {o:null,amb:false,near:[]};
+  for(const fz of [false,true]){
+    let best=[],bs=0;
+    list.forEach(o=>{const B=tkz(o.n);let sc=0;A.forEach(a=>{sc=Math.max(sc,nameScore2(a,B,fz));});if(!sc)return;
+      if(sc>bs){bs=sc;best=[o];}else if(sc===bs)best.push(o);});
+    if(!best.length)continue;
+    const u=[...new Map(best.map(o=>[o.c,o])).values()];
+    if(u.length===1)return {o:u[0],amb:false,fuzzy:fz};
+    const same=u.find(o=>o.c===cur);if(same)return {o:same,amb:false,fuzzy:fz};
+    return {o:null,amb:true,cands:u};}
+  const near=list.filter(o=>{const B=tkz(o.n);return A.some(a=>a.some(x=>x.length>=4&&B.some(y=>tokEq(x,y,true))));}).slice(0,3);
+  return {o:null,amb:false,near};};
 T.refSyncRows=function(R,E,MAT){
   const C=window.TERH_CNPSREF;if(!C||!C.S||!C.S.list||!C.S.list.length)return 0;
   E=E||[];MAT=MAT||{};let n=0;
+  const dropW=(r,re)=>{if(r.warn)r.warn=r.warn.split(' · ').filter(x=>!re.test(x)).join(' · ');};
+  const addW=(r,t)=>{r.warn=String(r.warn||'').includes(t)?r.warn:(r.warn?r.warn+' · ':'')+t;};
   (R||[]).forEach(r=>{
-    if(r.cnpsManual)return;
-    const before=digits(r.cnps);let ok=false;
-    try{ok=C.fixRow(r);}catch(e){console.warn('fixRow',e);}
-    if(!ok){ /* nom du bulletin introuvable ou ambigu : on retente avec le nom de la fiche employé rattachée */
-      const f=(r.eid?E.find(y=>String(y.id)===String(r.eid)):null)||(r.mi?E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi)):null);
-      if(f&&f.n){const nb=r.nomBul;r.nomBul=f.n;try{ok=C.fixRow(r);}catch(e){}r.nomBul=nb;}
-    }
-    if(digits(r.cnps)!==before)n++;
-    if(ok||r.cnpsRef)r.cnpsSrc='ref';
-    else if(digits(r.cnps).length===11)r.cnpsSrc='hors';   /* numéro conservé mais NON confirmé par le référentiel */
-    else r.cnpsSrc='';
+    if(r.cnpsManual)return;                                   /* saisi à la main : respecté */
+    const before=digits(r.cnps);
+    const f=(r.eid?E.find(y=>String(y.id)===String(r.eid)):null)||(r.mi?E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi)):null);
+    const m=T.refFind([r.nom,r.nomBul,f&&f.n],before);
+    dropW(r,/appartient à|plusieurs personnes|introuvable dans le référentiel|homonymes|nom approchant|remplacé par celui du référentiel|N° CNPS lu/);
+    if(m.o){                                                  /* la personne est dans le référentiel : SON numéro, point */
+      if(before!==m.o.c){r.cnpsWas=before;r.cnps=m.o.c;n++;
+        if(before){const ow=C.S.byC&&C.S.byC.get(before);
+          addW(r,'N° CNPS lu ('+before+(ow&&ow.c!==m.o.c?', appartenant à « '+cleanN(ow.n)+' »':'')+') remplacé par celui du référentiel');}}
+      if(m.fuzzy)addW(r,'nom approchant du référentiel : « '+cleanN(m.o.n)+' » — vérifiez');
+      r.cnpsAuto=false;r.cnpsRef=true;r.cnpsSrc='ref';r.cnpsNoRef=false;return;}
+    /* personne introuvable (ou homonymes) dans le référentiel */
+    const ow=before.length===11&&C.S.byC?C.S.byC.get(before):null;
+    const owned=!!ow;                                         /* ce N° appartient à quelqu'un d'autre dans le référentiel */
+    if(m.amb){addW(r,'plusieurs personnes du référentiel portent ce nom : '+m.cands.slice(0,3).map(o=>cleanN(o.n)+' → '+o.c).join(' / ')+' : saisissez le bon N°');}
+    else{addW(r,'introuvable dans le référentiel CNPS'+(before?' (N° '+before+(owned?' appartenant à « '+cleanN(ow.n)+' »':'')+' ignoré)':'')+
+      (m.near&&m.near.length?' · proches : '+m.near.map(o=>cleanN(o.n)+' → '+o.c).join(' / '):''));}
+    if(T.strictRef||owned||m.amb){
+      if(before){r.cnpsWas=before;r.cnpsWasOwned=owned;n++;}
+      r.cnps='';r.cnpsRef=false;r.cnpsAuto=false;r.cnpsNoRef=true;r.cnpsSrc=m.amb?'ambigu':'absent';
+    }else{r.cnpsRef=false;r.cnpsSrc=digits(r.cnps).length===11?'hors':'';}
   });
   return n;};
 /* Total brut = 0 ET Pension vieillesse CNPS (cotisable) = 0 : pas de paie à déclarer */
@@ -317,6 +359,7 @@ T.mount=function(ctx){
     '<button class="p" id="dpx_zero" title="Total brut = 0 et Pension vieillesse CNPS = 0 : proposer l\'exclusion (avec validation)">① Exclusions à valider (brut = 0 et pension = 0)</button>'+
     '<button class="p" id="dpx_s2" title="L\'IA vérifie l\'exactitude des infos et améliore la lecture">② 🧠 Vérification IA</button>'+
     '<button class="s" id="dpx_refsync" title="Remplace les N° CNPS par ceux du référentiel">📚 Appliquer le référentiel CNPS</button>'+
+    '<button class="s" id="dpx_refback" title="Reprendre le N° du bulletin/fiche pour les personnes introuvables dans le référentiel (sauf N° appartenant à quelqu\'un d\'autre)">↩ Reprendre les N° des absents du référentiel</button>'+
    '</div><div id="dpx_info" class="muted" style="font-size:12px"></div><div id="dpx_s2_info" style="font-size:12px"></div>';
   g('d_t').before(bar);
   const $=id=>el.querySelector('#'+id);
@@ -345,6 +388,8 @@ T.mount=function(ctx){
     if(!incl(r,i))b.push('🚫 exclu du DIPE');
     if(r.cnpsAuto)b.push('CNPS fiche');if(r.cnpsRef)b.push('📚 CNPS référentiel'+(r.cnpsWas?' (bulletin : '+esc(r.cnpsWas)+')':''));if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
     if(r.cnpsSrc==='hors'&&digits(r.cnps).length===11)b.push('⚠ N° CNPS hors référentiel (non confirmé)');
+    if(r.cnpsSrc==='absent')b.push('⚠ personne introuvable dans le référentiel : N° vide');
+    if(r.cnpsSrc==='ambigu')b.push('⚠ homonymes dans le référentiel : N° vide');
     if(r.auto&&Object.keys(r.auto).length)b.push('🧠 corrigé automatiquement : '+esc(Object.keys(r.auto).join(', ')));
     if(!incl(r,i)&&r.exclWhy)b.push('('+esc(r.exclWhy)+')');
     if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
@@ -540,7 +585,7 @@ T.mount=function(ctx){
       else T.banner();},()=>{}));};
   /* --- validation obligatoire avant de générer le DIPE --- */
   const dlb=g('d_dl');
-  const reason={cnps:'N° CNPS invalide',brut:'brut manquant',jours:'jours invalides',cot:'pas de Pension vieillesse CNPS (cotisable 0)'};
+  const reason={cnps:'N° CNPS absent (introuvable dans le référentiel) ou invalide',brut:'brut manquant',jours:'jours invalides',cot:'pas de Pension vieillesse CNPS (cotisable 0)'};
   function recap(){
     const inc=[],exc=[];
     R.forEach((r,i)=>{if(!incl(r,i))return;const m=[...new Set(miss(r,i))];(m.length?exc:inc).push({r,i,m});});
@@ -565,7 +610,7 @@ T.mount=function(ctx){
     if(!add.length){say('Tous les salariés des fiches sont déjà dans le tableau');return;}
     if(!confirm('Ajouter '+add.length+' salarié(s) des fiches employés (brut à saisir ou à lire sur leur bulletin) ?'))return;
     add.forEach(e=>{const c=digits(e.cnps),m=MAT[e.id]||'';R.push({nom:e.n,eid:e.id,cnps:c.length===11?c:'',cnpsAuto:c.length===11,jours:30,brut:0,cot:0,exc:0,mat:String(m).slice(-4),mi:m,miAuto:!!m});});
-    filter='all';render();$('dpx_info').textContent='➕ '+add.length+' salarié(s) ajouté(s) : lisez leurs bulletins ou saisissez le brut ; supprimez ensuite ceux qui n\'ont pas de paie ce mois (🗑 Supprimer… → « lignes sans bulletin »).';};
+    T.refSync(true);filter='all';render();$('dpx_info').textContent='➕ '+add.length+' salarié(s) ajouté(s) : lisez leurs bulletins ou saisissez le brut ; supprimez ensuite ceux qui n\'ont pas de paie ce mois (🗑 Supprimer… → « lignes sans bulletin »).';};
 
   /* --- fusionner 2 lignes (ex. ancien absent + nouveau bulletin du même salarié) --- */
   $('dpx_merge').onclick=()=>{
@@ -586,7 +631,7 @@ T.mount=function(ctx){
       if(!e&&r.nom)e=ctx.matchEmp(r.nom,r.nom);
       if(!e&&r.mi)e=E.find(y=>MAT[y.id]&&sameMi(MAT[y.id],r.mi));
       if(e){if(!r.eid){r.eid=e.id;if(!r.nom)r.nom=e.n;}
-        const c=digits(e.cnps);if(digits(r.cnps).length!==11&&c.length===11){r.cnps=c;r.cnpsAuto=true;nc++;}
+        const c=digits(e.cnps);if(digits(r.cnps).length!==11&&c.length===11&&!r.cnpsNoRef){r.cnps=c;r.cnpsAuto=true;nc++;}
         if(!r.mi&&MAT[e.id]){r.mi=MAT[e.id];r.miAuto=true;nm++;}}
       if(r.mi&&!r.mat)r.mat=String(r.mi).slice(-4);
       if(!(r.jours>=1&&r.jours<=30))r.jours=30;});
@@ -598,7 +643,7 @@ T.mount=function(ctx){
     let max=0;pool.forEach(v=>{const m=v.match(/^(.*?)(\d+)$/);if(m&&m[1]===prefix)max=Math.max(max,parseInt(m[2],10));});
     let n=0;R.forEach(r=>{if(r.mi||!(r.nom||digits(r.cnps)))return;max++;r.mi=prefix+String(max).padStart(width,'0');r.miGen=true;r.mat=r.mi.slice(-4);n++;});
     return {n,sample:prefix+String(max+1).padStart(width,'0')};}
-  $('dpx_comp').onclick=()=>{const a=fillAll();render();
+  $('dpx_comp').onclick=()=>{const a=fillAll();T.refSync(true);render();
     const left=R.filter((r,i)=>miss(r,i).length||!r.mi).length;
     $('dpx_info').innerHTML='🧩 Depuis les fiches : '+a.nc+' N° CNPS et '+a.nm+' matricule(s) complété(s). '+(left?left+' ligne(s) restent incomplètes : filtrez « À corriger » ou « Sans matricule interne », saisissez les valeurs, ou utilisez « Générer les matricules manquants ».':'✅ Tout est complet.');};
   $('dpx_gen').onclick=()=>{const miss0=R.filter(r=>!r.mi&&(r.nom||digits(r.cnps))).length;if(!miss0){say('Aucun matricule à générer');return;}
@@ -662,6 +707,8 @@ T.mount=function(ctx){
   $('dpx_refsync').onclick=async()=>{try{if(window.TERH_CNPSREF)await TERH_CNPSREF.load();}catch(e){}
     if(!(window.TERH_CNPSREF&&TERH_CNPSREF.S.list.length)){say('Référentiel CNPS vide : importez-le d\'abord (bouton 📚 « Référentiel CNPS » du module)');return;}
     const n=T.refSync(true);render();say(n?'📚 '+n+' N° CNPS remplacé(s) par ceux du référentiel':'📚 Tous les N° CNPS sont déjà ceux du référentiel');};
+  $('dpx_refback').onclick=()=>{let k=0;R.forEach(r=>{if(r.cnpsSrc==='absent'&&digits(r.cnpsWas).length===11&&!r.cnpsWasOwned){r.cnps=digits(r.cnpsWas);r.cnpsManual=true;r.cnpsSrc='hors';r.cnpsNoRef=false;k++;}});
+    render();say(k?'↩ '+k+' N° repris (hors référentiel, marqués comme saisis par vous)':'Aucun N° à reprendre (ceux qui appartiennent à quelqu\'un d\'autre ne sont jamais repris)');};
   /* --- étape ① : Total brut = 0 ET Pension vieillesse CNPS = 0 → exclusion proposée, JAMAIS appliquée sans validation --- */
   T.zeroRows=()=>R.filter((r,i)=>incl(r,i)&&T.isZero(r)&&!r.zeroKeep);
   T.askZero=function(next){
@@ -686,7 +733,7 @@ T.mount=function(ctx){
     Promise.resolve(x.step2({ask:true})).catch(e=>{console.error(e);say('Étape ② : '+e.message);}).then(()=>T.banner());});
   /* le module appelle draw() après lecture : on le remplace par notre rendu */
   ctx.setDraw(render);
-  try{const C0=window.TERH_CNPSREF;if(C0&&C0.load)Promise.resolve(C0.load()).then(()=>{const n=T.refSync(true);if(n){render();say('📚 '+n+' N° CNPS remplacé(s) automatiquement par ceux du référentiel CNPS');}}).catch(()=>{});}catch(e){}
+  try{const C0=window.TERH_CNPSREF;if(C0&&C0.load)Promise.resolve(C0.load()).then(()=>{const n=T.refSync(true);if(n){render();const ab=R.filter(r=>r.cnpsSrc==='absent'||r.cnpsSrc==='ambigu').length;say('📚 '+n+' N° CNPS corrigé(s) d\'après le référentiel CNPS'+(ab?' · ⚠ '+ab+' personne(s) introuvable(s)/homonymes : N° vide, à saisir':''));}}).catch(()=>{});}catch(e){}
   $('dpx_info').textContent='🧩 dipe-plus.js v'+T.version+' actif — brut lu sur « Total Brut », cotisable sur la colonne Base de « Pension vieillesse CNPS » (aucun calcul) · N° CNPS : référentiel CNPS en priorité.';
   g('d_flt').onchange=render;g('d_drop').onchange=render;
   const stat=el.querySelector('#d_s');

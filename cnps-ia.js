@@ -99,7 +99,7 @@ X.analyze=function(){
       mi:{B:sl.mi||(r.miAuto||r.miGen?'':r.mi)||'',F:f?(MAT[f.id]||''):'',R:'',P:pv?pv.mi:''},
       brut:{B:brut,F:'',R:'',P:pv?pv.brut:''},cot:{B:cot,F:'',R:'',P:pv?pv.cot:''},jours:{B:jours,F:'',R:'',P:pv?pv.jours:''}};
     /* --- identité --- */
-    if(c.length!==11)add('err','cnps','N° CNPS invalide ou manquant ('+(r.cnps||'vide')+')');
+    if(c.length!==11)add('err','cnps','N° CNPS invalide ou manquant ('+(r.cnps||'vide')+')'+(r.cnpsSrc==='absent'?' — personne introuvable dans le référentiel CNPS':r.cnpsSrc==='ambigu'?' — homonymes dans le référentiel : choisissez le bon N°':''));
     if(f&&digits(f.cnps).length===11&&c.length===11&&digits(f.cnps)!==c)add('err','cnps-f','N° CNPS différent de la fiche employé : DIPE '+r.cnps+' ≠ fiche '+f.cnps);
     if(o&&c.length===11&&o.c!==c)add('err','cnps-r','N° CNPS différent du référentiel CNPS : '+r.cnps+' ≠ '+o.c);
     if(r.cnpsWas&&digits(r.cnpsWas)!==c)add('info','cnps-fix','N° du bulletin ('+r.cnpsWas+') corrigé par le référentiel → '+r.cnps);
