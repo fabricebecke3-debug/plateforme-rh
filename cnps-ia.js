@@ -237,10 +237,11 @@ X.openTriangulation=function(opts){
     T.innerHTML='<table><tr><th align="left">Salarié</th><th>Fiabilité</th><th align="left">Remarques</th><th></th></tr>'+rows.map((o,k)=>
       '<tr class="t"><td><b>'+esc(o.nom)+'</b><br><span class="muted">'+esc(o.r.cnps||'')+'</span></td><td style="min-width:70px;text-align:center">'+o.score+' %'+fiab(o.score)+'</td>'+
       '<td>'+(o.F.length?o.F.map(x=>'<span class="pill '+SEV[x.sev][1]+'">'+SEV[x.sev][0]+' '+esc(x.msg)+'</span>').join(''):'<span class="pill o">✅ conforme</span>')+'</td>'+
-      '<td style="white-space:nowrap"><button class="s" data-d="'+k+'" title="Comparer les sources">🔺</button>'+(o.r._t?' <button class="s" data-b="'+k+'" title="Lire le bulletin">📄</button>':'')+'</td></tr>'+
+      '<td style="white-space:nowrap"><button class="s" data-d="'+k+'" title="Comparer les sources">🔺</button>'+(o.r._t?' <button class="s" data-b="'+k+'" title="Lire le bulletin">📄</button>':'')+(o.i>=0&&window.TERH_DIPE&&window.TERH_DIPE.focus?' <button class="s" data-f="'+k+'" title="Corriger cette ligne dans le tableau">✏</button>':'')+'</td></tr>'+
       '<tr id="ci_d'+k+'" style="display:none"><td colspan="4"></td></tr>').join('')+'</table>';
     T.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{const k=+b.dataset.d,tr=T.querySelector('#ci_d'+k);
       if(tr.style.display==='none'){tr.firstChild.innerHTML=compare(rows[k]);tr.style.display='';}else tr.style.display='none';});
+    T.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const o=rows[+b.dataset.f];w.parentNode.remove();if(!window.TERH_DIPE.focus(o.i))say('Ligne introuvable dans le tableau');});
     T.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>X.readSlip(rows[+b.dataset.b].r));};
   w.querySelector('#ci_only').onchange=draw;draw();
   w.querySelector('#ci_as').onclick=()=>X.openAssistant();

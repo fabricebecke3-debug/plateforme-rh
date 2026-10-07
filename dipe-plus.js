@@ -478,8 +478,10 @@ T.mount=function(ctx){
     t.addEventListener('click',ev=>{const b=ev.target.closest('[data-ai]');if(b)runAI([an[+b.dataset.ai]]);});
     w.querySelector('#rp_only').onchange=draw;w.querySelector('#rp_close').onclick=()=>w.remove();draw();};
   /* --- triangulation AUTOMATIQUE à la fin de la lecture des bulletins --- */
+  T.refresh=()=>render();
+  T.focus=i=>{filter='all';render();const tr=el.querySelector('tr[data-r="'+i+'"]');if(!tr)return false;tr.scrollIntoView({block:'center'});const inp=tr.querySelector('input.dx[data-k="brut"]');if(inp)inp.focus();tr.style.outline='2px solid #1f5fbf';setTimeout(()=>{tr.style.outline='';},3000);return true;};
   T.afterRead=()=>T.ia(x=>{
-    const A=x.analyze(),info=$('dpx_info');if(!info||!A.rows.length)return;
+    const A=x.analyze();let info=$('dpx_tri_info');if(!info){info=document.createElement('div');info.id='dpx_tri_info';info.style.fontSize='12px';$('dpx_info').after(info);}if(!A.rows.length)return;
     const jd=A.rows.filter(o=>o.r.jMode==='def').length,col=A.verdict==='block'?'#d33':A.verdict==='warn'?'#e69500':'#2a9d55';
     info.innerHTML='<div style="border-left:4px solid '+col+';padding:6px 10px;margin:6px 0"><b>🔺 Triangulation automatique : '+(A.verdict==='block'?'❌ bloquant':A.verdict==='warn'?'⚠ à vérifier':'✅ prêt')+'</b> — '+A.rows.length+' salarié(s) : '+A.okN+' conformes, '+A.warnN+' à vérifier, '+A.errN+' en erreur · fiabilité '+A.score+' %'+(jd?' · '+jd+' sans info de jours (30 par défaut)':'')+' <button class="s" id="dpx_tri2">Voir le détail</button></div>';
     const b=info.querySelector('#dpx_tri2');if(b)b.onclick=()=>x.openTriangulation();});
@@ -577,10 +579,13 @@ T.mount=function(ctx){
   function openText(i){
     const r=R[i],lines=normLines(r._t||'');
     if(!lines.length){say('Pas de texte lu pour cette ligne (ancien modèle ou saisie manuelle)');return;}
-    const w=ctx.openWin('<h3 style="margin:0 0 6px">🔎 Texte lu — '+esc(r.nom||'')+'</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Cliquez le bouton d\'une ligne pour dire « cette ligne est le brut / cotisable / matricule / jours » : le libellé est mémorisé et servira pour tous les bulletins.</p><div id="dpx_ln" style="max-height:68vh;overflow:auto;font-size:12px"></div>');
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">🔎 Texte lu — '+esc(r.nom||'')+'</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Cliquez le bouton d\'une ligne pour dire « cette ligne est le brut / cotisable / matricule / jours » : le libellé est mémorisé et servira pour tous les bulletins.</p><div id="dpx_ln" style="max-height:68vh;overflow:auto;font-size:12px"></div><div style="margin-top:8px"><button class="s" id="dpx_lnx">✕ Fermer</button></div>');
+    const closeW=()=>{try{w.remove();}catch(e){}};w.querySelector('#dpx_lnx').onclick=closeW;
+    w.addEventListener('click',ev=>{if(ev.target===w)closeW();});
+    const onKey=ev=>{if(ev.key==='Escape'){closeW();document.removeEventListener('keydown',onKey);}};document.addEventListener('keydown',onKey);
     const box=w.querySelector('#dpx_ln');
     box.innerHTML='<table style="border-collapse:collapse;width:100%">'+lines.map((L,j)=>'<tr style="border-bottom:1px solid rgba(128,128,128,.25)"><td style="padding:2px 4px;font-family:monospace;white-space:pre-wrap">'+esc(L)+'</td><td style="white-space:nowrap;padding:2px"><button data-l="'+j+'" data-k="brut">Brut</button><button data-l="'+j+'" data-k="cot">Cotis.</button><button data-l="'+j+'" data-k="mi">Matr.</button><button data-l="'+j+'" data-k="jours">Jours</button></td></tr>').join('')+'</table>';
-    box.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>learn(i,lines[+b.dataset.l],b.dataset.k,lines[+b.dataset.l+1]));}
+    box.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{learn(i,lines[+b.dataset.l],b.dataset.k,lines[+b.dataset.l+1]);closeW();});}
   $('dpx_re').onclick=()=>{const rows=R.filter(r=>r._t);if(!rows.length){say('Aucun bulletin lu à relire');return;}
     if(!confirm('Relire '+rows.length+' bulletin(s) avec vos libellés ? Les valeurs corrigées à la main seront remplacées.'))return;
     let n=0;rows.forEach(r=>{try{const x=ctx.parseSlip2(r._t,r.nom||'');['brut','cot','exc','jours','mi','mat','net','poste','src','cotEst','warn'].forEach(k=>{if(x[k]!==undefined&&x[k]!=='')r[k]=x[k];});n++;}catch(e){}});

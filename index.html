@@ -4971,7 +4971,7 @@ addEventListener('popstate',()=>{
 });
 addEventListener('keydown',e=>{if(e.key==='Escape'&&stack.length){e.preventDefault();closeEl(stack[stack.length-1]);}});
 function openWin(html,id){const el=document.createElement('div');if(id)el.id=id;el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);overflow:auto;padding:16px';
-  el.innerHTML='<div style="background:var(--bg,#fff);color:var(--tx,#111);max-width:1150px;margin:0 auto;border-radius:12px;padding:14px">'+html+'</div>';document.body.appendChild(el);return el;}
+  el.innerHTML='<div style="background:var(--bg,#fff);color:var(--tx,#111);max-width:1150px;margin:0 auto;border-radius:12px;padding:14px">'+html+'</div>';el.addEventListener('click',ev=>{if(ev.target===el)el.remove();});const _k=ev=>{if(!el.isConnected){document.removeEventListener('keydown',_k);return;}if(ev.key==='Escape'&&el===[...document.querySelectorAll('body>div')].filter(d=>d.style.position==='fixed').pop()){el.remove();document.removeEventListener('keydown',_k);}};document.addEventListener('keydown',_k);document.body.appendChild(el);return el;}
 
 (function ui(){
   const f=document.createElement('div');f.id='fab3';
