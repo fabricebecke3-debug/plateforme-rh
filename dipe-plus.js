@@ -51,6 +51,16 @@ const custRe=t=>new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&').repla
 const normLines=t=>String(t||'').replace(/[\u00a0\u202f]/g,' ').split(/\n+/).map(l=>l.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
 const say=m=>{try{(T.ctx&&T.ctx.say)?T.ctx.say(m):(window.toast&&toast(m));}catch(e){}};
 
+/* garde-fous : un libellé « matricule » ne peut pas être une rubrique de montant, et inversement */
+T.badLabel=(k,l)=>{l=String(l||'');
+  if(k==='mi')return /total|brut|net\b|cotis|pension|salaire|montant|base|gain|retenue|cnps|assiette|imposable/i.test(l);
+  if(k==='brut'||k==='cot'||k==='net'||k==='jours'||k==='exc')return /matricule|\bmle\b|n[°o]\s*(?:interne|employ|salari|agent)/i.test(l);
+  return false;};
+T.cleanCustom=()=>{let ch=false;Object.keys(T.custom||{}).forEach(k=>{if(!Array.isArray(T.custom[k]))return;const n=T.custom[k].filter(l=>!T.badLabel(k,l));if(n.length!==T.custom[k].length){T.custom[k]=n;ch=true;}});return ch;};
+/* matricule égal au brut / cotisable / net du même bulletin = lecture erronée */
+T.miIsAmount=(mi,r)=>{const d=digits(mi);if(!d)return false;return [r.brut,r.cot,r.net,r.exc].some(v=>v&&String(Math.round(v))===d.replace(/^0+/,''));};
+T.fixBadMi=R=>{let n=0;(R||[]).forEach(r=>{if(r.mi&&T.miIsAmount(r.mi,r)){r.mi='';r.mat='';r.miAuto=false;r.miGen=false;n++;}});return n;};
+
 /* montants d'une ligne : ignore dates, taux (%) et années */
 function nums(line){
   const out=[],re=/(\d{1,3}(?:[ \u00a0\u202f.]\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;let m;
@@ -185,6 +195,8 @@ T.enrich=function(r,text,fn){
   const po=/(?:emploi|poste|fonction|qualification)\s*[:\-]\s*([A-Za-zÀ-ÿ' \/\-]{3,40})/i.exec(lines.join('\n'));if(po)r.poste=po[1].split(/\s{2,}|\s+(?:matricule|cnps|date|cat)/i)[0].trim();
   /* matricule interne + rattachement à la fiche employé */
   let mv=findMi(lines,C.mi,digits(r.cnps));
+  if(mv&&T.miIsAmount(mv.v,r))mv=findMi(lines,[],digits(r.cnps));   /* le libellé appris donnait un montant : on revient aux libellés standard */
+  if(mv&&T.miIsAmount(mv.v,r))mv=null;
   if(!mv){const i=lines.findIndex(l=>/\bmatricule\b/i.test(l));
     if(i>=0)for(let k=1;k<=2&&lines[i+k];k++){const m=/^\s*(\d{3,8})(?!\d)/.exec(lines[i+k]);if(m&&miOk(m[1])&&m[1]!==digits(r.cnps)){mv={v:m[1],label:'Matricule (ligne suivante)'};break;}}}
   if(mv){r.mi=mv.v;src.mi=mv.label;}
@@ -239,7 +251,7 @@ T.mount=function(ctx){
   /* instantané du dernier DIPE (avant lecture des bulletins) : sert à la triangulation */
   T.prev={};R.forEach(r=>{if(!r.mem)return;const c=digits(r.cnps);const o={nom:r.nom,cnps:c,mi:r.mi||'',brut:r.brut||0,cot:r.cot||0,jours:r.jours||0};if(c.length===11)T.prev[c]=o;if(r.mi)T.prev['m'+normMi(r.mi)]=o;});
   /* libellés mémorisés pour cette entreprise */
-  Promise.resolve(ctx.rd('dipe_labels')).then(v=>{if(v&&typeof v==='object')T.custom=v;}).catch(()=>{});
+  Promise.resolve(ctx.rd('dipe_labels')).then(v=>{if(v&&typeof v==='object')T.custom=v;if(T.cleanCustom()){Promise.resolve(ctx.wr('dipe_labels',T.custom)).catch(()=>{});say('🧹 Libellé(s) appris incohérent(s) supprimé(s) (ex. un libellé de montant utilisé pour le matricule)');}}).catch(()=>{});
   const css=document.createElement('style');css.textContent=
    '#dpx_bar .chip{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--bd,#bbb);font-size:11px;margin:2px 3px 2px 0;cursor:pointer;background:var(--card,#fff);color:inherit}'+
    '#dpx_bar .chip.on{background:var(--pr,#1f5fbf);color:#fff;border-color:transparent}'+
@@ -481,6 +493,7 @@ T.mount=function(ctx){
   T.refresh=()=>render();
   T.focus=i=>{filter='all';render();const tr=el.querySelector('tr[data-r="'+i+'"]');if(!tr)return false;tr.scrollIntoView({block:'center'});const inp=tr.querySelector('input.dx[data-k="brut"]');if(inp)inp.focus();tr.style.outline='2px solid #1f5fbf';setTimeout(()=>{tr.style.outline='';},3000);return true;};
   T.afterRead=()=>T.ia(x=>{
+    if(T.fixBadMi(R))render();
     const A=x.analyze();let info=$('dpx_tri_info');if(!info){info=document.createElement('div');info.id='dpx_tri_info';info.style.fontSize='12px';$('dpx_info').after(info);}if(!A.rows.length)return;
     const jd=A.rows.filter(o=>o.r.jMode==='def').length,col=A.verdict==='block'?'#d33':A.verdict==='warn'?'#e69500':'#2a9d55';
     info.innerHTML='<div style="border-left:4px solid '+col+';padding:6px 10px;margin:6px 0"><b>🔺 Triangulation automatique : '+(A.verdict==='block'?'❌ bloquant':A.verdict==='warn'?'⚠ à vérifier':'✅ prêt')+'</b> — '+A.rows.length+' salarié(s) : '+A.okN+' conformes, '+A.warnN+' à vérifier, '+A.errN+' en erreur · fiabilité '+A.score+' %'+(jd?' · '+jd+' sans info de jours (30 par défaut)':'')+' <button class="s" id="dpx_tri2">Voir le détail</button></div>';
@@ -571,6 +584,7 @@ T.mount=function(ctx){
     else{let n=nums(line);if(!n.length&&next)n=nums(next);if(!n.length){say('Aucun montant sur cette ligne (ni sur la suivante)');return;}
       val=k==='jours'?n[0].v:Math.max(...n.map(x=>x.v));label=nums(line).length?line.slice(0,nums(line)[0].i):line;}
     label=label.replace(/[\s:.\-–=]+$/,'').replace(/^[\s:.\-–=]+/,'').trim();
+    if(T.badLabel(k,label)||(k==='mi'&&T.miIsAmount(val,r))){say('⛔ Refusé : « '+label+' » est une rubrique de '+(k==='mi'?'montant (brut, cotisable, net…), pas un matricule':'matricule, pas un montant')+'. Choisissez la ligne « Matricule » du bulletin.');return;}
     if(label.length<3){label=(prompt('Libellé trop court. Recopiez le nom de la rubrique (ex. « Salaire cotisable ») :',label)||'').trim();if(label.length<3)return;}
     T.custom[k]=[label].concat((T.custom[k]||[]).filter(x=>x!==label));
     Promise.resolve(ctx.wr('dipe_labels',T.custom)).catch(()=>{try{localStorage.setItem('terh_dipe_labels',JSON.stringify(T.custom));}catch(e){}});
@@ -588,8 +602,8 @@ T.mount=function(ctx){
     box.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{learn(i,lines[+b.dataset.l],b.dataset.k,lines[+b.dataset.l+1]);closeW();});}
   $('dpx_re').onclick=()=>{const rows=R.filter(r=>r._t);if(!rows.length){say('Aucun bulletin lu à relire');return;}
     if(!confirm('Relire '+rows.length+' bulletin(s) avec vos libellés ? Les valeurs corrigées à la main seront remplacées.'))return;
-    let n=0;rows.forEach(r=>{try{const x=ctx.parseSlip2(r._t,r.nom||'');['brut','cot','exc','jours','mi','mat','net','poste','src','cotEst','warn'].forEach(k=>{if(x[k]!==undefined&&x[k]!=='')r[k]=x[k];});n++;}catch(e){}});
-    render();say('↻ '+n+' bulletin(s) relu(s)');};
+    T.cleanCustom();let n=0;rows.forEach(r=>{try{if(r.mi&&T.miIsAmount(r.mi,r)){r.mi='';r.mat='';}const x=ctx.parseSlip2(r._t,r.nom||'');['brut','cot','exc','jours','mi','mat','net','poste','src','cotEst','warn'].forEach(k=>{if(x[k]!==undefined&&x[k]!=='')r[k]=x[k];});n++;}catch(e){}});
+    T.fixBadMi(R);render();say('↻ '+n+' bulletin(s) relu(s)');};
   $('dpx_tri').onclick=()=>T.ia(x=>x.openTriangulation());
   $('dpx_ia').onclick=()=>T.ia(x=>x.openAssistant());
   $('dpx_lab').onclick=()=>{

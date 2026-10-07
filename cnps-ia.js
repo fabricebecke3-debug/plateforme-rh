@@ -104,6 +104,7 @@ X.analyze=function(){
     if(f&&o&&nameScore(f.n,o.n)<60)add('warn','nom-ref','Nom de la fiche (« '+f.n+' ») ≠ nom du référentiel (« '+o.n+' »)');
     if(f&&sl.nomBul&&nameScore(f.n,sl.nomBul)<60)add('warn','nom-b','Nom du bulletin (« '+sl.nomBul+' ») ≠ fiche (« '+f.n+' »)');
     if(src.mi.B&&src.mi.F&&!sameMi(src.mi.B,src.mi.F))add('warn','mi','Matricule du bulletin ('+src.mi.B+') ≠ matricule de la fiche ('+src.mi.F+')');
+    if(r.mi&&[brut,cot,+r.net].some(v=>v&&String(Math.round(v))===digits(r.mi).replace(/^0+/,'')))add('err','mi-amount','Matricule interne ('+r.mi+') identique à un MONTANT du bulletin (brut/cotisable/net) : mauvaise ligne lue — corrigez, ou supprimez le libellé faux dans 🏷 Mes libellés');
     if(!r.mi&&!src.mi.F)add('info','no-mi','Matricule interne absent');
     if((c.length===11&&cnt['c'+c]>1)||(r.mi&&cnt['m'+normMi(r.mi)]>1))add('err','dup','Doublon dans le tableau (même N° CNPS ou même matricule)');
     /* --- période / contrat --- */
