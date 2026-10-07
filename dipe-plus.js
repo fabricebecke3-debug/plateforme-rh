@@ -20,7 +20,7 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.9';
+T.version='2026.10.10';
 T.custom=T.custom||{};
 /* chargement à la demande de cnps-ia.js (triangulation, IA, assistant CNPS) */
 T.ia=function(cb,fallback){
@@ -56,6 +56,9 @@ const say=m=>{try{(T.ctx&&T.ctx.say)?T.ctx.say(m):(window.toast&&toast(m));}catc
 
 /* garde-fous : un libellé « matricule » ne peut pas être une rubrique de montant, et inversement */
 T.badLabel=(k,l)=>{l=String(l||'');
+  /* un libellé appris ne contient ni chiffre (montant d'un bulletin précis), ni trait, et doit avoir de vraies lettres */
+  if(/\d/.test(l)||/[_\-=.]{3,}/.test(l)||!/[A-Za-zÀ-ÿ]{3}/.test(l))return true;
+  if(k==='cot'&&/\b(?:total|brut|net|gains?)\b/i.test(l)&&!/cotis|pension|vieillesse|assiette|base|plafon/i.test(l))return true;
   if(k==='mi')return /total|brut|net\b|cotis|pension|salaire|montant|base|gain|retenue|cnps|assiette|imposable/i.test(l);
   if(k==='brut'||k==='cot'||k==='net'||k==='jours'||k==='exc')return /matricule|\bmle\b|n[°o]\s*(?:interne|employ|salari|agent)/i.test(l);
   return false;};
@@ -129,7 +132,7 @@ T.refSyncRows=function(R,E,MAT){
 T.isZero=r=>!(+r.brut>0)&&!(+r.cot>0);
 /* montants d'une ligne : ignore dates, taux (%) et années */
 function nums(line){
-  const out=[],re=/(\d{1,3}(?:[ \u00a0\u202f.]\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;let m;
+  const out=[],re=/(\d{1,3}(?:[ \u00a0\u202f.]\d{3}(?!\d))+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/g;let m;
   const hasDate=/(janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c|p[ée]riode|mois|ann[ée]e|date)/i.test(line);
   while((m=re.exec(line))){
     const s=m.index,e=s+m[0].length,prev=line[s-1]||'',next=line.slice(e);
@@ -254,6 +257,10 @@ T.enrich=function(r,text,fn){
   if(c&&r.brut&&c.v>r.brut*1.001){
     if(tb)c=null;
     else r.warn=(r.warn?r.warn+' · ':'')+'brut lu ('+r.brut+') < cotisable : vérifiez le brut (🔎)';}
+  /* garde-fou : cotisable lu == brut alors que la ligne « Pension vieillesse » donne une autre base (ex. libellé appris faux) */
+  if(c&&r.brut&&c.v===r.brut){const pb=baseFromRetenue(lines,PC);
+    if(pb&&pb!==c.v){c={v:pb,label:'Pension vieillesse CNPS (base)',line:c.line};r.warn=(r.warn?r.warn+' · ':'')+'cotisable = brut : corrigé avec la base de la ligne Pension vieillesse ('+pb+') — vérifiez vos libellés appris';}
+    else r.warn=(r.warn?r.warn+' · ':'')+'cotisable identique au brut : vérifiez le bulletin (libellé appris faux ?)';}
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
   else{r.cot=0;r.cotEst=false;src.cot='non trouvé sur le bulletin';}  /* aucune estimation : case vide et rouge */
   const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
@@ -669,8 +676,9 @@ T.mount=function(ctx){
       const re=/[A-Za-z]{0,6}[-\/]?\d{1,12}[A-Za-z]?/g;let mm,tok=null;while((mm=re.exec(line))){if(miOk(mm[0])){tok=mm;break;}}
       if(!tok){say('Aucun matricule sur cette ligne');return;}
       val=tok[0];label=line.slice(0,tok.index);}
-    else{let n=nums(line);if(!n.length&&next)n=nums(next);if(!n.length){say('Aucun montant sur cette ligne (ni sur la suivante)');return;}
-      val=k==='jours'?n[0].v:Math.max(...n.map(x=>x.v));label=nums(line).length?line.slice(0,nums(line)[0].i):line;}
+    else{line=line.replace(/^\s*\d{3,6}\s+(?=[A-Za-zÀ-ÿ])/,'');   /* code rubrique (ex. 8100) retiré */
+      let n=nums(line);if(!n.length&&next)n=nums(next);if(!n.length){say('Aucun montant sur cette ligne (ni sur la suivante)');return;}
+      val=(k==='jours'||(k==='cot'&&/pension|vieillesse/i.test(line)))?n[0].v:Math.max(...n.map(x=>x.v));label=nums(line).length?line.slice(0,nums(line)[0].i):line;}
     label=label.replace(/[\s:.\-–=]+$/,'').replace(/^[\s:.\-–=]+/,'').trim();
     if(T.badLabel(k,label)||(k==='mi'&&T.miIsAmount(val,r))){say('⛔ Refusé : « '+label+' » est une rubrique de '+(k==='mi'?'montant (brut, cotisable, net…), pas un matricule':'matricule, pas un montant')+'. Choisissez la ligne « Matricule » du bulletin.');return;}
     if(label.length<3){label=(prompt('Libellé trop court. Recopiez le nom de la rubrique (ex. « Salaire cotisable ») :',label)||'').trim();if(label.length<3)return;}
