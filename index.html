@@ -5364,7 +5364,7 @@ async function openDipe3(){
     const A=R.filter(r=>r.old&&!r.seen);
     b.innerHTML=A.length?'<b>⚠ '+A.length+' salarié(s) dans l\'ancien DIPE mais absent(s) des bulletins :</b><br>'+A.map(r=>ESC(r.nom||'(nom inconnu)')+' — CNPS '+ESC(r.cnps||'?')).join('<br>')+'<br><i>Ils gardent leurs anciennes valeurs (lignes grisées). Vérifiez : départ, absence de paie ou bulletin non fourni.</i>':'✅ Tous les salariés de l\'ancien DIPE ont un bulletin.';};
   /* lecture des bulletins */
-  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;let nread=0;try{if(window.TERH_CNPSREF){await TERH_CNPSREF.load();TERH_CNPSREF.S.stat={fixed:0,filled:0,named:0};}}catch(er){}R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
+  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;window.__slipLog=[];let nread=0;try{if(window.TERH_CNPSREF){await TERH_CNPSREF.load();TERH_CNPSREF.S.stat={fixed:0,filled:0,named:0};}}catch(er){}R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
     try{for(const f of fs){const ex=f.name.toLowerCase().split('.').pop();let slips;
       try{
         if(ex==='pdf')slips=groupSlips(await pdfPages(f,(i,n)=>{g('d_s').textContent='⏳ '+f.name+' : page '+i+'/'+n;}));
@@ -5374,12 +5374,12 @@ async function openDipe3(){
         const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
         if(window.TERH_DIPE&&TERH_DIPE.findRow){const j2=TERH_DIPE.findRow(R,r);if(j2>-1)j=j2;}
         if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(o);}catch(er){}}
-        else{R.push(r);}}
+        else{R.push(r);}try{(window.__slipLog=window.__slipLog||[]).push({row:j>-1?R[j]:r,slip:r,matched:j>-1});}catch(er){}}
       await new Promise(r=>setTimeout(r,0));}
     }finally{g('d_go').disabled=false;}
     const n=fillFromEmp();
     const per=R.find(r=>r.per);if(per&&per.per){/* période détectée : indicative */}
-    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();};
+    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();try{if(window.TERH_DIPE&&TERH_DIPE.report)TERH_DIPE.report(true);}catch(er){console.warn(er);}};
   /* export DIPE */
   g('d_dl').onclick=async()=>{try{
     const E5=parseEmp(g('d_em').value),p=g('d_mo').value,pre=(g('d_pre').value||'C0400000').trim();
@@ -5840,10 +5840,14 @@ function conf(){const w=win(`<h2 style="margin:0 0 8px">🧩 Configuration</h2><
 function cnps(){const A=(typeof E!=='undefined'?E:[]),d=v=>String(v||'').replace(/\D/g,'');
  const ok=A.filter(r=>d(r.cnps).length===11),ko=A.filter(r=>!ok.includes(r));
  const w=win(`<h2 style="margin:0 0 8px">🏦 Module CNPS</h2><div class="kp"><div class="k g-blue"><b>${A.length}</b><span>Effectif</span></div><div class="k g-green"><b>${ok.length}</b><span>N° CNPS valides</span></div><div class="k g-red"><b>${ko.length}</b><span>N° manquants / invalides</span></div></div>
-<div class="f"><button class="p" id="x_dipe">📤 DIPE depuis bulletins (avec ancien DIPE)</button><button class="s" id="x_xl">📥 Exporter les manquants (Excel)</button><button class="s" id="x_ref">📚 Référentiel CNPS (import Excel / PDF)</button></div>
+<div class="f"><button class="p" id="x_dipe">📤 DIPE depuis bulletins (avec ancien DIPE)</button><button class="s" id="x_xl">📥 Exporter les manquants (Excel)</button><button class="s" id="x_ref">📚 Référentiel CNPS (import Excel / PDF)</button><button class="p" id="x_tri">🔺 Triangulation &amp; IA</button><button class="s" id="x_ia">🤖 Assistant CNPS</button></div>
 <div class="tw"><table><thead><tr><th>Nom</th><th>Poste</th><th>Contrat</th><th>N° CNPS</th><th>Statut</th></tr></thead><tbody>${A.map(r=>`<tr><td>${H(r.n)}</td><td>${H(r.p)}</td><td>${H(r.t)}</td><td>${H(r.cnps)}</td><td>${d(r.cnps).length===11?'✅':(d(r.cnps)?'⚠ invalide':'❌ manquant')}</td></tr>`).join('')}</tbody></table></div>`);
  w.querySelector('#x_dipe').onclick=()=>{w.parentNode.remove();window.TERH_openDipe?window.TERH_openDipe():T('DIPE indisponible : ouvrez Paie & droit')};
  w.querySelector('#x_ref').onclick=()=>{w.parentNode.remove();window.TERH_CNPSREF?TERH_CNPSREF.open():T('Référentiel CNPS indisponible')};
+ const loadIA=()=>new Promise((ok,ko)=>{if(window.TERH_CNPSIA&&TERH_CNPSIA.analyze)return ok(window.TERH_CNPSIA);const sc=document.createElement('script');sc.src='cnps-ia.js?t='+Date.now();sc.onload=()=>ok(window.TERH_CNPSIA);sc.onerror=()=>ko(new Error('cnps-ia.js introuvable : placez-le à côté de index.html'));document.head.appendChild(sc);});
+ const openIA=async mode=>{try{const X=await loadIA();let MAT={},PC={};try{if(typeof rd==='function'){MAT=(await rd('matricules_json'))||{};PC=(await rd('paie_json'))||{};}}catch(er){}
+  X.alt={E:A,MAT,PC,say:T};if(mode==='tri')X.openTriangulation();else X.openAssistant();}catch(er){T('Erreur : '+er.message)}};
+ w.querySelector('#x_tri').onclick=()=>openIA('tri');w.querySelector('#x_ia').onclick=()=>openIA('chat');
  w.querySelector('#x_xl').onclick=async()=>{try{if(!window.XLSX)throw new Error('Excel pas chargé');const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ko.map(r=>({Nom:r.n,Poste:r.p,Contrat:r.t,CNPS:r.cnps||''}))),'CNPS');XLSX.writeFile(wb,'cnps_a_regulariser.xlsx');}catch(e){T('Erreur : '+e.message)}};}
 /* ===== boutons ===== */
 function mk(){const nav=q('nav');if(!nav)return;

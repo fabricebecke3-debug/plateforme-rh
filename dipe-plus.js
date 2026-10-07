@@ -17,14 +17,21 @@
 (function(){
 'use strict';
 const T=window.TERH_DIPE=window.TERH_DIPE||{};
-T.version='2026.10.6';
+T.version='2026.10.8';
 T.custom=T.custom||{};
+/* chargement à la demande de cnps-ia.js (triangulation, IA, assistant CNPS) */
+T.ia=function(cb,fallback){
+  const run=()=>{try{window.TERH_CNPSIA.attach(T.ctx);cb(window.TERH_CNPSIA);}catch(e){console.error('cnps-ia',e);try{(T.ctx&&T.ctx.say)&&T.ctx.say('Module IA CNPS : erreur '+e.message);}catch(x){}if(fallback)fallback();}};
+  if(window.TERH_CNPSIA&&window.TERH_CNPSIA.analyze)return run();
+  const sc=document.createElement('script');sc.src='cnps-ia.js?t='+Date.now();sc.onload=run;
+  sc.onerror=()=>{console.warn('cnps-ia.js introuvable');try{(T.ctx&&T.ctx.say)&&T.ctx.say('cnps-ia.js introuvable : placez-le à côté de index.html (triangulation/IA désactivées)');}catch(x){}if(fallback)fallback();};
+  document.head.appendChild(sc);};
 
 /* ---------- libellés reconnus (modifiables) ---------- */
 T.LABELS={
   mi:['matricule\\s+interne','n[°o]?\\s*matricule','\\bmatricule\\b','\\bmatr?\\.(?=\\s*[:\\-]?\\s*[A-Za-z0-9])','\\bmle\\b','n[°o]\\s*(?:interne|employ[ée]|salari[ée]|agent|personnel)','code\\s+(?:salari[ée]|employ[ée]|agent)'],
   /* « pension vieillesse cnps » cible directement la ligne de la base de calcul (vérifiée : montant ≈ base × taux) */
-  cot:['salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable','pension\\s+vieillesse\\s+cnps'],
+  cot:['pension\\s+vieillesse\\s+cnps','salaire\\s+cotisable','assiette\\s+(?:cnps|de\\s+cotisation\\w*|cotisable|plafonn\\w+)','base\\s+(?:cnps|cotisable|plafonn\\w+|de\\s+cotisation\\w*)','brut\\s+(?:cotisable|plafonn\\w+)','salaire\\s+plafonn\\w+','\\bbasecot\\b','total\\s+cotisable','cotisable'],
   brut:['total\\s+brut','brut\\s+total','salaire\\s+brut(?!\\s+(?:jour|journalier|horaire|heure))','gains?\\s+bruts?','total\\s+(?:des\\s+)?gains','total\\s+r[ée]mun[ée]ration','brut\\s+imposable','\\bbrut\\b'],
   net:['net\\s+[àa]\\s+payer','net\\s+pay[ée]'],
   jours:['nombre\\s+de\\s+jours','nb\\.?\\s*(?:de\\s*)?jours','jours?\\s+(?:travaill\\w+|pay\\w+|pr[ée]sence|de\\s+travail)'],
@@ -82,7 +89,7 @@ function baseFromRetenue(lines,PC){
 /* matricule interne */
 function miOk(t){t=String(t||'').trim();if(t.length<2||t.length>16||!/\d/.test(t))return false;
   if(digits(t).length===11&&/^[\d\s.\-]+$/.test(t))return false;
-  if(/^(19|20)\d{2}$/.test(t)||/^\d{1,2}[\/\-]\d{2,4}$/.test(t))return false;return true;}
+  if(/^\d{1,2}[\/\-]\d{2,4}$/.test(t))return false;return true;}  /* un matricule de 4 chiffres (ex. 1967) n'est PAS une année */
 function miToken(s){const m=/^[\s:.\-–=]*([A-Za-z]{0,6}[-\/]?\d{1,12}[A-Za-z]?|[A-Za-z0-9][A-Za-z0-9\-\/]{2,14})/.exec(s);if(!m)return '';const t=m[1].trim();return miOk(t)?t:'';}
 function findMi(lines,custom,cnpsDigits){
   const res=(custom||[]).map(custRe).concat(T.LABELS.mi.map(s=>new RegExp(s,'i')));
@@ -102,11 +109,57 @@ function findMi(lines,custom,cnpsDigits){
   return null;
 }
 
+/* ---------- jours EXACTS : lus sur le bulletin, sinon déduits des heures / absences (jamais « 30 pour tous ») ---------- */
+const fl=s=>{const m=/\d+(?:[.,]\d+)?/.exec(s);return m?parseFloat(m[0].replace(',','.')):0;};
+T.deriveDays=function(lines,R,hmois,r){
+  const out={mode:'def',jours:30,label:'aucune info jours/heures sur le bulletin → 30 par défaut'};
+  const after=(re)=>{for(let i=0;i<lines.length;i++){const m=re.exec(lines[i]);if(!m)continue;
+    let v=fl(lines[i].slice(m.index+m[0].length));if(!v&&lines[i+1]&&(lines[i+1].match(/[A-Za-zÀ-ÿ]/g)||[]).length<=6)v=fl(lines[i+1]);
+    if(v>0)return {v,label:m[0].trim()};}return null;};
+  /* 0. lignes Sage « Salaire de Base mensuel » (colonne Nombre = HEURES) et « Salaire brut Jour » (colonne Nombre = JOURS) ;
+        « Horaire » de l'en-tête = heures du mois (ex. 173.330). Une seule des deux lignes est en général remplie ; si les deux le sont, on additionne. */
+  const colNombre=re=>{for(let i=0;i<lines.length;i++){const m=re.exec(lines[i]);if(!m)continue;
+    let seg=lines[i].slice(m.index+m[0].length),v=seg.match(/\d+(?:[.,]\d+)?/);
+    if(!v&&lines[i+1]&&(lines[i+1].match(/[A-Za-zÀ-ÿ]/g)||[]).length<=6)v=lines[i+1].match(/\d+(?:[.,]\d+)?/);
+    if(v)return {v:parseFloat(v[0].replace(',','.')),label:m[0].trim()};}return null;};
+  const sH=colNombre(/salaire\s+de\s+base\s+mensuel/i),sJ=colNombre(/salaire\s+brut\s+jour(?:nalier)?/i);
+  if(sH||sJ){
+    let hs=0;{for(let i=0;i<lines.length&&!hs;i++){if(!/\bhoraire\b/i.test(lines[i])||/taux\s+horaire|salaire\s+horaire/i.test(lines[i]))continue;
+      for(let k=0;k<=2&&lines[i+k];k++){const f=(lines[i+k].match(/\d+(?:[.,]\d+)?/g)||[]).map(x=>parseFloat(x.replace(',','.'))).find(x=>x>=100&&x<=260);if(f){hs=f;break;}}}}
+    const hm0=hs||+hmois||173.33,dj=sJ&&sJ.v>0?sJ.v:0,hh=sH&&sH.v>0?sH.v:0;
+    if(dj||hh){
+      const dH=hh?(hh>=hm0*.995?30:30*hh/hm0):0,tot=Math.max(1,Math.min(30,Math.round(dj+dH)));
+      out.mode=dj&&!hh?'lu':'ded';out.jours=tot;
+      out.label=(dj?'Salaire brut Jour : '+dj+' j':'')+(dj&&hh?' + ':'')+(hh?'Salaire de Base mensuel : '+hh+' h ÷ '+hm0+' h × 30 = '+(Math.round(dH*10)/10)+' j':'');
+      return out;}
+  }
+  /* 1. nombre de jours écrit sur le bulletin */
+  const j=findAmt(lines,R('jours'),'first',0);
+  /* 2. déduction par les heures : jours = 30 × heures travaillées ÷ heures du mois */
+  const H=after(/heures?\s+(?:normales?\s+)?(?:travaill[a-zà-ÿ]*|pay[a-zà-ÿ]*|effectu[a-zà-ÿ]*|r[ée]alis[a-zà-ÿ]*|de\s+travail)(?!\s+sup)|nombre\s+d.?\s*heures(?!\s+sup)|heures\s+normales(?!\s+sup)/i);
+  const ref=after(/heures?\s+(?:contractuelles?|mensuelles?|du\s+mois|th[ée]oriques?|l[ée]gales?)/i);
+  const hm=(ref&&ref.v>=100&&ref.v<=260)?ref.v:(+hmois||173.33);
+  let dh=0;if(H&&H.v>0&&H.v<=hm*1.5){dh=H.v>=hm*.995?30:Math.max(1,Math.min(30,Math.round(30*H.v/hm)));}
+  /* 3. déduction par les absences non payées : jours = 30 − absences */
+  let da=0,ab=null;
+  for(const L of lines){if(!/absence|sans\s+solde|non\s+pay[ée]/i.test(L)||/pay[ée]e?s?\b(?!.*non)/i.test(L)&&!/non\s+pay|sans\s+solde/i.test(L))continue;
+    const m=/(?:absences?|sans\s+solde|non\s+pay[a-zà-ÿ]*)[^\d]{0,40}(\d{1,2}(?:[.,]\d+)?)/i.exec(L);if(m){const v=parseFloat(m[1].replace(',','.'));if(v>0&&v<=30){ab={v,label:L.slice(0,40)};break;}}}
+  if(ab)da=Math.max(1,30-Math.round(ab.v));
+  if(j&&j.v>=1&&j.v<=31){out.mode='lu';out.jours=Math.min(30,j.v);out.label=j.label;
+    if(dh&&Math.abs(dh-out.jours)>1)out.alt='jours lus ('+out.jours+') ≠ jours déduits des heures ('+dh+' = 30 × '+H.v+' h ÷ '+hm+' h)';}
+  else if(dh){out.mode='ded';out.jours=dh;out.label=dh===30?'heures du mois complètes ('+H.v+' h)':'déduit : 30 × '+H.v+' h ÷ '+hm+' h = '+dh+' j';}
+  else if(da){out.mode='ded';out.jours=da;out.label='déduit : 30 − '+ab.v+' j d\'absence = '+da+' j';}
+  return out;};
+
 /* ---------- 1. lecture enrichie d'un bulletin (appelée par l'index) ---------- */
 T.enrich=function(r,text,fn){
   const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||(typeof E!=='undefined'?E:[]),MAT=ctx.MAT||{};
   const lines=normLines(text),C=T.custom||{},src=r.src={};
   const R=k=>(C[k]||[]).map(custRe).concat((T.LABELS[k]||[]).map(s=>new RegExp(s,'i')));
+  /* nom : ligne « M NOM PRENOMS » (sans deux-points) */
+  if(!r.nomBul){for(const L of lines){const m=/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+([A-ZÀ-Ý][A-ZÀ-Ý'’\- ]{4,60})$/.exec(L);if(m){r.nomBul=m[1].trim();if(!r.nom)r.nom=r.nomBul;break;}}}
+  /* N° CNPS de l'en-tête : « 392-1033274 / 0 » (le chiffre final est parfois séparé) */
+  if(digits(r.cnps).length!==11){const mc=/(?<!\d)(\d{3})[ .\-]?(\d{7})\s*[\/\-]?\s*(\d)(?!\d)/.exec(lines.join('\n'));if(mc){r.cnps=mc[1]+mc[2]+mc[3];r.cnpsBul=true;}}
   const b=findAmt(lines,R('brut'),'max',1000);if(b){r.brut=b.v;src.brut=b.label;}
   /* cotisable : jamais supérieur au brut, jamais le simple « plafond » */
   let c=findAmt(lines,R('cot'),'max',1000);
@@ -126,7 +179,8 @@ T.enrich=function(r,text,fn){
   if(c){r.cot=c.v;r.cotEst=false;src.cot=c.label;}
   else{r.cot=0;r.cotEst=false;src.cot='non trouvé sur le bulletin';}  /* aucune estimation : case vide et rouge */
   const n=findAmt(lines,R('net'),'max',1000);if(n){r.net=n.v;src.net=n.label;}
-  const j=findAmt(lines,R('jours'),'first',0);if(j&&j.v>=1&&j.v<=31){r.jours=j.v;src.jours=j.label;}
+  {const d=T.deriveDays(lines,R,PC.hmois,r);r.jours=d.jours;r.jMode=d.mode;src.jours=d.label;
+    if(d.alt)r.warn=(r.warn?r.warn+' · ':'')+d.alt;}
   const x=findAmt(lines,R('exc'),'max',1000);if(x){r.exc=x.v;src.exc=x.label;}
   const po=/(?:emploi|poste|fonction|qualification)\s*[:\-]\s*([A-Za-zÀ-ÿ' \/\-]{3,40})/i.exec(lines.join('\n'));if(po)r.poste=po[1].split(/\s{2,}|\s+(?:matricule|cnps|date|cat)/i)[0].trim();
   /* matricule interne + rattachement à la fiche employé */
@@ -173,7 +227,7 @@ T.findRow=function(R,r){
   return j;
 };
 T.merge=function(o,r){
-  ['mi','net','poste','src','cotEst','warn','miAuto','per'].forEach(k=>{if(r[k]!==undefined&&r[k]!=='')o[k]=r[k];});
+  ['mi','net','poste','src','cotEst','warn','miAuto','per','jMode'].forEach(k=>{if(r[k]!==undefined&&r[k]!=='')o[k]=r[k];});
   if(r.mat)o.mat=r.mat;
   if(r.cot&&!r.cotEst)o.cot=r.cot;
 };
@@ -182,6 +236,8 @@ T.merge=function(o,r){
 T.mount=function(ctx){
   T.ctx=ctx;const R=ctx.R,el=ctx.el,g=ctx.g,E=ctx.E,MAT=ctx.MAT;
   if(el.querySelector('#dpx_bar'))return;
+  /* instantané du dernier DIPE (avant lecture des bulletins) : sert à la triangulation */
+  T.prev={};R.forEach(r=>{if(!r.mem)return;const c=digits(r.cnps);const o={nom:r.nom,cnps:c,mi:r.mi||'',brut:r.brut||0,cot:r.cot||0,jours:r.jours||0};if(c.length===11)T.prev[c]=o;if(r.mi)T.prev['m'+normMi(r.mi)]=o;});
   /* libellés mémorisés pour cette entreprise */
   Promise.resolve(ctx.rd('dipe_labels')).then(v=>{if(v&&typeof v==='object')T.custom=v;}).catch(()=>{});
   const css=document.createElement('style');css.textContent=
@@ -212,9 +268,11 @@ T.mount=function(ctx){
     '<button class="s" id="dpx_save">💾 Enregistrer dans les fiches</button>'+
     '<button class="s" id="dpx_re">↻ Relire avec les libellés appris</button>'+
     '<button class="s" id="dpx_lab">🏷 Mes libellés</button>'+
+    '<button class="p" id="dpx_tri" title="Recoupe bulletin / fiche / référentiel CNPS / dernier DIPE">🔺 Triangulation</button>'+
+    '<button class="s" id="dpx_ia">🤖 Assistant CNPS</button>'+
    '</div>'+
    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">'+
-    '<button class="s" id="dpx_exc">🚫 Exclure la sélection</button><button class="s" id="dpx_inc">✔ Réinclure la sélection</button><button class="s" id="dpx_excabs">🚫 Exclure les absents des bulletins</button><button class="p" id="dpx_valabs">✅ Valider les absents des bulletins…</button>'+
+    '<button class="s" id="dpx_exc">🚫 Exclure la sélection</button><button class="s" id="dpx_inc">✔ Réinclure la sélection</button><button class="s" id="dpx_excabs">🚫 Exclure les absents des bulletins</button><button class="s" id="dpx_rep">📋 Rapport de lecture</button><button class="p" id="dpx_valabs">✅ Valider les absents des bulletins…</button>'+
     '<button class="s" id="dpx_addemp">➕ Ajouter les salariés des fiches absents du tableau</button><button class="s" id="dpx_merge">🔗 Fusionner 2 lignes cochées</button>'+
    '</div><div id="dpx_info" class="muted" style="font-size:12px"></div>';
   g('d_t').before(bar);
@@ -233,16 +291,19 @@ T.mount=function(ctx){
     abs:r=>r.old&&!r.seen,
     dup:r=>isDup.has(r),
     est:r=>r.cotEst&&r.brut>0,
+    jconf:r=>r.jMode==='def',
     nomi:r=>!r.mi,
     nocnps:r=>digits(r.cnps).length!==11
   };
-  const CHIPS=[['all','Tous'],['bad','À corriger'],['ok','Complets'],['excl','Exclus'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
+  const CHIPS=[['all','Tous'],['bad','À corriger'],['ok','Complets'],['excl','Exclus'],['new','Nouveaux'],['abs','Absents des bulletins'],['dup','Doublons'],['est','Cotisable estimé'],['jconf','Jours à confirmer (30 par défaut)'],['nomi','Sans matricule interne'],['nocnps','Sans CNPS valide']];
   const cols=[['nom','Nom',150],['mi','Matricule interne',100],['cnps','N° CNPS',112],['jours','Jours',40],['brut','Brut',84],['exc','Except.',64],['cot','Cotisable',84],['mat','Matr. DIPE',54]];
   const status=(r,i)=>{const m=miss(r,i),b=[];
     b.push(r.old&&!r.seen?((r.keep&&!r.excl)?'✅ absent du bulletin · validé':'⚪ absent'):r.old?'🔄 mis à jour':'🆕 nouveau');
     if(!incl(r,i))b.push('🚫 exclu du DIPE');
     if(r.cnpsAuto)b.push('CNPS fiche');if(r.cnpsRef)b.push('📚 CNPS référentiel'+(r.cnpsWas?' (bulletin : '+esc(r.cnpsWas)+')':''));if(r.miAuto)b.push('matr. fiche');if(r.miGen)b.push('matr. généré');
     if(r.cotEst&&r.brut>0)b.push('⚠ cotisable estimé');
+    if(r.jMode==='ded')b.push('🕒 jours déduits ('+esc((r.src&&r.src.jours)||'')+')');
+    if(r.jMode==='def')b.push('⚠ jours : 30 par défaut (rien sur le bulletin)');
     if(isDup.has(r))b.push('⚠ doublon');
     if(r.warn)b.push('⚠ '+esc(r.warn));
     if(m.length)b.push('⚠ '+[...new Set(m)].join(', '));else b.push('✅');
@@ -313,6 +374,7 @@ T.mount=function(ctx){
   $('dpx_inc').onclick=()=>{if(!sel.size){say('Cochez d\'abord des lignes (case à gauche)');return;}const n=sel.size;setExcl([...sel],false);say('✔ '+n+' ligne(s) réincluse(s)');};
   $('dpx_excabs').onclick=()=>{const a=R.filter(r=>r.old&&!r.seen);if(!a.length){say('Aucun ancien salarié absent des bulletins');return;}setExcl(a,true);say('🚫 '+a.length+' ancien(s) salarié(s) absent(s) des bulletins exclu(s)');};
 
+  $('dpx_rep').onclick=()=>T.report(false);
   /* --- valider les anciens salariés absents des bulletins --- */
   $('dpx_valabs').onclick=()=>{
     const A=R.filter(r=>r.old&&!r.seen);
@@ -334,6 +396,103 @@ T.mount=function(ctx){
     w.querySelector('#va_ok').onclick=()=>apply(true);
     w.querySelector('#va_only').onclick=()=>apply(false);
   };
+
+  /* --- IA : relecture des bulletins signalés, SANS rien appliquer sans votre validation --- */
+  const maskTxt=(txt,row)=>{let t=String(txt||'');
+    t=t.replace(/^(?:M\.?|MME|MLLE|MR|MONSIEUR|MADAME)\s+[A-ZÀ-Ý][A-ZÀ-Ý'’\- ]{4,60}$/gm,'M [NOM MASQUÉ]');
+    t=t.replace(/(?<!\d)\d{3}[ .\-]?\d{7}\s*[\/\-]?\s*\d(?!\d)/g,'[CNPS MASQUÉ]');
+    String((row&&row.nom)||'').split(/\s+/).filter(w=>w.length>=3).forEach(w=>{t=t.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'***');});
+    return t;};
+  async function aiRead(a){
+    const sl=a.x.slip,row=a.x.row,txt=sl._t||row._t||'';
+    if(!txt)return {err:'pas de texte lu pour ce bulletin'};
+    if(typeof window.TERH_callAI!=='function')return {err:'service IA non disponible dans cette page'};
+    const prompt='Tu lis le texte brut (extrait d\'un PDF) d\'un bulletin de paie camerounais (Sage). Réponds UNIQUEMENT par un objet JSON, sans texte autour : {"matricule":"","brut":0,"base_pension_vieillesse_cnps":0,"jours":0}.\n'+
+      '- matricule : la valeur sous l\'en-tête « Matricule » (pas le N° de Sécurité Sociale).\n- brut : le montant de « Total Brut » (entier, sans séparateur).\n'+
+      '- base_pension_vieillesse_cnps : le PREMIER montant (colonne Base) de la ligne « Pension vieillesse CNPS » ; null si cette ligne n\'existe pas.\n- jours : nombre de jours payés si indiqué, sinon null.\n'+
+      'N\'invente RIEN : si tu n\'es pas sûr, mets null. Recopie les montants tels qu\'écrits (146990.000 → 146990).\n\nTEXTE DU BULLETIN :\n'+maskTxt(txt,row);
+    let r;try{r=await window.TERH_callAI({raw:true,messages:[{role:'user',content:prompt}],max_tokens:300},30000);}catch(e){return {err:e.message||String(e)};}
+    const data=r&&r.data,error=r&&r.error;
+    if(error||!data||!data.text)return {err:(error&&error.message)||'pas de réponse de l\'IA'};
+    let j=null;try{j=JSON.parse((/\{[\s\S]*\}/.exec(data.text)||[''])[0]);}catch(e){}
+    if(!j)return {err:'réponse illisible'};
+    const num=v=>{if(v==null||v==='')return 0;const n=typeof v==='number'?v:parseFloat(String(v).replace(/[\s\u00a0\u202f]/g,'').replace(',','.'));return n>0?Math.round(n):0;};
+    const flat=String(txt).replace(/[\s\u00a0\u202f.,]/g,'');
+    const okN=v=>v>0&&flat.includes(String(v));
+    const mi=j.matricule?String(j.matricule).trim():'';
+    const okM=!!mi&&new RegExp('(?<!\\d)'+mi.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?!\\d)').test(txt)&&digits(mi).length!==11;
+    const prop={mi,brut:num(j.brut),cot:num(j.base_pension_vieillesse_cnps),jours:num(j.jours)};
+    /* garde-fou anti-invention : une valeur de l'IA n'est « vérifiée » que si elle figure réellement dans le texte du bulletin */
+    const ver={mi:okM,brut:okN(prop.brut),cot:okN(prop.cot)&&(!prop.brut||prop.cot<=prop.brut*1.001),jours:prop.jours>=1&&prop.jours<=31};
+    return {prop,ver};}
+  function aiPropose(items){ /* items : [{a,res}] */
+    const F=[['mi','Matricule'],['brut','Brut'],['cot','Cotisable (Pension vieillesse)']],rows=[];
+    items.forEach(({a,res})=>{if(!res||!res.prop)return;F.forEach(([k,lab])=>{const cur=k==='mi'?(a.x.slip.mi||''):(a.x.slip[k]||0),nw=res.prop[k];
+      if(nw&&String(nw)!==String(cur))rows.push({a,k,lab,cur,nw,ok:res.ver[k]});});});
+    if(!rows.length){say('🤖 L\'IA n\'a trouvé aucune valeur différente de la lecture actuelle');return;}
+    const f=v=>typeof v==='number'?v.toLocaleString('fr-FR'):esc(v);
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">🤖 Propositions de l\'IA — à valider</h3><p class="muted" style="font-size:12px;margin:0 0 8px">Rien n\'est appliqué sans votre accord. ✔ = la valeur figure bien dans le texte du bulletin (cochée par défaut). ✖ = introuvable dans le texte : probablement inventée, décochée.</p><div style="display:flex;gap:8px;margin-bottom:8px"><button class="p" id="ai_ok">✅ Appliquer les valeurs cochées</button><button class="s" id="ai_no">Annuler</button></div><div style="max-height:60vh;overflow:auto"><table id="ai_t" style="border-collapse:collapse;width:100%;font-size:12px"></table></div>');
+    w.querySelector('#ai_t').innerHTML='<tr><th></th><th style="text-align:left">Nom</th><th style="text-align:left">Champ</th><th style="text-align:right">Lu actuellement</th><th style="text-align:right">Proposé par l\'IA</th><th>Vérifié</th></tr>'+
+      rows.map((o,i)=>'<tr style="border-top:1px solid rgba(128,128,128,.25)"><td><input type="checkbox" data-p="'+i+'"'+(o.ok?' checked':'')+'></td><td>'+esc(o.a.x.row.nom||o.a.x.slip.nomBul||'')+'</td><td>'+o.lab+'</td><td style="text-align:right">'+(o.cur?f(o.cur):'—')+'</td><td style="text-align:right"><b>'+f(o.nw)+'</b></td><td style="text-align:center">'+(o.ok?'✔':'✖')+'</td></tr>').join('');
+    w.querySelector('#ai_no').onclick=()=>w.remove();
+    w.querySelector('#ai_ok').onclick=()=>{let n=0;
+      w.querySelectorAll('[data-p]').forEach(c=>{if(!c.checked)return;const o=rows[+c.dataset.p],row=o.a.x.row,sl=o.a.x.slip;
+        row.src=row.src||{};
+        if(o.k==='mi'){row.mi=o.nw;row.mat=String(o.nw).slice(-4);row.miAuto=false;sl.mi=o.nw;row.src.mi='IA (validé par vous)';}
+        else{row[o.k]=o.nw;sl[o.k]=o.nw;if(o.k==='cot')row.cotEst=false;row.src[o.k]='IA (validé par vous)';}
+        n++;});
+      w.remove();render();say('🤖 '+n+' valeur(s) de l\'IA appliquée(s) après validation');};}
+  T.aiPropose=aiPropose;T.aiRead=aiRead;
+
+  /* --- rapport de lecture : ce qui a été lu sur chaque bulletin et où ça a été placé --- */
+  T.report=function(auto){
+    const log=(window.__slipLog||[]).filter(x=>x&&x.row);
+    if(!log.length){if(!auto)say('Aucun bulletin lu : lancez d\'abord « Lire les bulletins »');return;}
+    const an=log.map(x=>{const r=x.row,sl=x.slip,p=[];
+      if(!x.matched)p.push('🆕 non rattaché à une ligne existante (nouvelle ligne)');
+      if(!(sl.cot>0))p.push('❌ pas de « Pension vieillesse CNPS » → cotisable 0 → exclu du DIPE');
+      if(!(sl.brut>0))p.push('❌ brut non lu');
+      if(!sl.mi)p.push('⚠ matricule non lu sur le bulletin');
+      if(digits(r.cnps).length!==11)p.push('⚠ N° CNPS invalide');
+      if(r.warn)p.push('⚠ '+r.warn);
+      return {x,p,bad:p.some(t=>/^(❌|🆕)/.test(t))||p.length>0};});
+    const nb=an.filter(a=>a.p.length).length;
+    if(auto&&!nb)return;
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">📋 Rapport de lecture des bulletins ('+log.length+')</h3><p class="muted" style="font-size:12px;margin:0 0 8px"><b>'+nb+'</b> bulletin(s) avec remarque. Pour chacun : ce qui a été lu sur le bulletin (matricule, brut, Pension vieillesse CNPS = cotisable) et la ligne du tableau où c\'est placé. 🔎 ouvre le texte lu pour apprendre un libellé.</p><div style="display:flex;gap:10px;align-items:center;margin-bottom:8px"><label><input type="checkbox" id="rp_only" checked> Remarques seulement</label><button class="p" id="rp_ai">🤖 Relire les bulletins signalés avec l\'IA</button><button class="s" id="rp_close">Fermer</button></div><div style="max-height:64vh;overflow:auto"><table id="rp_t" style="border-collapse:collapse;width:100%;font-size:12px"></table></div>');
+    const t=w.querySelector('#rp_t');
+    const draw=()=>{const only=w.querySelector('#rp_only').checked;
+      t.innerHTML='<tr><th style="text-align:left">Nom (ligne)</th><th>Matr. bulletin</th><th>CNPS retenu</th><th style="text-align:right">Brut lu</th><th style="text-align:right">Cotisable lu</th><th style="text-align:left">Remarques</th><th></th></tr>'+
+      an.map((a,k)=>{if(only&&!a.p.length)return '';const r=a.x.row,sl=a.x.slip;
+        return '<tr style="border-top:1px solid rgba(128,128,128,.25)"><td>'+esc(r.nom||sl.nomBul||'(nom inconnu)')+'</td><td>'+esc(sl.mi||'—')+'</td><td>'+esc(r.cnps||'')+'</td><td style="text-align:right">'+(sl.brut||0).toLocaleString('fr-FR')+'</td><td style="text-align:right">'+(sl.cot||0).toLocaleString('fr-FR')+'</td><td>'+(a.p.length?a.p.map(esc).join('<br>'):'✅')+'</td><td style="white-space:nowrap"><button data-k="'+k+'">🔎</button><button data-ai="'+k+'" title="Relire ce bulletin avec l\'IA">🤖</button></td></tr>';}).join('');
+      t.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const r=an[+b.dataset.k].x.row,i=R.indexOf(r);if(i>-1)openText(i);else say('Ligne introuvable');});};
+    const runAI=async list=>{
+      if(!list.length){say('Aucun bulletin à relire');return;}
+      if(!confirm('Envoyer le texte de '+list.length+' bulletin(s) au service IA en ligne ? (nom et N° CNPS masqués ; rien ne sera appliqué sans votre validation)'))return;
+      const out=[],bt=w.querySelector('#rp_ai'),old=bt.textContent;let err=0;
+      for(let i=0;i<list.length;i++){bt.textContent='🤖 '+(i+1)+'/'+list.length+'…';bt.disabled=true;
+        const res=await aiRead(list[i]);if(res.err){err++;console.warn('IA',res.err);}out.push({a:list[i],res});}
+      bt.textContent=old;bt.disabled=false;
+      if(err===list.length){say('🤖 IA indisponible ou sans réponse ('+((out[0]&&out[0].res.err)||'?')+')');return;}
+      aiPropose(out);};
+    w.querySelector('#rp_ai').onclick=()=>runAI(an.filter(a=>a.p.some(t=>/^(❌|⚠ matricule non lu)/.test(t))).slice(0,25));
+    t.addEventListener('click',ev=>{const b=ev.target.closest('[data-ai]');if(b)runAI([an[+b.dataset.ai]]);});
+    w.querySelector('#rp_only').onchange=draw;w.querySelector('#rp_close').onclick=()=>w.remove();draw();};
+  /* --- validation obligatoire avant de générer le DIPE --- */
+  const dlb=g('d_dl');
+  const reason={cnps:'N° CNPS invalide',brut:'brut manquant',jours:'jours invalides',cot:'pas de Pension vieillesse CNPS (cotisable 0)'};
+  function recap(){
+    const inc=[],exc=[];
+    R.forEach((r,i)=>{if(!incl(r,i))return;const m=[...new Set(miss(r,i))];(m.length?exc:inc).push({r,i,m});});
+    if(!inc.length){say('Aucune ligne valide à générer : corrigez les cases rouges');return;}
+    const f=n=>(n||0).toLocaleString('fr-FR');
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">✅ Validez avant de générer le DIPE</h3><p class="muted" style="font-size:12px;margin:0 0 8px"><b>'+inc.length+'</b> salarié(s) seront dans le DIPE (décochez ceux à retirer). <b>'+exc.length+'</b> ligne(s) incomplète(s) seront <b>exclues</b> (listées en bas).</p><div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><button class="p" id="rc_ok">✅ Valider et générer le DIPE</button><button class="s" id="rc_no">Annuler (corriger d\'abord)</button></div><div style="max-height:56vh;overflow:auto"><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th></th><th style="text-align:left">Nom</th><th>Matricule</th><th>N° CNPS</th><th>Jours</th><th style="text-align:right">Brut</th><th style="text-align:right">Cotisable</th></tr>'+
+      inc.map((o,k)=>'<tr style="border-top:1px solid rgba(128,128,128,.25)"><td><input type="checkbox" data-c="'+k+'" checked></td><td>'+esc(o.r.nom||'')+'</td><td>'+esc(o.r.mi||o.r.mat||'')+'</td><td>'+esc(o.r.cnps||'')+'</td><td>'+(o.r.jours||'')+'</td><td style="text-align:right">'+f(o.r.brut)+'</td><td style="text-align:right">'+f(o.r.cot)+'</td></tr>').join('')+'</table>'+
+      (exc.length?'<h4 style="margin:12px 0 4px">🚫 Exclues du DIPE ('+exc.length+')</h4><table style="border-collapse:collapse;width:100%;font-size:12px">'+exc.map(o=>'<tr style="border-top:1px solid rgba(128,128,128,.25)"><td>'+esc(o.r.nom||'(nom inconnu)')+'</td><td>'+esc(o.r.mi||'')+'</td><td>'+o.m.map(k=>reason[k]||k).join(' · ')+'</td></tr>').join('')+'</table>':'')+'</div>');
+    w.querySelector('#rc_no').onclick=()=>w.remove();
+    w.querySelector('#rc_ok').onclick=()=>{
+      w.querySelectorAll('[data-c]').forEach(c=>{if(!c.checked){const r=inc[+c.dataset.c].r;r.excl=true;r.keep=false;}});
+      w.remove();render();T._go=true;dlb.click();};}
+  dlb.addEventListener('click',ev=>{if(T._go){T._go=false;return;}ev.stopImmediatePropagation();ev.preventDefault();T.ia(x=>x.gate(recap),recap);},true);
 
   /* --- ajouter les salariés des fiches qui ne sont pas dans le tableau --- */
   $('dpx_addemp').onclick=()=>{
@@ -420,6 +579,8 @@ T.mount=function(ctx){
     if(!confirm('Relire '+rows.length+' bulletin(s) avec vos libellés ? Les valeurs corrigées à la main seront remplacées.'))return;
     let n=0;rows.forEach(r=>{try{const x=ctx.parseSlip2(r._t,r.nom||'');['brut','cot','exc','jours','mi','mat','net','poste','src','cotEst','warn'].forEach(k=>{if(x[k]!==undefined&&x[k]!=='')r[k]=x[k];});n++;}catch(e){}});
     render();say('↻ '+n+' bulletin(s) relu(s)');};
+  $('dpx_tri').onclick=()=>T.ia(x=>x.openTriangulation());
+  $('dpx_ia').onclick=()=>T.ia(x=>x.openAssistant());
   $('dpx_lab').onclick=()=>{
     const C=T.custom,rows=Object.entries(C).filter(([k,v])=>v&&v.length);
     const w=ctx.openWin('<h3 style="margin:0 0 6px">🏷 Mes libellés appris</h3><p class="muted" style="font-size:12px">Ils s\'ajoutent aux libellés standard. Supprimez ceux qui sont faux. Les libellés standard se modifient dans dipe-plus.js (T.LABELS).</p><div id="dpx_lb"></div>');
