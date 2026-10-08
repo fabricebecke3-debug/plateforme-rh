@@ -728,7 +728,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{const {data,error}=await db.from('entreprises').select('*').order('created_at');if(error)throw error;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){MULTI=isOwnerUser()?false:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','owner_json','web_json','ui_texts_json','signatures_json'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','owner_json','web_json','ui_texts_json','signatures_json'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -952,7 +952,7 @@ const AI_SIZES={xs:{m:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',l:'Très léger',mb:'�
 const AI_SIZE_NOW=()=>{try{const v=localStorage.getItem('terh_ai_size');if(AI_SIZES[v])return v;const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),mem=navigator.deviceMemory||0;return (mobile||(mem&&mem<=4))?'xs':'s';}catch(e){return 's';}};
 const AI_LIST=k=>{const order={xs:['xs'],s:['s','xs'],m:['m','s','xs']}[k]||['s','xs'];return order.map(x=>AI_SIZES[x].m).concat(['Llama-3.2-1B-Instruct-q4f16_1-MLC']);};
 const AI_MODELS=AI_LIST(AI_SIZE_NOW());
-let PARAMS={soc:'TOTAL EMPLOI RH',lieu:'Kribi',tel:'233 43 83 07 / 673 72 23 41 / 697 44 11 58',email:'info@total-emploirh.com',sig:'',fn:'Responsable des Ressources Humaines',client:'ACC',adresse:'B.P 12561 Douala - CAMEROUN',tpl_let:TPL_LET,tpl_cert:TPL_CERT,tpl_de:'',tpl_sanction:'',ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',dash:'',alert_mails:'',alert_jours:'30',last_mail:'',ntfy_topic:'',tg_token:'',tg_chat:'',wa_num:'',auto_push:'',last_push:'',contrats_hist:'',discipline_json:'[]',documents_json:'[]',owner_json:'',web_json:'',ui_texts_json:'[]'};
+let PARAMS={soc:'TOTAL EMPLOI RH',lieu:'Kribi',tel:'233 43 83 07 / 673 72 23 41 / 697 44 11 58',email:'info@total-emploirh.com',sig:'',fn:'Responsable des Ressources Humaines',client:'ACC',adresse:'B.P 12561 Douala - CAMEROUN',tpl_let:TPL_LET,tpl_cert:TPL_CERT,tpl_de:'',tpl_sanction:'',ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',dash:'',alert_mails:'',alert_jours:'30',last_mail:'',ntfy_topic:'',tg_token:'',tg_chat:'',wa_num:'',auto_push:'',last_push:'',contrats_hist:'',perso_extra:'',discipline_json:'[]',documents_json:'[]',owner_json:'',web_json:'',ui_texts_json:'[]'};
 
 let _ENcache=null,_ENver=0,_ENlast=-1;
 function bumpEN(){_ENver++;}
@@ -1335,6 +1335,7 @@ function dash(){
   bars('brl',cnt(ROLES,'role'));
   $('bd').innerHTML=dc.total?`<div class="br"><span>Demandes d’explication</span><i style="width:${dc.total?dc.pending/dc.total*100:0}%"></i><em>${dc.pending}</em></div><div class="br"><span>Réponses reçues</span><i style="width:${dc.total?dc.response/dc.total*100:0}%"></i><em>${dc.response}</em></div><div class="br"><span>Sanctions</span><i style="width:${dc.total?dc.sanction/dc.total*100:0}%"></i><em>${dc.sanction}</em></div><p class="muted">${dc.total} suivi(s) enregistré(s) — <a href="#" id="gdisc">ouvrir le suivi →</a></p>`:'<p class="muted">Aucun suivi disciplinaire enregistré.</p>';
   const AA=A.filter(r=>r.sc!=='ARRÊT');bars('bt',cnt(AA,'tLabel'));bars('bya',cnt(AA.map(r=>({a:r.annee||'N/R'})),'a'));
+  try{xDash(A);}catch(xe){console.warn('xDash',xe);}
   $('dtools').style.display=CAN.params()?'':'none';applyDash();
 }
 
@@ -1432,7 +1433,7 @@ function list(){
   cur.sort((a,b)=>{const x=a[sk]??'',y=b[sk]??'';return(x>y?1:x<y?-1:0)*sd;});
   const avecDoc=cur.filter(r=>r.hasDoc).length;
   $('ct').textContent=cur.length+' agent(s) sur '+E.length+' · '+avecDoc+' dossier(s) en ligne · '+(cur.length-avecDoc)+' absent(s)';
-  $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
+  $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
   applyPerms();
 }
 
@@ -1621,6 +1622,7 @@ document.addEventListener('click',async e=>{
   if(b.dataset.a==='c')openDoc(r,'certificat');
   if(b.dataset.a==='dp')printDossier(r.contrat_url,r.contrat_nom||r.n);
   if(b.dataset.a==='dl')downloadDossier(r.contrat_url,r.contrat_nom||r.n);
+  if(b.dataset.a==='fx')xFiche(r);
   if(b.dataset.a==='e'&&CAN.upd())edit(r);
   if(b.dataset.a==='d'&&CAN.upd())openDisc(r);
   if(b.dataset.a==='t'&&CAN.upd())openTerm(r);
@@ -1652,6 +1654,7 @@ function edit(r){
   });
   $('cu').value=r?.contrat_url||'';
   $('cn').value=r?.contrat_nom||'';
+  try{xFill(r);}catch(e){console.warn(e);}
   finManuelle=!!(r&&r.fin&&r.fin!==calcFin(r.deb));
   updateCnpsInfo();
   $('op').style.display='none';
@@ -1682,7 +1685,7 @@ $('fm').onsubmit=async e=>{
   if(o.tel&&!/^[0-9+\s().-]{8,20}$/.test(o.tel)){toast('Le téléphone contient des caractères invalides');return;}
   const btn=$('fsub');btn.disabled=true;btn.textContent='Enregistrement…';
   try{if(PENDING_FILE){try{btn.textContent='Téléversement du document…';const up=await upContrat(PENDING_FILE);o.contrat_url=up.url;o.contrat_nom=up.nom;try{await logDoc('Contrat',up.nom,'Téléversé à l’enregistrement');}catch(_e){}}catch(upErr){toast('Fiche enregistrée, mais document non téléversé : '+upErr.message);}}
-    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}if(id)await updateEmp(id,o);else await insertEmp(o);toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
+    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}if(id)await updateEmp(id,o);else await insertEmp(o);try{await xSaveForm(o,id);}catch(xe){toast('Fiche enregistrée, mais champs complémentaires non enregistrés : '+xe.message);}toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
   catch(err){toast('Erreur : '+err.message);}
   finally{btn.disabled=false;btn.textContent='Enregistrer';}
 };
@@ -2011,7 +2014,7 @@ function normPoste(p){
   return x;
 }
 function parseEffectif(rows){
-  const isName=c=>/^NOMS? (ET|&) PRENOMS?$/.test(nA(c));
+  const isName=c=>{const t=nA(c).replace(/\(.*?\)/g,' ').replace(/[^A-Z& ]/g,' ').replace(/\s+/g,' ').trim();return /^(NOMS?( (ET|&))? ?PRENOMS?|NOMS?( COMPLETS?)?|NOM PRENOM|EMPLOYES?|AGENTS?|SALARIES?|PERSONNEL|IDENTITE)$/.test(t);};
   const hi=rows.findIndex(r=>r.some(isName));
   if(hi<0)throw new Error('Colonne « NOMS ET PRENOMS » introuvable');
   const top=rows[hi],sub=rows[hi+1]||[],nc=top.findIndex(isName);
@@ -2019,31 +2022,38 @@ function parseEffectif(rows){
   const W=Math.max(top.length,sub.length),lab=[];let g='';
   for(let c=0;c<W;c++){const t=nA(top[c]),s=subHead?nA(sub[c]):'';if(t)g=t;else if(!s)g='';lab[c]=s?((t||g)+' | '+s):t;}
   const find=(re,ex)=>lab.findIndex(l=>l&&re.test(l)&&!(ex&&ex.test(l)));
-  const col={n:nc,p:find(/POSTE|FONCTION/),tel:find(/TEL/),g:find(/^GENRE|SEXE/),cnps:find(/CNPS/,/STATUT/),dv:find(/VISITE|MEDIC|APTITUDE/,/STATUT|PROCHAINE|JOURS|RESTANT/),dn:find(/NAISS/),t:find(/^TYPE|TYPE (DE )?CONTRAT|NATURE (DU )?CONTRAT|^CONTRAT$|CATEGORIE CONTRAT/,/STATUT|JOURS|RESTANT/),da:find(/ARRET/,/MOTIF/),ma:find(/MOTIF/)};
+  const col={n:nc,p:find(/POSTE|FONCTION/),tel:find(/TEL|PORTABLE|MOBILE/,/URGENC|PREVENIR|SECOND|DOMICILE|BUREAU|AUTRE|FIXE/),g:find(/^GENRE|SEXE/),cnps:find(/CNPS/,/STATUT/),dv:find(/VISITE|MEDIC|APTITUDE/,/STATUT|PROCHAINE|JOURS|RESTANT/),dn:find(/NAISS/,/LIEU|VILLE/),t:find(/^TYPE|TYPE (DE )?CONTRAT|NATURE (DU )?CONTRAT|^CONTRAT$|CATEGORIE CONTRAT/,/STATUT|JOURS|RESTANT/),da:find(/ARRET/,/MOTIF/),ma:find(/MOTIF/),pn:(/PRENOM/.test(lab[nc]||'')?-1:find(/^PRENOMS?$/))};
+  /* champs complémentaires : toute colonne connue du catalogue XF est rattachée à la fiche */
+  const xcol={},usedX=new Set(Object.values(col).filter(x=>x>=0));
+  lab.forEach((l,c)=>{if(!l||usedX.has(c))return;for(const f of XF){if(xcol[f[0]]!==undefined)continue;if(f[4].test(l)&&!(f[5]&&f[5].test(l))){xcol[f[0]]=c;usedX.add(c);break;}}});
   const D=[],Fn=[];
-  lab.forEach((l,c)=>{if(!l||/STATUT|JOURS|RESTANT|ARRET/.test(l))return;if(/DEBUT|\bDEB\b/.test(l))D.push(c);else if(/(^|[ |])FIN( |$)|ECHEANCE/.test(l))Fn.push(c);});
+  lab.forEach((l,c)=>{if(!l||/STATUT|JOURS|RESTANT|ARRET|ESSAI|CNI|IDENTITE|EXPIR|NAISS|EMBAUCHE|VISITE|PASSEPORT|PERMIS|CONGE|ALERTE/.test(l))return;if(/DEBUT|\bDEB\b/.test(l))D.push(c);else if(/(^|[ |])FIN( |$)|ECHEANCE/.test(l))Fn.push(c);});
   const used=new Set(),pairs=D.map(dc=>{const fc=Fn.find(f=>f>dc&&!used.has(f));if(fc!=null)used.add(fc);return{dc,fc:fc??-1,year:(lab[dc].match(/20\d\d/)||[])[0]||''};});
   const body=rows.slice(hi+(subHead?2:1)),colL=c=>{let x='',n=c+1;while(n>0){x=String.fromCharCode(65+(n-1)%26)+x;n=Math.floor((n-1)/26);}return x;};
   let mode='en-têtes';
   if(!pairs.length||!pairs.some(p=>body.some(r=>pdate(r[p.dc])))){
-    const skip=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dv,col.dn,col.da,col.ma,col.t].filter(x=>x>=0)),cand=[];
+    const skip=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dv,col.dn,col.da,col.ma,col.t,...Object.values(xcol)].filter(x=>x>=0)),cand=[];
     for(let c=0;c<W;c++){if(skip.has(c))continue;let n=0,ok=0;body.forEach(r=>{const v=r[c];if(v===''||v==null)return;n++;if(pdate(v))ok++;});if(n>=3&&ok/n>=.6)cand.push(c);}
     pairs.length=0;for(let i=0;i+1<cand.length;i+=2)pairs.push({dc:cand[i],fc:cand[i+1],year:(lab[cand[i]]||'').match(/20\d\d/)?.[0]||''});
     mode='contenu des cellules (en-têtes non reconnus)';
   }
   const isPend=v=>/^EN ?COURS$/.test(nA(v));
   if(col.dv<0||!body.some(r=>pdate(r[col.dv]))){
-    const pc=new Set(pairs.flatMap(p=>[p.dc,p.fc])),skip2=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dn,col.da,col.ma,col.t].filter(x=>x>=0));
+    const pc=new Set(pairs.flatMap(p=>[p.dc,p.fc])),skip2=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dn,col.da,col.ma,col.t,...Object.values(xcol)].filter(x=>x>=0));
     for(let c=0;c<W;c++){if(pc.has(c)||skip2.has(c))continue;let n=0,ok=0,dd=0;body.forEach(r=>{const v=r[c];if(v===''||v==null)return;n++;if(pdate(v)){ok++;dd++;}else if(isPend(v))ok++;});if(dd>=3&&n&&ok/n>=.6){col.dv=c;mode+=' · visite lue par le contenu (col. '+colL(c)+')';break;}}
   }
   const T0=LD(T),out=[],rep={corr:[],nodates:[],unkG:[],dup:[],multi:0,cdi:0,found:[]};
   const nm={n:'Nom',p:'Poste',tel:'Téléphone',g:'Sexe',cnps:'N° CNPS',dv:'Date visite',dn:'Date naissance',t:'Type contrat',da:'Date arrêt'};
   Object.keys(nm).forEach(k=>{if(col[k]>=0)rep.found.push(nm[k]);});
-  {const us=new Set([...Object.values(col).filter(x=>x>=0),...pairs.flatMap(p=>[p.dc,p.fc])]);rep.unknown=[];lab.forEach((l,c)=>{if(l&&!us.has(c)&&!/^N$|^N ?O?$|^N°?$/.test(l))rep.unknown.push(colL(c)+' « '+l+' »');});}
+  const xcust=[];
+  {const us=new Set([...Object.values(col).filter(x=>x>=0),...Object.values(xcol),...pairs.flatMap(p=>[p.dc,p.fc])]);rep.unknown=[];lab.forEach((l,c)=>{if(!l||us.has(c)||/^N$|^N ?O?$|^N°?$|^NO$/.test(l))return;
+    if(/STATUT|JOURS|RESTANT|ECHEANCE|ALERTE|PROCHAINE|^SOCIETE$|^AGE$|ANCIENNETE|DEBUT|\bDEB\b|(^|[ |])FIN( |$)/.test(l)){rep.unknown.push(colL(c)+' « '+l+' »');return;}
+    xcust.push([c,(String(top[c]??'').trim()||l).slice(0,60)]);});}
+  rep.nx=Object.keys(xcol).length+xcust.length;rep.xl=[...Object.keys(xcol).map(k=>XF.find(f=>f[0]===k)[1]),...xcust.map(x=>x[1])];
   rep.mode=mode;pairs.forEach(p=>rep.found.push('Contrat '+(p.year||'?')+' (col. '+colL(p.dc)+(p.fc>=0?'–'+colL(p.fc):'')+')'));
   const seen=new Set(),shown=x=>(x instanceof Date||typeof x==='number')?F(pdate(x)):String(x??'').trim();
   for(const r of rows.slice(hi+(subHead?2:1))){
-    const name=String(r[nc]??'').replace(/\s+/g,' ').trim();
+    const name=(String(r[nc]??'')+(col.pn>=0?' '+String(r[col.pn]??''):'')).replace(/\s+/g,' ').trim();
     if(!name)continue;
     const key=nName(name);if(seen.has(key)){rep.dup.push(name);continue;}seen.add(key);
     let isCDI=false,tx='';
@@ -2073,13 +2083,105 @@ function parseEffectif(rows){
     const t=isCDI?'CDI':(tx||'TEMPORAIRE');
     const gRaw=col.g>=0?nA(r[col.g]):'';if(!gRaw)rep.unkG.push(name);
     let cn=String(r[col.cnps]??'').trim();if(cnpsStatut(cn)==='En cours')cn='';
-    const o={n:name,p:normPoste(col.p>=0?r[col.p]:''),g:/^F/.test(gRaw)?'F':'M',dn:col.dn>=0?pdate(r[col.dn]):'',t,deb:cur?cur.deb:'',fin:t==='CDI'?'':(cur?cur.fin:''),tel:String(r[col.tel]??'').replace(/[\s.]/g,''),cnps:cn,dv:col.dv>=0?pdate(r[col.dv]):'',darret:col.da>=0?pdate(r[col.da]):'',marret:col.ma>=0?String(r[col.ma]??'').trim():'',_dur:cur?Math.round((P(cur.fin)-P(cur.deb))/day)+1:0,_explicit:isCDI||!!tx,_year:cur?cur.year:'',_blocks:blocks};
+    const o={n:name,p:normPoste(col.p>=0?r[col.p]:''),g:/^F/.test(gRaw)?'F':'M',dn:col.dn>=0?pdate(r[col.dn]):'',t,deb:cur?cur.deb:'',fin:t==='CDI'?'':(cur?cur.fin:''),tel:String(r[col.tel]??'').replace(/[\s.]/g,''),cnps:cn,dv:col.dv>=0?pdate(r[col.dv]):'',darret:col.da>=0?pdate(r[col.da]):'',marret:col.ma>=0?String(r[col.ma]??'').trim():'',_dur:cur?Math.round((P(cur.fin)-P(cur.deb))/day)+1:0,_explicit:isCDI||!!tx,_year:cur?cur.year:'',_blocks:blocks,_x:xRow(r,xcol,xcust)};
     if(t==='CDI')rep.cdi++;
     if(!o.deb&&t!=='CDI')rep.nodates.push(name);
     out.push(o);
   }
   return{out,rep};
 }
+/* ======================================================================
+   CHAMPS COMPLÉMENTAIRES DU PERSONNEL
+   Stockés dans parametres.perso_extra (JSON, clé = nom normalisé) : aucune
+   modification de la base. Un champ n'apparaît (fiche, tableau de bord,
+   export) que s'il est renseigné pour au moins une personne.
+   XF = [clé, libellé, type, groupe, regex colonne Excel (en-têtes normalisés), exclusion]
+   ====================================================================== */
+const XF=[
+ ['mat','Matricule','text','Identité',/MATRICULE/,/CNPS|MANAGER|SUPERIEUR|RESPONSABLE|CHEF|N\+1/],
+ ['lieun','Lieu de naissance','text','Identité',/LIEU.*NAISS|VILLE.*NAISS/],
+ ['nat','Nationalité','text','Identité',/NATIONALITE/],
+ ['sit','Situation familiale','text','Identité',/SITUATION (FAMILIALE|MATRIMONIALE)|ETAT CIVIL/],
+ ['enf','Enfants à charge','number','Identité',/ENFANT/],
+ ['conj','Conjoint(e)','text','Identité',/CONJOINT|EPOUX|EPOUSE/],
+ ['cni','N° CNI / pièce d\'identité','text','Documents',/CNI|CARTE (NATIONALE|D.?IDENTITE)|PIECE D.?IDENTITE|PASSEPORT|IDENTITE/,/EXPIR|VALID|ECHEANCE/],
+ ['cnie','Expiration CNI / pièce','date','Documents',/(CNI|IDENTITE|PASSEPORT|PIECE).*(EXPIR|VALID|ECHEANCE)|(EXPIR|VALID|ECHEANCE).*(CNI|IDENTITE|PASSEPORT|PIECE)/],
+ ['permis','Permis de conduire','text','Documents',/PERMIS/],
+ ['urgt','Contact d\'urgence — téléphone','tel','Contacts',/(URGENC|PREVENIR).*(TEL|NUM|CONTACT)|(TEL|NUM).*(URGENC|PREVENIR)/],
+ ['urgn','Contact d\'urgence — nom','text','Contacts',/URGENC|PREVENIR/],
+ ['tel2','Téléphone secondaire','tel','Contacts',/TEL|PORTABLE|MOBILE|CONTACT/],
+ ['mail','E-mail','email','Contacts',/MAIL|COURRIEL/],
+ ['adr','Adresse / domicile','text','Contacts',/ADRESSE|DOMICILE|RESIDENCE|QUARTIER/,/MAIL/],
+ ['ville','Ville','text','Contacts',/^VILLE$|^LOCALITE$/],
+ ['dept','Département / service','text','Poste',/DEPARTEMENT|SERVICE|DIRECTION|DIVISION/],
+ ['site','Site / lieu de travail','text','Poste',/^SITE$|LIEU (DE )?TRAVAIL|AFFECTATION|AGENCE/],
+ ['mgr','Responsable hiérarchique','text','Poste',/MANAGER|SUPERIEUR|RESPONSABLE|N\+1|SUPERVISEUR/],
+ ['cat','Catégorie / échelon','text','Poste',/CATEGORIE|ECHELON|CLASSIFICATION|COEFFICIENT|^INDICE$/,/CONTRAT/],
+ ['dipl','Diplôme / niveau d\'études','text','Poste',/DIPLOME|NIVEAU D.?ETUDE|FORMATION INITIALE/],
+ ['niv','Niveau / qualification','text','Poste',/^NIVEAU$|^QUALIFICATION$/],
+ ['stat','Statut RH','text','Poste',/^STATUT$|^STATUT (RH|EMPLOYE|AGENT|ADMINISTRATIF)$|SITUATION ADMINISTRATIVE/],
+ ['emb','Date d\'embauche','date','Contrat',/EMBAUCHE|DATE D.?ENTREE|DATE D.?ARRIVEE/],
+ ['essai','Fin de période d\'essai','date','Contrat',/ESSAI/],
+ ['banque','Banque','text','Coordonnées bancaires',/^BANQUE$|NOM DE LA BANQUE|ETABLISSEMENT BANCAIRE/],
+ ['rib','RIB / n° de compte','text','Coordonnées bancaires',/\bRIB\b|\bIBAN\b|NUMERO DE COMPTE|N DE COMPTE|COMPTE BANCAIRE/],
+ ['gs','Groupe sanguin','text','Santé',/GROUPE SANGUIN/],
+ ['obs','Observations','textarea','Divers',/OBSERVATION|COMMENTAIRE|REMARQUE|NOTES?$/,/ARRET/]
+];
+const XG=['Identité','Documents','Contacts','Poste','Contrat','Coordonnées bancaires','Santé','Divers'];
+const xAll=()=>{try{return JSON.parse(PARAMS.perso_extra||'{}')||{};}catch(e){return{};}};
+const xGet=n=>xAll()[nName(n)]||{};
+const xLbl=k=>k.startsWith('c:')?k.slice(2):((XF.find(f=>f[0]===k)||[])[1]||k);
+function xRow(r,xcol,xcust){const x={};
+  for(const [k,c] of Object.entries(xcol)){const f=XF.find(f=>f[0]===k);let v=r[c];if(v==null||v==='')continue;
+    if(f[2]==='date'){const d=pdate(v);v=d||String(v).trim();}
+    else v=(v instanceof Date)?LD(v):String(v).replace(/\s+/g,' ').trim();
+    if(v!=='')x[k]=v;}
+  for(const [c,l] of xcust){let v=r[c];if(v==null||v==='')continue;v=(v instanceof Date)?LD(v):(typeof v==='number'&&v>20000&&v<80000&&/DATE|NAISS|EXPIR|ECHEANCE/i.test(l))?pdate(v):String(v).replace(/\s+/g,' ').trim();if(v!=='')x['c:'+l]=v;}
+  return x;}
+async function xMerge(out){const all=xAll();let n=0;out.forEach(o=>{if(!o._x||!Object.keys(o._x).length)return;const k=nName(o.n);all[k]={...(all[k]||{}),...o._x};n++;});if(n)await saveParam('perso_extra',JSON.stringify(all));return n;}
+function xFormHTML(){
+  return '<details open style="grid-column:1/-1;border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin:6px 0"><summary style="cursor:pointer;font-weight:700">🗂 Informations complémentaires du dossier</summary>'
+   +XG.map(g=>{const fs=XF.filter(f=>f[3]===g);return '<h3 style="margin:12px 0 4px;font-size:13px;color:var(--mu)">'+esc(g)+'</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'
+     +fs.map(f=>'<label>'+esc(f[1])+(f[2]==='textarea'?'<textarea id="x_'+f[0]+'" rows="2" style="width:100%"></textarea>':'<input id="x_'+f[0]+'" type="'+(f[2]==='date'?'date':f[2]==='number'?'number':f[2]==='email'?'email':f[2]==='tel'?'tel':'text')+'"'+(f[2]==='number'?' min="0"':'')+'>')+'</label>').join('')+'</div>';}).join('')
+   +'<div id="x_custom" style="margin-top:10px"></div></details>';}
+function xInit(){const a=$('f_info');if(!a||$('x_mat'))return;a.insertAdjacentHTML('beforebegin',xFormHTML());}
+function xFill(r){xInit();const x=r?xGet(r.n):{};XF.forEach(f=>{const e=$('x_'+f[0]);if(e)e.value=x[f[0]]||'';});
+  const cs=Object.keys(x).filter(k=>k.startsWith('c:'));
+  $('x_custom').innerHTML=cs.length?'<h3 style="margin:8px 0 4px;font-size:13px;color:var(--mu)">Autres informations (colonnes importées)</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+cs.map(k=>'<label>'+esc(k.slice(2))+'<input data-xc="'+esc(k)+'" value="'+esc(x[k])+'"></label>').join('')+'</div>':'';}
+function xCollect(){const x={};XF.forEach(f=>{const e=$('x_'+f[0]);const v=e?String(e.value||'').trim():'';if(v)x[f[0]]=v;});document.querySelectorAll('#x_custom [data-xc]').forEach(e=>{const v=String(e.value||'').trim();if(v)x[e.dataset.xc]=v;});return x;}
+async function xSaveForm(o,id){if(!$('x_mat'))return;const x=xCollect();
+  if(x.mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.mail))throw new Error('e-mail invalide');
+  const all=xAll();const old=id?E.find(e=>String(e.id)===String(id)):null;if(old&&nName(old.n)!==nName(o.n))delete all[nName(old.n)];
+  if(Object.keys(x).length)all[nName(o.n)]=x;else delete all[nName(o.n)];
+  await saveParam('perso_extra',JSON.stringify(all));}
+function xFiche(r){
+  const x=xGet(r.n),core=[['Nom et prénoms',r.n],['Poste',r.p],['Genre',r.g==='F'?'Féminin':'Masculin'],['Date de naissance',r.dn?F(r.dn)+(r.age!=null?' ('+r.age+' ans)':''):''],['Type de contrat',r.tLabel||r.t],['Début',r.deb?F(r.deb):''],['Fin',r.t==='CDI'?'':(r.finC?F(r.finC):'')],['Téléphone',r.tel],['N° CNPS',r.cnps],['Dernière visite médicale',r.dv?F(r.dv):'']];
+  const isD=k=>(XF.find(f=>f[0]===k)||[])[2]==='date',fv=(k,v)=>isD(k)&&/^\d{4}-\d\d-\d\d$/.test(v)?F(v):v;
+  const sec=(t,rows)=>{rows=rows.filter(a=>a[1]!==''&&a[1]!=null);return rows.length?'<h3 style="margin:14px 0 4px">'+esc(t)+'</h3><table style="width:100%;border-collapse:collapse">'+rows.map(a=>'<tr><td style="padding:3px 8px;border-bottom:1px solid var(--bd);width:42%;color:var(--mu)">'+esc(a[0])+'</td><td style="padding:3px 8px;border-bottom:1px solid var(--bd)">'+esc(String(a[1]))+'</td></tr>').join('')+'</table>':'';};
+  let body=sec('Informations principales',core);
+  XG.forEach(g=>{body+=sec(g,XF.filter(f=>f[3]===g&&x[f[0]]).map(f=>[f[1],fv(f[0],x[f[0]])]));});
+  body+=sec('Autres informations',Object.keys(x).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),x[k]]));
+  const w=document.createElement('div');w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  w.innerHTML='<div class="c" style="max-width:720px;width:100%;max-height:90vh;overflow:auto"><div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">🗂 Fiche complète — '+esc(r.n)+'</h2><button class="s" id="xf_pr">🖨️ Imprimer</button>'+(CAN.upd()?'<button class="s" id="xf_ed">✏️ Modifier</button>':'')+'<button class="s" id="xf_x">Fermer</button></div><div id="xf_b">'+body+'</div>'+(Object.keys(x).length?'':'<p class="muted" style="margin-top:10px">Aucune information complémentaire enregistrée : utilisez ✏️ Modifier ou importez un fichier Excel contenant ces colonnes.</p>')+'</div>';
+  document.body.appendChild(w);
+  w.querySelector('#xf_x').onclick=()=>w.remove();w.onclick=e=>{if(e.target===w)w.remove();};
+  w.querySelector('#xf_pr').onclick=()=>printHTML('Fiche — '+r.n,'<h2>Fiche du personnel — '+esc(r.n)+'</h2>'+body,'table{width:100%;border-collapse:collapse}td{border-bottom:1px solid #ccc;padding:3px 6px}');
+  const eb=w.querySelector('#xf_ed');if(eb)eb.onclick=()=>{w.remove();edit(r);};}
+function xDash(A){
+  const g=$('dgrid');if(!g)return;g.querySelectorAll('[data-x]').forEach(e=>e.remove());
+  const all=xAll(),rows=A.map(r=>({r,x:all[nName(r.n)]||{}})),T0=LD(T);
+  const add=(key,title,fill)=>{const c=document.createElement('div');c.className='c';c.dataset.w='x_'+key;c.dataset.x='1';c.innerHTML='<h2>'+title+'</h2><div id="xb_'+key+'"></div>';g.appendChild(c);fill('xb_'+key);};
+  [['dept','🏢 Effectif par département'],['site','📍 Effectif par site'],['sit','👪 Situation familiale'],['nat','🌍 Nationalités'],['cat','🪜 Catégories / échelons'],['niv','🎚 Niveaux'],['dipl','🎓 Diplômes'],['stat','📌 Statut RH'],['ville','🏙 Villes']].forEach(([k,t])=>{
+    if(!rows.some(a=>a.x[k]))return;const o={};rows.forEach(a=>{const v=a.x[k]||'N/R';o[v]=(o[v]||0)+1;});add(k,t,id=>bars(id,o,10));});
+  if(rows.some(a=>a.x.enf!==undefined&&a.x.enf!=='')){const n=rows.map(a=>+a.x.enf).filter(v=>!isNaN(v)&&v>=0);add('enf','👶 Enfants à charge',id=>{$(id).innerHTML='<div class="br"><span>Total d\'enfants</span><i style="width:100%"></i><em>'+n.reduce((a,b)=>a+b,0)+'</em></div><div class="br"><span>Agents avec enfants</span><i style="width:'+(A.length?n.filter(v=>v>0).length/A.length*100:0)+'%"></i><em>'+n.filter(v=>v>0).length+'</em></div>';});}
+  const dd=(k,h)=>{const o={'Expirées':0,'< 90 jours':0,'Valides':0};rows.forEach(a=>{const v=a.x[k];if(!v||!/^\d{4}-\d\d-\d\d$/.test(v))return;const d=P(v);if(d<T)o['Expirées']++;else if(d<=new Date(+T+90*day))o['< 90 jours']++;else o['Valides']++;});return o;};
+  if(rows.some(a=>/^\d{4}-/.test(a.x.cnie||''))){const o=dd('cnie');add('cnie','🪪 CNI / pièces d\'identité',id=>bars(id,o));}
+  if(rows.some(a=>/^\d{4}-/.test(a.x.essai||''))){const o={'En cours':0,'Se termine ≤ 30 j':0,'Terminée':0};rows.forEach(a=>{const v=a.x.essai;if(!v||!/^\d{4}-/.test(v))return;const d=P(v);if(d<T)o['Terminée']++;else if(d<=new Date(+T+30*day))o['Se termine ≤ 30 j']++;else o['En cours']++;});add('essai','🧪 Périodes d\'essai',id=>bars(id,o));}
+}
+function xCols(){const all=xAll(),keys=new Set();Object.values(all).forEach(x=>Object.keys(x).forEach(k=>keys.add(k)));
+  const ord=[...XF.map(f=>f[0]).filter(k=>keys.has(k)),...[...keys].filter(k=>k.startsWith('c:')).sort()];
+  return ord.map(k=>({h:xLbl(k).toUpperCase(),w:18,t:(XF.find(f=>f[0]===k)||[])[2]==='date'?'date':undefined,v:r=>(xGet(r.n)[k]||'')}));}
+
 const num=id=>/^\d+$/.test(String(id))?+id:id;
 $('imp').onclick=()=>{
   if(!(ER()==='admin'||ER()==='super_owner'||CAN.perm('data.import'))){
@@ -2096,7 +2198,7 @@ $('fi').onchange=async e=>{
     toast('Lecture du fichier…');
     const wb=XLSX.read(await f.arrayBuffer());
     let best=null;const errs=[];
-    for(const sn of wb.SheetNames){try{const rw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});const r=parseEffectif(rw);r.rep.sheet=sn;const sc=r.out.filter(o=>o.deb).length*1000+r.out.length+(sn==='LISTE DES EMPLOYES'?1:0);if(!best||sc>best.sc)best={...r,sc};}catch(x){errs.push(sn+' : '+x.message);}}
+    for(const sn of wb.SheetNames){try{const rw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});const r=parseEffectif(rw);r.rep.sheet=sn;const sc=r.out.filter(o=>o.deb).length*1000+r.out.length+(sn==='LISTE DES EMPLOYES'?1:0)+(r.rep.nx||0)*1500;if(!best||sc>best.sc)best={...r,sc};}catch(x){errs.push(sn+' : '+x.message);}}
     if(!best)throw new Error(errs[0]||'Aucune feuille exploitable');
     const {out,rep}=best;
     if(!out.length)throw new Error('Aucun employé détecté');
@@ -2113,6 +2215,7 @@ $('fi').onchange=async e=>{
     }
     for(let i=0;i<ins.length;i+=100){const {error}=await db.from('employes').insert(ins.slice(i,i+100).map(toDb));if(error)throw error;}
     if(del)for(let i=0;i<miss.length;i+=100){const {error}=await db.from('employes').delete().in('id',miss.slice(i,i+100).map(x=>num(x.id)));if(error)throw error;}
+    try{rep.xN=await xMerge(out);}catch(xe){rep.xErr=xe.message;}
     try{const Hh=histC();out.forEach(o=>{const k=nName(o.n),m=new Map((Hh[k]||[]).map(b=>[b.d,b]));(o._blocks||[]).forEach(b=>m.set(b.deb,{y:b.year,d:b.deb,f:b.fin}));Hh[k]=[...m.values()].sort((a,b)=>a.d<b.d?-1:1);});await saveParam('contrats_hist',JSON.stringify(Hh));}catch(e){rep.histErr=e.message;}
     await loadAll();go('l');
     const yb={};out.forEach(o=>(o._blocks||[]).forEach(b=>{yb[b.year]=(yb[b.year]||0)+1;}));
@@ -2125,7 +2228,8 @@ $('fi').onchange=async e=>{
       'Contrats lus par année : '+(Object.entries(yb).sort().map(([k,v])=>k+' → '+v).join(' · ')||'aucun')+' (une colonne 2027 sera lue automatiquement dès qu\'elle existe)'+(rep.histErr?'\n⚠️ Historique non enregistré : '+rep.histErr:''),
       '✅ '+out.length+' agents lus : '+upd.length+' mis à jour, '+ins.length+' créés'+(del?', '+miss.length+' supprimés':miss.length?' ('+miss.length+' absents du fichier conservés)':''),
       'Colonnes reconnues : '+rep.found.join(', '),
-      'Colonnes NON reconnues (ignorées) : '+((rep.unknown||[]).join(' ; ')||'aucune'),
+      'Champs complémentaires enregistrés dans les fiches ('+(rep.xN||0)+' fiche(s)) : '+((rep.xl||[]).join(', ')||'aucun')+(rep.xErr?'\n⚠️ Non enregistrés : '+rep.xErr:''),
+      'Colonnes ignorées (calculées par l\'application) : '+((rep.unknown||[]).join(' ; ')||'aucune'),
       'Types (CTT par défaut si le fichier ne dit rien) : CDI '+cn('CDI')+' · CTT '+cn('TEMPORAIRE')+' · CDD '+cn('CDD')+' · occasionnels '+cn('OCCASIONNEL'),
       'Sexe : '+out.filter(o=>o.g==='F').length+' F / '+out.filter(o=>o.g==='M').length+' M',
       'Année du contrat en cours : '+Object.entries(yc).map(([k,v])=>k+' → '+v).join(' · '),
@@ -3819,7 +3923,7 @@ async function xport(a,name){return prettyXlsx({sheet:'Personnel',title:'Liste d
  {h:'NOMS ET PRÉNOMS',w:32,v:r=>r.n},{h:'POSTE',w:28,v:r=>r.p},{h:'GENRE',w:12,c:1,v:r=>r.g==='F'?'Féminin':'Masculin'},{h:'DATE DE NAISSANCE',w:14,t:'date',v:r=>r.dn},{h:'ÂGE',w:7,t:'num',v:r=>r.age},
  {h:'TYPE',w:13,c:1,v:r=>r.t==='CDI'?'CDI':r.t==='TEMPORAIRE'?'Temporaire':r.t==='OCCASIONNEL'?'Occasionnel':'CDD'},{h:'ANNÉE CONTRAT',w:10,t:'num',v:r=>r.annee},{h:'DÉBUT CONTRAT',w:14,t:'date',v:r=>r.deb},{h:'FIN CONTRAT',w:14,t:'date',v:r=>r.t==='CDI'?'':r.finC},
  {h:'JOURS RESTANTS',w:10,t:'num',cf:'jr',v:r=>r.jr},{h:'STATUT CONTRAT',w:14,c:1,cf:'ctr',v:r=>r.sc},{h:'DATE ARRÊT',w:14,t:'date',v:r=>r.darret},{h:'MOTIF ARRÊT',w:28,v:r=>r.marret||''},
- {h:'TÉLÉPHONE',w:16,c:1,v:r=>r.tel},{h:'N° CNPS',w:18,c:1,v:r=>r.cnps},{h:'STATUT CNPS',w:12,c:1,cf:'cnps',v:r=>r.scnpsSafe},{h:'DERNIÈRE VISITE',w:14,t:'date',v:r=>r.dv},{h:'PROCHAINE VISITE',w:14,t:'date',v:r=>r.dvn},{h:'STATUT VISITE',w:13,c:1,cf:'vis',v:r=>r.sv}]});}
+ {h:'TÉLÉPHONE',w:16,c:1,v:r=>r.tel},{h:'N° CNPS',w:18,c:1,v:r=>r.cnps},{h:'STATUT CNPS',w:12,c:1,cf:'cnps',v:r=>r.scnpsSafe},{h:'DERNIÈRE VISITE',w:14,t:'date',v:r=>r.dv},{h:'PROCHAINE VISITE',w:14,t:'date',v:r=>r.dvn},{h:'STATUT VISITE',w:13,c:1,cf:'vis',v:r=>r.sv},...xCols()]});}
 $('exa').onclick=()=>xport(EN(),'personnel-PLATEFORME-RH');$('exl').onclick=()=>xport(cur,'personnel-PLATEFORME-RH-selection');$('exal').onclick=()=>xport(alerts(+$('thr').value),'alertes-contrats');
 $('excg').onclick=()=>prettyXlsx({sheet:'Congés',title:'Gestion des congés',file:'conges',rows:CG,cols:[{h:'EMPLOYÉ',w:30,v:c=>c.n},{h:'POSTE',w:26,v:c=>c.poste},{h:'TYPE',w:22,v:c=>c.type},{h:'DÉBUT',w:14,t:'date',v:c=>c.deb},{h:'FIN',w:14,t:'date',v:c=>c.fin},{h:'JOURS',w:9,t:'num',v:c=>c.jours},{h:'STATUT',w:14,c:1,cf:'cg',v:c=>c.statut},{h:'COMMENTAIRE',w:36,wrap:1,v:c=>c.com}]});
 $('exh').onclick=()=>prettyXlsx({sheet:'Historique',title:'Historique des modifications',file:'historique',rows:HIST,cols:[{h:'DATE',w:18,t:'dt',v:h=>h.created_at},{h:'UTILISATEUR',w:32,v:h=>h.user_email||''},{h:'TABLE',w:14,c:1,v:h=>h.table_name},{h:'OPÉRATION',w:14,c:1,v:h=>h.operation},{h:'ENREGISTREMENT',w:36,v:h=>h.record_id}]});
