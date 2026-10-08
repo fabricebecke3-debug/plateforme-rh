@@ -252,6 +252,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   <button class="s" id="rfb" title="Actualiser les données">🔄</button><button class="s" id="inst" style="display:none">📲 Installer</button><button class="s" id="hlp">❓ Aide</button>
   <button class="s" id="aib">🤖 IA</button>
   <button class="s" id="imp">⬆ Importer</button>
+  <button class="s" id="xcolbtn" style="display:none">🧱 Colonnes</button>
   <button class="s" id="exa">⬇ Exporter</button>
   <img id="myav" alt="" style="display:none;width:30px;height:30px;border-radius:50%;object-fit:cover;vertical-align:middle"><button class="s" id="myph" title="Ma photo / logo">📷</button><button class="s" id="myp">👤 <span id="mn">Mon nom</span></button>
   <button id="lo" style="background:var(--er);color:#fff;border:0;font-weight:700;padding:8px 16px;border-radius:8px;cursor:pointer">🚪 Déconnexion</button>
@@ -727,8 +728,8 @@ function modOn(v){
   const M=curCo()?.modules;if(!Array.isArray(M)||!M.length)return true;
   return !k||M.includes(k);
 }
-async function ensureCompanies(){try{const {data,error}=await db.from('entreprises').select('*').order('created_at');if(error)throw error;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){MULTI=isOwnerUser()?false:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','owner_json','web_json','ui_texts_json','signatures_json'];
+async function ensureCompanies(){try{let {data,error}=await db.from('entreprises').select('*').order('created_at');if(error){const r2=await db.from('entreprises').select('*');if(r2.error)throw r2.error;data=r2.data;error=null;}window.__coErr=null;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){window.__coErr=(e&&e.message)||String(e);const miss=/does not exist|42P01|schema cache|Could not find the table/i.test(window.__coErr);MULTI=isOwnerUser()?!miss:true;CO=null;COS=[];}}
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','owner_json','web_json','ui_texts_json','signatures_json'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -1104,7 +1105,7 @@ function _lv(need){try{const L=_perms().lvl;if(!L)return true;const l=L[MODK_OF(
 const CAN={
   edit:  ()=>['super_owner','admin','editeur'].includes(ER())&&_lv('add'),
   upd:   ()=>['super_owner','admin','editeur'].includes(ER())&&_lv('edit'),
-  del:   ()=>['super_owner','admin'].includes(ER())&&_lv('edit')&&!_perms().nodelete,
+  del:   ()=>['super_owner','admin','editeur'].includes(ER())&&_lv('edit')&&!_perms().nodelete,
   params:()=>['super_owner','admin'].includes(ER()),
   hist:  ()=>['super_owner','admin'].includes(ER()),
   users: ()=>['super_owner','admin'].includes(ER()),
@@ -1336,6 +1337,7 @@ function dash(){
   $('bd').innerHTML=dc.total?`<div class="br"><span>Demandes d’explication</span><i style="width:${dc.total?dc.pending/dc.total*100:0}%"></i><em>${dc.pending}</em></div><div class="br"><span>Réponses reçues</span><i style="width:${dc.total?dc.response/dc.total*100:0}%"></i><em>${dc.response}</em></div><div class="br"><span>Sanctions</span><i style="width:${dc.total?dc.sanction/dc.total*100:0}%"></i><em>${dc.sanction}</em></div><p class="muted">${dc.total} suivi(s) enregistré(s) — <a href="#" id="gdisc">ouvrir le suivi →</a></p>`:'<p class="muted">Aucun suivi disciplinaire enregistré.</p>';
   const AA=A.filter(r=>r.sc!=='ARRÊT');bars('bt',cnt(AA,'tLabel'));bars('bya',cnt(AA.map(r=>({a:r.annee||'N/R'})),'a'));
   try{xDash(A);}catch(xe){console.warn('xDash',xe);}
+  try{xModDash(A);}catch(xe){console.warn('xModDash',xe);}
   $('dtools').style.display=CAN.params()?'':'none';applyDash();
 }
 
@@ -1434,6 +1436,7 @@ function list(){
   const avecDoc=cur.filter(r=>r.hasDoc).length;
   $('ct').textContent=cur.length+' agent(s) sur '+E.length+' · '+avecDoc+' dossier(s) en ligne · '+(cur.length-avecDoc)+' absent(s)';
   $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
+  try{xListCols(cur);}catch(e){console.warn('xListCols',e);}
   applyPerms();
 }
 
@@ -2047,7 +2050,7 @@ function parseEffectif(rows){
   Object.keys(nm).forEach(k=>{if(col[k]>=0)rep.found.push(nm[k]);});
   const xcust=[];
   {const us=new Set([...Object.values(col).filter(x=>x>=0),...Object.values(xcol),...pairs.flatMap(p=>[p.dc,p.fc])]);rep.unknown=[];lab.forEach((l,c)=>{if(!l||us.has(c)||/^N$|^N ?O?$|^N°?$|^NO$/.test(l))return;
-    if(/STATUT|JOURS|RESTANT|ECHEANCE|ALERTE|PROCHAINE|^SOCIETE$|^AGE$|ANCIENNETE|DEBUT|\bDEB\b|(^|[ |])FIN( |$)/.test(l)){rep.unknown.push(colL(c)+' « '+l+' »');return;}
+    if(/^SOCIETE$/.test(l)){rep.unknown.push(colL(c)+' « '+l+' » (code société, ignoré)');return;}
     xcust.push([c,(String(top[c]??'').trim()||l).slice(0,60)]);});}
   rep.nx=Object.keys(xcol).length+xcust.length;rep.xl=[...Object.keys(xcol).map(k=>XF.find(f=>f[0]===k)[1]),...xcust.map(x=>x[1])];
   rep.mode=mode;pairs.forEach(p=>rep.found.push('Contrat '+(p.year||'?')+' (col. '+colL(p.dc)+(p.fc>=0?'–'+colL(p.fc):'')+')'));
@@ -2146,7 +2149,7 @@ function xFormHTML(){
    +'<div id="x_custom" style="margin-top:10px"></div></details>';}
 function xInit(){const a=$('f_info');if(!a||$('x_mat'))return;a.insertAdjacentHTML('beforebegin',xFormHTML());}
 function xFill(r){xInit();const x=r?xGet(r.n):{};XF.forEach(f=>{const e=$('x_'+f[0]);if(e)e.value=x[f[0]]||'';});
-  const cs=Object.keys(x).filter(k=>k.startsWith('c:'));
+  xColsDef().forEach(d=>{if(!('c:'+d.l in x))x['c:'+d.l]='';});const cs=Object.keys(x).filter(k=>k.startsWith('c:'));
   $('x_custom').innerHTML=cs.length?'<h3 style="margin:8px 0 4px;font-size:13px;color:var(--mu)">Autres informations (colonnes importées)</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+cs.map(k=>'<label>'+esc(k.slice(2))+'<input data-xc="'+esc(k)+'" value="'+esc(x[k])+'"></label>').join('')+'</div>':'';}
 function xCollect(){const x={};XF.forEach(f=>{const e=$('x_'+f[0]);const v=e?String(e.value||'').trim():'';if(v)x[f[0]]=v;});document.querySelectorAll('#x_custom [data-xc]').forEach(e=>{const v=String(e.value||'').trim();if(v)x[e.dataset.xc]=v;});return x;}
 async function xSaveForm(o,id){if(!$('x_mat'))return;const x=xCollect();
@@ -2178,9 +2181,130 @@ function xDash(A){
   if(rows.some(a=>/^\d{4}-/.test(a.x.cnie||''))){const o=dd('cnie');add('cnie','🪪 CNI / pièces d\'identité',id=>bars(id,o));}
   if(rows.some(a=>/^\d{4}-/.test(a.x.essai||''))){const o={'En cours':0,'Se termine ≤ 30 j':0,'Terminée':0};rows.forEach(a=>{const v=a.x.essai;if(!v||!/^\d{4}-/.test(v))return;const d=P(v);if(d<T)o['Terminée']++;else if(d<=new Date(+T+30*day))o['Se termine ≤ 30 j']++;else o['En cours']++;});add('essai','🧪 Périodes d\'essai',id=>bars(id,o));}
 }
-function xCols(){const all=xAll(),keys=new Set();Object.values(all).forEach(x=>Object.keys(x).forEach(k=>keys.add(k)));
+function xCols(){const all=xAll(),keys=new Set();xColsDef().forEach(d=>keys.add('c:'+d.l));Object.values(all).forEach(x=>Object.keys(x).forEach(k=>keys.add(k)));
   const ord=[...XF.map(f=>f[0]).filter(k=>keys.has(k)),...[...keys].filter(k=>k.startsWith('c:')).sort()];
   return ord.map(k=>({h:xLbl(k).toUpperCase(),w:18,t:(XF.find(f=>f[0]===k)||[])[2]==='date'?'date':undefined,v:r=>(xGet(r.n)[k]||'')}));}
+
+
+
+/* ============ LISTE DU PERSONNEL : colonnes affichées ; RÉESSAI SOCIÉTÉS ============ */
+function xShowKeys(){try{const a=JSON.parse(PARAMS.perso_show||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}}
+function xFmt(v){return /^\d{4}-\d\d-\d\d$/.test(String(v))?F(v):String(v);}
+function xListCols(rows){
+  const tb=$('tb');if(!tb)return;const tbl=tb.closest('table');if(!tbl)return;
+  const keys=xShowKeys();
+  const hr=tbl.querySelector('thead tr');
+  if(hr){hr.querySelectorAll('th[data-xcol]').forEach(t=>t.remove());
+    keys.forEach(k=>{const th=document.createElement('th');th.dataset.xcol='1';th.textContent=xLbl(k);hr.insertBefore(th,hr.lastElementChild);});}
+  [...tb.rows].forEach((tr,i)=>{
+    tr.querySelectorAll('td[data-xcol]').forEach(t=>t.remove());
+    const r=rows[i];if(!r)return;const x=xGet(r.n);
+    keys.forEach(k=>{const td=document.createElement('td');td.dataset.xcol='1';const v=x[k];td.textContent=v?xFmt(v):'—';tr.insertBefore(td,tr.lastElementChild);});
+  });
+  if(!$('xshowbtn')&&CAN.params()&&$('ct')){const b=document.createElement('button');b.className='s';b.id='xshowbtn';b.textContent='👁 Colonnes affichées';b.onclick=openShowCols;$('ct').insertAdjacentElement('afterend',b);}
+}
+function openShowCols(){
+  if(!CAN.params()){toast('🔒 Réservé à l’administrateur');return;}
+  const all=xAll(),cur0=xShowKeys();
+  const keys=[...XF.map(f=>f[0]),...xColsDef().map(d=>'c:'+d.l)];
+  Object.values(all).forEach(x=>Object.keys(x).forEach(k=>{if(k.startsWith('c:')&&!keys.includes(k))keys.push(k);}));
+  const w=document.createElement('div');
+  w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  const draw=()=>{
+    w.innerHTML='<div class="c" style="max-width:600px;width:100%;max-height:90vh;overflow:auto">'
+      +'<div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">👁 Colonnes affichées dans la liste</h2><button class="s" id="sc_x">Fermer</button></div>'
+      +'<p class="muted" style="font-size:12px">Cochez les colonnes à afficher dans le tableau du personnel. Les colonnes ajoutées ou importées y figurent aussi.</p>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">'+keys.map(k=>'<label><input type="checkbox" value="'+esc(k)+'"'+(cur0.includes(k)?' checked':'')+'> '+esc(xLbl(k))+'</label>').join('')+'</div>'
+      +'<button class="p" id="sc_save" style="margin-top:12px">💾 Enregistrer</button></div>';
+    w.querySelector('#sc_x').onclick=()=>w.remove();
+    w.querySelector('#sc_save').onclick=async()=>{
+      const v=[...w.querySelectorAll('input:checked')].map(i=>i.value);
+      try{await saveParam('perso_show',JSON.stringify(v));toast('Colonnes enregistrées');w.remove();list();}catch(err){toast('Erreur : '+err.message);}
+    };
+  };
+  w.onclick=e=>{if(e.target===w)w.remove();};
+  document.body.appendChild(w);draw();
+}
+async function coRetry(){try{await ensureCompanies();await loadAll();renderOwner();}catch(e){toast('Erreur : '+e.message);}}
+
+/* ============ TABLEAU DE BORD PAR MODULE, COLONNES PERSONNALISÉES, MODULES PAR SOCIÉTÉ ============ */
+function xColsDef(){try{const a=JSON.parse(PARAMS.perso_cols||'[]');return Array.isArray(a)?a.filter(d=>d&&d.l):[];}catch(e){return[];}}
+function fillModCard(k){
+  const el=$('mb_'+k);if(!el)return;const rows=(window.MDATA||{})[k];
+  if(!rows){el.innerHTML='<p class="muted">Chargement…</p>';return;}
+  el.innerHTML='<div class="br"><span>Enregistrements</span><i style="width:100%"></i><em>'+rows.length+'</em></div><p class="muted"><a href="#" id="mbgo_'+k+'">ouvrir le module →</a></p>';
+  const a=$('mbgo_'+k);if(a)a.onclick=e=>{e.preventDefault();go(k);};
+}
+function xModDash(A){
+  const g=$('dgrid');if(!g)return;
+  g.querySelectorAll('[data-xm]').forEach(e=>e.remove());
+  const cb=$('xcolbtn');if(cb)cb.style.display=CAN.params()?'':'none';
+  const M6=window.MODULES6||{},D=window.MDATA||{};
+  Object.keys(M6).forEach(k=>{
+    let on=false;try{on=modOn(k);}catch(e){}
+    if(!on)return;
+    const c=document.createElement('div');c.className='c';c.dataset.w='mod_'+k;c.dataset.xm='1';
+    c.innerHTML='<h2>'+esc(M6[k].lbl)+'</h2><div id="mb_'+k+'"></div>';g.appendChild(c);
+    fillModCard(k);
+    if(!D[k]&&window.loadModule6)window.loadModule6(k).then(()=>fillModCard(k),()=>fillModCard(k));
+  });
+  const all=xAll(),AA=A||[];let idx=0;const ck=new Set();
+  xColsDef().forEach(d=>ck.add('c:'+d.l));
+  Object.values(all).forEach(x=>Object.keys(x).forEach(k=>{if(k.startsWith('c:'))ck.add(k);}));
+  ck.forEach(k=>{
+    const o={};AA.forEach(r=>{const v=((all[nName(r.n)]||{})[k])||'';if(v)o[v]=(o[v]||0)+1;});
+    const n=Object.keys(o).length;if(!n||n>12)return;
+    const id='xcb'+(idx++);
+    const c=document.createElement('div');c.className='c';c.dataset.w='xc_'+k;c.dataset.xm='1';
+    c.innerHTML='<h2>'+esc(xLbl(k))+'</h2><div id="'+id+'"></div>';g.appendChild(c);
+    bars(id,o,10);
+  });
+}
+function openXCols(){
+  if(!CAN.params()){toast('🔒 Réservé à l’administrateur');return;}
+  const w=document.createElement('div');
+  w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  const TY={text:'texte',number:'nombre',date:'date'};
+  const draw=()=>{
+    const defs=xColsDef(),all=xAll();
+    const imp=[...new Set(Object.values(all).flatMap(x=>Object.keys(x).filter(k=>k.startsWith('c:'))))].filter(k=>!defs.some(d=>'c:'+d.l===k));
+    w.innerHTML='<div class="c" style="max-width:580px;width:100%;max-height:90vh;overflow:auto">'
+      +'<div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">🧱 Colonnes du personnel</h2><button class="s" id="xc_x">Fermer</button></div>'
+      +'<p class="muted" style="font-size:12px">Ajoutez autant de colonnes que nécessaire. Elles apparaissent dans la fiche de chaque employé, les tableaux de bord et l’export. Les colonnes d’un fichier importé sont créées automatiquement.</p>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end"><label style="flex:1;min-width:180px">Nom de la colonne<input id="xc_l" placeholder="ex. Nombre d’enfants"></label><label>Type<select id="xc_t"><option value="text">Texte</option><option value="number">Nombre</option><option value="date">Date</option></select></label><label style="font-size:12px"><input type="checkbox" id="xc_sh" checked> Afficher dans la liste</label><button class="p" id="xc_add">➕ Ajouter</button></div>'
+      +'<h3 style="margin:14px 0 4px;font-size:13px">Colonnes ajoutées</h3>'
+      +(defs.length?defs.map((d,i)=>'<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--bd);padding:6px 0"><span style="flex:1">'+esc(d.l)+' <small class="muted">('+(TY[d.t]||'texte')+')</small></span><button class="s" data-xc-del="'+i+'">🗑 Supprimer</button></div>').join(''):'<p class="muted">Aucune colonne ajoutée.</p>')
+      +(imp.length?'<h3 style="margin:14px 0 4px;font-size:13px">Colonnes issues d’un import</h3>'+imp.map((k,i)=>'<div style="display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--bd);padding:6px 0"><span style="flex:1">'+esc(xLbl(k))+'</span><button class="s" data-xc-key="'+i+'">🗑 Supprimer les valeurs</button></div>').join(''):'')
+      +'</div></div>';
+    w.querySelector('#xc_x').onclick=()=>w.remove();
+    w.querySelector('#xc_add').onclick=async()=>{
+      const l=(w.querySelector('#xc_l').value||'').trim().replace(/\s+/g,' ');const t=w.querySelector('#xc_t').value;
+      if(!l){toast('Indiquez le nom de la colonne');return;}
+      if(XF.some(f=>nName(f[1])===nName(l))||xColsDef().some(d=>nName(d.l)===nName(l))){toast('Cette colonne existe déjà');return;}
+      try{await saveParam('perso_cols',JSON.stringify([...xColsDef(),{l,t}]));if(w.querySelector('#xc_sh').checked)await saveParam('perso_show',JSON.stringify([...xShowKeys(),'c:'+l]));toast('Colonne ajoutée');draw();}catch(err){toast('Erreur : '+err.message);}
+    };
+    w.querySelectorAll('[data-xc-del]').forEach(b=>b.onclick=async()=>{
+      const i=+b.dataset.xcDel,d=xColsDef()[i];if(!d)return;
+      if(!confirm('Supprimer la colonne « '+d.l+' » ? Les valeurs saisies pour cette colonne seront aussi effacées.'))return;
+      try{const key='c:'+d.l,all2=xAll();Object.values(all2).forEach(x=>{delete x[key];});
+        await saveParam('perso_cols',JSON.stringify(xColsDef().filter((_,j)=>j!==i)));await saveParam('perso_show',JSON.stringify(xShowKeys().filter(k=>k!==key)));
+        await saveParam('perso_extra',JSON.stringify(all2));toast('Colonne supprimée');draw();}catch(err){toast('Erreur : '+err.message);}
+    });
+    w.querySelectorAll('[data-xc-key]').forEach(b=>b.onclick=async()=>{
+      const key=imp[+b.dataset.xcKey];if(!key)return;
+      if(!confirm('Effacer les valeurs de « '+xLbl(key)+' » pour tous les employés ?'))return;
+      try{const all2=xAll();Object.values(all2).forEach(x=>{delete x[key];});await saveParam('perso_extra',JSON.stringify(all2));toast('Valeurs effacées');draw();}catch(err){toast('Erreur : '+err.message);}
+    });
+  };
+  w.onclick=e=>{if(e.target===w)w.remove();};
+  document.body.appendChild(w);draw();
+}
+document.addEventListener('click',e=>{
+  const t=e.target;if(!t||!t.id)return;
+  if(t.id==='xcolbtn'){openXCols();return;}
+  if(t.id==='co_retry'){coRetry();return;}
+  if(t.id==='so_all'||t.id==='so_none'){e.preventDefault();document.querySelectorAll('#so_mods input').forEach(i=>{if(i.value!=='personnel')i.checked=(t.id==='so_all');});}
+});
 
 const num=id=>/^\d+$/.test(String(id))?+id:id;
 $('imp').onclick=()=>{
@@ -3183,7 +3307,7 @@ document.addEventListener('click',async e=>{
   }
 });
 /* ============ PROPRIÉTAIRE : MULTI-ENTREPRISES ============ */
-const PRESETS={cabinet_rh:{l:'Cabinet RH / Intérim / Formation (société mère)',m:['personnel','alertes','discipline','conges','paie','formation','evaluations','certifications']},client_std:{l:'Société cliente (gestion RH simple)',m:['personnel','alertes','conges']},interim:{l:'Intérim / mise à disposition (CTT, CDD)',m:['personnel','alertes','discipline','conges']},pme:{l:'PME classique (CDI, CDD)',m:['personnel','discipline','conges']},ong:{l:'ONG / association',m:['personnel','conges']},minimal:{l:'Fichier du personnel seul',m:['personnel']},full:{l:'Complet (tous les modules)',m:['personnel','alertes','discipline','conges']},btp:{l:'BTP / chantiers (CDD, occasionnels)',m:['personnel','alertes','discipline','conges']},sante:{l:'Santé / clinique',m:['personnel','alertes','conges','discipline']},commerce:{l:'Commerce / distribution',m:['personnel','discipline','conges']},ecole:{l:'École / formation',m:['personnel','conges']},cabinet:{l:'Cabinet de formation (volet formation activé)',m:['personnel','conges','formation','evaluations','certifications']},securite:{l:'Sécurité / gardiennage',m:['personnel','alertes','discipline']},transport:{l:'Transport routier / voyageurs / marchandises',m:['personnel','alertes','discipline','conges']},logistique:{l:'Logistique / entreposage / transit',m:['personnel','alertes','discipline','conges']},hotellerie:{l:'Hôtellerie / tourisme',m:['personnel','alertes','discipline','conges']},restauration:{l:'Restauration / traiteur',m:['personnel','alertes','discipline','conges']},agro:{l:'Agriculture / agro-industrie / plantations',m:['personnel','alertes','discipline','conges']},industrie:{l:'Industrie / usine / production',m:['personnel','alertes','discipline','conges']},mines:{l:'Mines / énergie / pétrole & gaz',m:['personnel','alertes','discipline','conges']},banque:{l:'Banque / assurance / microfinance',m:['personnel','alertes','discipline','conges']},telecom:{l:'Télécoms / informatique / services numériques',m:['personnel','alertes','discipline','conges']},immobilier:{l:'Immobilier / agence / syndic',m:['personnel','alertes','discipline','conges']},nettoyage:{l:'Nettoyage / hygiène / services aux entreprises',m:['personnel','alertes','discipline','conges']},medias:{l:'Médias / communication / publicité',m:['personnel','alertes','discipline','conges']},pharma:{l:'Pharmacie / laboratoire / santé privée',m:['personnel','alertes','discipline','conges']},admin_pub:{l:'Administration / collectivité / établissement public',m:['personnel','alertes','discipline','conges']},artisanat:{l:'Artisanat / petite entreprise / atelier',m:['personnel','alertes','discipline','conges']},education_sup:{l:'Enseignement supérieur / université privée',m:['personnel','alertes','discipline','conges']},domestique:{l:'Employés de maison / services à la personne',m:['personnel','alertes','discipline','conges']},peche:{l:'Pêche / élevage / exploitation forestière',m:['personnel','alertes','discipline','conges']},autre:{l:'Autre organisation (à personnaliser)',m:['personnel','alertes','discipline','conges']}};
+const PRESETS={cabinet_rh:{l:'Cabinet RH / Intérim / Formation (société mère)',m:['personnel','alertes','discipline','conges','paie','formation','evaluations','certifications']},client_std:{l:'Société cliente (gestion RH simple)',m:['personnel','alertes','conges']},interim:{l:'Intérim / mise à disposition (CTT, CDD)',m:['personnel','alertes','discipline','conges']},pme:{l:'PME classique (CDI, CDD)',m:['personnel','discipline','conges']},ong:{l:'ONG / association',m:['personnel','conges']},minimal:{l:'Fichier du personnel seul',m:['personnel']},full:{l:'Complet (tous les modules)',m:['personnel','alertes','discipline','conges','paie','evaluations','formation','recrutement','contacts','annonces','certifications','absences','fiches','materiel','notes','taches']},btp:{l:'BTP / chantiers (CDD, occasionnels)',m:['personnel','alertes','discipline','conges']},sante:{l:'Santé / clinique',m:['personnel','alertes','conges','discipline']},commerce:{l:'Commerce / distribution',m:['personnel','discipline','conges']},ecole:{l:'École / formation',m:['personnel','conges']},cabinet:{l:'Cabinet de formation (volet formation activé)',m:['personnel','conges','formation','evaluations','certifications']},securite:{l:'Sécurité / gardiennage',m:['personnel','alertes','discipline']},transport:{l:'Transport routier / voyageurs / marchandises',m:['personnel','alertes','discipline','conges']},logistique:{l:'Logistique / entreposage / transit',m:['personnel','alertes','discipline','conges']},hotellerie:{l:'Hôtellerie / tourisme',m:['personnel','alertes','discipline','conges']},restauration:{l:'Restauration / traiteur',m:['personnel','alertes','discipline','conges']},agro:{l:'Agriculture / agro-industrie / plantations',m:['personnel','alertes','discipline','conges']},industrie:{l:'Industrie / usine / production',m:['personnel','alertes','discipline','conges']},mines:{l:'Mines / énergie / pétrole & gaz',m:['personnel','alertes','discipline','conges']},banque:{l:'Banque / assurance / microfinance',m:['personnel','alertes','discipline','conges']},telecom:{l:'Télécoms / informatique / services numériques',m:['personnel','alertes','discipline','conges']},immobilier:{l:'Immobilier / agence / syndic',m:['personnel','alertes','discipline','conges']},nettoyage:{l:'Nettoyage / hygiène / services aux entreprises',m:['personnel','alertes','discipline','conges']},medias:{l:'Médias / communication / publicité',m:['personnel','alertes','discipline','conges']},pharma:{l:'Pharmacie / laboratoire / santé privée',m:['personnel','alertes','discipline','conges']},admin_pub:{l:'Administration / collectivité / établissement public',m:['personnel','alertes','discipline','conges']},artisanat:{l:'Artisanat / petite entreprise / atelier',m:['personnel','alertes','discipline','conges']},education_sup:{l:'Enseignement supérieur / université privée',m:['personnel','alertes','discipline','conges']},domestique:{l:'Employés de maison / services à la personne',m:['personnel','alertes','discipline','conges']},peche:{l:'Pêche / élevage / exploitation forestière',m:['personnel','alertes','discipline','conges']},autre:{l:'Autre organisation (à personnaliser)',m:['personnel','alertes','discipline','conges']}};
 const MODS={
   personnel:'👥 Personnel',alertes:'🔔 Alertes contrats/CNPS',
   discipline:'⚖️ Suivi disciplinaire',conges:'🏖️ Congés',
@@ -3283,6 +3407,7 @@ async function renderOwner(){
   if(OTAB==='bd')body=await OWX.bd();
   if(OTAB==='al')body=await OWX.al();
   if(!MULTI)body='<div class="ban">⚠ Multi-entreprises non activé : exécutez migration-multi-entreprises.sql dans Supabase pour débloquer les autres onglets.</div>'+body;
+  else if(window.__coErr)body='<div class="ban">⚠ Lecture des sociétés impossible : '+esc(window.__coErr)+' <button class="s" id="co_retry">Réessayer</button></div>'+body;
   box.innerHTML=`<div class="admin-hero"><div class="admin-hero-txt"><div class="admin-badge">👑 PROPRIÉTAIRE DE LA PLATEFORME</div><h1>Centre de contrôle</h1><div class="sub">Entreprise ouverte : <b>${esc(curCo()?.nom||'—')}</b> · Rôle : <b>${ER()}</b></div></div></div><div class="tabs admin-tabs">${tabs.map(t=>`<button data-ot="${t[0]}"${t[0]===OTAB?' class="on"':''}>${t[1]}</button>`).join('')}</div>${body}`;
   const f=$('owf');if(f)f.onsubmit=saveCo;const rs=$('owreset');if(rs)rs.onclick=()=>renderOwner();
   if(OWP[OTAB])OWP[OTAB]();
@@ -3415,7 +3540,7 @@ async function renderSoc(){
   const gopt='<option value="">— aucune (indépendante) —</option>'+COS.filter(c=>gids.includes(c.id)).map(c=>`<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('');
   const pendHtml=pend.length?`<div class="c" style="border-left:4px solid #f5b301;margin-bottom:14px"><h2>⏳ Comptes en attente de rattachement (${pend.length})</h2><p class="muted">Ces personnes ont un compte mais <b>ne voient actuellement aucune donnée</b>. Choisissez leur société et leur rôle, puis rattachez-les. Vous affinerez ensuite leurs droits module par module dans « Qui voit quoi ».</p>${pend.map(u=>`<div data-pend-row="${esc(u.user_id)}" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0"><b style="flex:1;min-width:180px">${esc(u.display_name||u.email||u.user_id)}<br><small class="muted">${esc(u.email||'')}</small></b><select class="pco">${orderCos(cos).map(c=>`<option value="${esc(c.id)}">${'\u00A0\u00A0'.repeat(orgDepthIn(c,cos))}${orgDepthIn(c,cos)?'↳ ':''}${orgIsMere(c,cos)?'🏛 ':'🏢 '}${esc(c.nom)}</option>`).join('')}</select><select class="prl"><option value="lecteur">👁 Lecture seule</option><option value="editeur">✍️ Gestionnaire</option><option value="admin">👑 Administrateur</option></select><button class="s" type="button" data-pend="${esc(u.user_id)}">✅ Rattacher</button></div>`).join('')}</div>`:'';
   box.innerHTML=pendHtml+`<div class="c"><h2>🏢 Sociétés clientes</h2>${err?`<div class="ban">⚠ ${esc(err)} — exécutez migration-gestion-acces.sql dans Supabase.</div>`:''}<div class="tw"><table><thead><tr><th>Société</th><th>Modèle</th><th>Modules</th><th></th></tr></thead><tbody>${tr||'<tr><td colspan="4" class="muted">Aucune société.</td></tr>'}</tbody></table></div></div>
-  <div class="c" style="margin-top:14px"><h2 id="so_t">➕ Ajouter / modifier une société cliente</h2><input type="hidden" id="so_id"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px"><label>Nom<input id="so_nom"></label><label>Ville<input id="so_ville"></label><label>Téléphone<input id="so_tel"></label><label>Email<input id="so_email"></label><label>Modèle (type d’organisation)<select id="so_mod">${Object.keys(PRESETS).map(k=>`<option value="${k}">${esc(PRESETS[k].l)}</option>`).join('')}</select></label><label>Société mère<select id="so_grp">${gopt}</select></label><label>Couleur<input id="so_col" type="color" value="#1f5fbf"></label></div><div class="muted" style="margin:8px 0 4px">Modules activés pour cette société (chaque société peut avoir une configuration différente) :</div><div id="so_mods" style="display:flex;flex-wrap:wrap;gap:4px 14px">${Object.keys(MODS).map(k=>`<label><input type="checkbox" value="${k}"${k==='personnel'?' checked disabled':''}> ${esc(MODS[k])}</label>`).join('')}</div><div style="margin-top:10px;display:flex;gap:8px"><button id="so_save" type="button">💾 Enregistrer</button><button class="s" id="so_reset" type="button">Nouveau</button></div></div>
+  <div class="c" style="margin-top:14px"><h2 id="so_t">➕ Ajouter / modifier une société cliente</h2><input type="hidden" id="so_id"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px"><label>Nom<input id="so_nom"></label><label>Ville<input id="so_ville"></label><label>Téléphone<input id="so_tel"></label><label>Email<input id="so_email"></label><label>Modèle (type d’organisation)<select id="so_mod">${Object.keys(PRESETS).map(k=>`<option value="${k}">${esc(PRESETS[k].l)}</option>`).join('')}</select></label><label>Société mère<select id="so_grp">${gopt}</select></label><label>Couleur<input id="so_col" type="color" value="#1f5fbf"></label></div><div class="muted" style="margin:8px 0 4px">Modules activés pour cette société (chaque société peut avoir une configuration différente) :</div><div style="margin:4px 0"><button type="button" class="s" id="so_all">Tout cocher</button> <button type="button" class="s" id="so_none">Tout décocher</button></div><div id="so_mods" style="display:flex;flex-wrap:wrap;gap:4px 14px">${Object.keys(MODS).map(k=>`<label><input type="checkbox" value="${k}"${k==='personnel'?' checked disabled':''}> ${esc(MODS[k])}</label>`).join('')}</div><div style="margin-top:10px;display:flex;gap:8px"><button id="so_save" type="button">💾 Enregistrer</button><button class="s" id="so_reset" type="button">Nouveau</button></div></div>
   <div class="c" style="margin-top:14px"><h2>🔐 Qui voit quoi</h2><p class="muted">Choisissez une personne, puis pour chaque société : son rôle et, module par module, ce qu’elle peut faire (masqué, voir seulement, ajouter, modifier). <b>Une personne sans aucune société ne voit AUCUNE donnée</b> : rattachez-la à au moins une société.</p><label>Personne<select id="so_user">${users.map(u=>{const st=rows.filter(r=>r.user_id===u.user_id).map(r=>(COS.find(c=>c.id===r.entreprise_id)||{}).nom).filter(Boolean).join(', ');return `<option value="${esc(u.user_id)}"${u.user_id===SOC.uid?' selected':''}>${esc((u.display_name||u.email||u.user_id)+(st?' — 🏢 '+st:' — (aucune structure)'))}</option>`;}).join('')||'<option value="">Aucun utilisateur</option>'}</select></label><div id="so_acc">${cards}</div><button id="so_saveacc" type="button">💾 Enregistrer les accès</button></div>`;
   socFill(null);
 }
@@ -4096,7 +4221,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     world.appendChild(sec);
   });
 
-  const MDATA = {};
+  const MDATA = window.MDATA = {};window.loadModule6=loadModule;
   const MSTATE = {};
   Object.keys(MODULES).forEach(k=>{ MSTATE[k] = {q:'', sk:null, sd:1}; });
 
