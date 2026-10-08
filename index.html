@@ -729,7 +729,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{let {data,error}=await db.from('entreprises').select('*').order('created_at');if(error){const r2=await db.from('entreprises').select('*');if(r2.error)throw r2.error;data=r2.data;error=null;}window.__coErr=null;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){window.__coErr=(e&&e.message)||String(e);const miss=/does not exist|42P01|schema cache|Could not find the table/i.test(window.__coErr);MULTI=isOwnerUser()?!miss:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','owner_json','web_json','ui_texts_json','signatures_json'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','owner_json','web_json','ui_texts_json','signatures_json'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -1437,6 +1437,7 @@ function list(){
   $('ct').textContent=cur.length+' agent(s) sur '+E.length+' · '+avecDoc+' dossier(s) en ligne · '+(cur.length-avecDoc)+' absent(s)';
   $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
   try{xListCols(cur);}catch(e){console.warn('xListCols',e);}
+  essaiSync().catch(()=>{});
   applyPerms();
 }
 
@@ -2227,6 +2228,118 @@ function openShowCols(){
 }
 async function coRetry(){try{await ensureCompanies();await loadAll();renderOwner();}catch(e){toast('Erreur : '+e.message);}}
 
+
+/* ============ PÉRIODES D'ESSAI : HISTORIQUE ; ALERTES RH ============ */
+function essaiHist(){try{const o=JSON.parse(PARAMS.essai_hist||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+const ISO_RE=/^\d{4}-\d\d-\d\d$/;
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function daysTo(v){const p=v.split('-').map(Number);const t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(p[0],p[1]-1,p[2])-t)/86400000);}
+async function essaiSync(){
+  if(!CAN.upd()||window.__essaiBusy)return;
+  const H=essaiHist();let changed=false;
+  EN().forEach(r=>{
+    const v=(r.x&&r.x.essai)||'';if(!ISO_RE.test(v))return;
+    const k=nName(r.n);const h=H[k]||[];const last=h[h.length-1];
+    if(!last||last.d!==v){h.push({d:v,at:todayISO(),src:last?'modif':'initial'});H[k]=h;changed=true;}
+  });
+  if(changed){window.__essaiBusy=true;try{await saveParam('essai_hist',JSON.stringify(H));}catch(e){console.warn('essai_hist',e);}finally{window.__essaiBusy=false;}}
+}
+function essaiText(r){
+  const h=essaiHist()[nName(r.n)]||[];const cur=(r.x&&r.x.essai)||'';
+  if(!h.length&&!cur)return "\n\n🧪 Période d'essai : aucune date renseignée.";
+  let t="\n\n🧪 Périodes d'essai ("+h.length+" enregistrement"+(h.length>1?'s':'')+") :\n";
+  if(!h.length)t+='• fin d’essai actuelle : '+F(cur)+'\n';
+  h.forEach((e,i)=>{const prol=i>0&&e.d>h[i-1].d;
+    const lib=e.src==='initial'?'état initial, constaté le '+F(e.at):(prol?'prolongation, enregistrée le ':'modification, enregistrée le ')+(e.src==='initial'?'':F(e.at));
+    t+='• fin au '+F(e.d)+' ('+lib+')\n';});
+  const nProl=h.filter((e,i)=>i>0&&e.d>h[i-1].d).length;
+  t+='Prolongations : '+nProl;
+  const dd=essaiDecs()[nName(r.n)];
+  if(dd&&dd.d===cur)t+='\nDécision : '+(dd.statut==='confirme'?'embauche confirmée':'rupture')+' le '+F(dd.date);
+  else if(cur&&cur<todayISO())t+='\nDécision : à prendre';
+  const cs=cddStats(r);if(cs&&r.t!=='CDI')t+='\nContrats à durée déterminée : '+cs.n+' contrat(s), '+cs.ren+' renouvellement(s), '+cs.mois+' mois cumulés';
+  if(ISO_RE.test(cur)&&cur<todayISO())t+='\n⚠️ Période d’essai échue : confirmer l’embauche ou rompre la relation de travail.';
+  return t;
+}
+function essaiDecs(){try{const o=JSON.parse(PARAMS.essai_decisions||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+function sortieCk(){try{const o=JSON.parse(PARAMS.sortie_checklist||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+function cddSeuils(){try{const o=JSON.parse(PARAMS.cdd_seuils||'{}');return o&&typeof o==='object'?o:{};}catch(e){return{};}}
+const SORTIE_ITEMS=[['cert','Certificat de travail'],['cnps','Attestation de fin de contrat (CNPS)'],['solde','Solde de tout compte'],['recu','Reçu pour solde de tout compte'],['materiel','Restitution matériel, badge, clés'],['bulletin','Dernier bulletin remis']];
+function cddStats(r){
+  const H=(histC()[nName(r.n)]||[]).filter(b=>ISO_RE.test(b.d||'')&&ISO_RE.test(b.f||'')).sort((a,b)=>a.d<b.d?-1:1);
+  if(!H.length)return null;
+  let days=0;H.forEach(b=>{days+=(new Date(b.f)-new Date(b.d))/86400000;});
+  return {n:H.length,ren:H.length-1,mois:Math.round(days/30.44*10)/10};
+}
+async function essaiDec(key,d,statut){
+  if(!CAN.upd()){toast('🔒 Droit de modification requis');return;}
+  const r=EN().find(x=>nName(x.n)===key);
+  if(!confirm((statut==='confirme'?'Confirmer':'Rompre')+' la période d’essai de '+(r?r.n:key)+' (fin le '+F(d)+') ?'))return;
+  const D=essaiDecs();D[key]={d:d,statut:statut,date:todayISO()};
+  try{await saveParam('essai_decisions',JSON.stringify(D));toast(statut==='confirme'?'Embauche confirmée':'Rupture enregistrée : renseignez la date de sortie');
+    if(statut==='rompu'&&r)edit(r);
+    if(typeof dash==='function')dash();
+  }catch(err){toast('Erreur : '+err.message);}
+}
+async function sortieTog(key,item){
+  if(!CAN.upd()){toast('🔒 Droit de modification requis');return;}
+  const C=sortieCk();const o=C[key]||{};o[item]=o[item]?'':todayISO();C[key]=o;
+  try{await saveParam('sortie_checklist',JSON.stringify(C));if(typeof dash==='function')dash();}catch(err){toast('Erreur : '+err.message);}
+}
+async function cddSeuilsEdit(){
+  if(!CAN.params()){toast('🔒 Réservé à l’administrateur');return;}
+  const S=cddSeuils();
+  const a=prompt('Nombre maximum de renouvellements d’un CDD (vide = pas de seuil) :',S.renouv==null?'':S.renouv);if(a===null)return;
+  const b=prompt('Durée cumulée maximale d’un CDD en mois (vide = pas de seuil) :',S.mois==null?'':S.mois);if(b===null)return;
+  const o={renouv:a.trim()===''?null:+a,mois:b.trim()===''?null:+b};
+  try{await saveParam('cdd_seuils',JSON.stringify(o));toast('Seuils enregistrés');if(typeof dash==='function')dash();}catch(err){toast('Erreur : '+err.message);}
+}
+document.addEventListener('click',e=>{
+  const t=e.target;if(!t||!t.dataset)return;
+  if(t.dataset.ed){e.preventDefault();essaiDec(t.dataset.nm,t.dataset.d,t.dataset.ed);}
+  else if(t.dataset.sc){e.preventDefault();sortieTog(t.dataset.nm,t.dataset.sc);}
+  else if(t.id==='cdd_seuils'){cddSeuilsEdit();}
+});
+function xAlertsCard(g){
+  const rows=EN().filter(r=>!r.darret);const dec=essaiDecs();const seu=cddSeuils();
+  const ess=[],ins=[],cdd=[],sor=[];
+  rows.forEach(r=>{
+    const x=r.x||{},key=nName(r.n);
+    if(ISO_RE.test(x.essai||'')){const j=daysTo(x.essai);const dd=dec[key];
+      if(j<=30&&j>=-90)ess.push({r:r,key:key,d:x.essai,j:j,dec:(dd&&dd.d===x.essai)?dd:null});}
+    if(ISO_RE.test(x.cnie||'')){const j=daysTo(x.cnie);if(j<=30)ins.push([r.n,'Expiration CNI / pièce',x.cnie,j]);}
+    if(ISO_RE.test(r.dvn||'')){const j=daysTo(r.dvn);if(j<=30)ins.push([r.n,'Visite médicale à faire',r.dvn,j]);}
+    if(r.t!=='CDI'&&ISO_RE.test(r.finEffective||'')){const j=daysTo(r.finEffective);if(j<=30)ins.push([r.n,'Fin de contrat',r.finEffective,j]);}
+    if(r.t!=='CDI'){const st=cddStats(r);
+      if(st&&((seu.renouv!=null&&st.ren>+seu.renouv)||(seu.mois!=null&&st.mois>+seu.mois)))cdd.push({r:r,st:st});}
+  });
+  EN().filter(r=>r.darret).forEach(r=>{const C=sortieCk()[nName(r.n)]||{};const miss=SORTIE_ITEMS.filter(it=>!C[it[0]]);
+    if(miss.length)sor.push({r:r,key:nName(r.n),C:C});});
+  ess.sort((a,b)=>a.j-b.j);ins.sort((a,b)=>a[3]-b[3]);
+  const sans=rows.filter(r=>!r.dv).length;
+  const div=document.createElement('div');div.className='c';div.dataset.w='alertes_rh';div.dataset.xm='alr';
+  let h='<div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">⚠️ Alertes RH</h2><button class="s" id="cdd_seuils">⚙ Seuils CDD</button></div>';
+  h+='<h3 style="font-size:13px;margin:12px 0 4px">🧪 Périodes d’essai à décider</h3>';
+  h+=ess.length?'<ul style="margin:0;padding-left:18px;font-size:13px">'+ess.map(a=>{
+      const st=a.dec?(a.dec.statut==='confirme'?'✅ confirmée le '+F(a.dec.date):'❌ rompue le '+F(a.dec.date)):
+        '<button class="s" data-ed="confirme" data-nm="'+esc(a.key)+'" data-d="'+esc(a.d)+'">✅ Confirmer</button> <button class="s" data-ed="rompu" data-nm="'+esc(a.key)+'" data-d="'+esc(a.d)+'">❌ Rompre</button>';
+      return '<li style="margin:4px 0"><b>'+esc(a.r.n)+'</b> — fin le '+F(a.d)+' ('+(a.j<0?'échue depuis '+(-a.j)+' j':'dans '+a.j+' j')+') · '+st+'</li>';}).join('')+'</ul>'
+    :'<p class="muted" style="font-size:12px">Aucune période d’essai à décider.</p>';
+  h+='<h3 style="font-size:13px;margin:12px 0 4px">📅 Échéances (30 jours)</h3>';
+  h+=ins.length?'<ul style="margin:0;padding-left:18px;font-size:13px">'+ins.slice(0,40).map(a=>'<li><b>'+esc(a[0])+'</b> — '+esc(a[1])+' : '+F(a[2])+' ('+(a[3]<0?'échu depuis '+(-a[3])+' j':'dans '+a[3]+' j')+')</li>').join('')+'</ul>':'<p class="muted" style="font-size:12px">Aucune échéance dans les 30 prochains jours.</p>';
+  h+='<h3 style="font-size:13px;margin:12px 0 4px">🔁 CDD au-delà des seuils</h3>';
+  h+=cdd.length?'<ul style="margin:0;padding-left:18px;font-size:13px">'+cdd.map(c=>'<li><b>'+esc(c.r.n)+'</b> — '+c.st.ren+' renouvellement(s), '+c.st.mois+' mois cumulés</li>').join('')+'</ul>'
+    :'<p class="muted" style="font-size:12px">Aucun dépassement'+((seu.renouv==null&&seu.mois==null)?' (aucun seuil défini : cliquez sur ⚙ Seuils CDD)':'')+'.</p>';
+  h+='<h3 style="font-size:13px;margin:12px 0 4px">🚪 Dossiers de sortie incomplets</h3>';
+  h+=sor.length?sor.map(o=>'<div style="border-bottom:1px solid var(--bd);padding:6px 0;font-size:13px"><b>'+esc(o.r.n)+'</b> (sortie le '+F(o.r.darret)+')<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">'
+      +SORTIE_ITEMS.map(it=>'<button class="s" data-sc="'+it[0]+'" data-nm="'+esc(o.key)+'">'+(o.C[it[0]]?'☑':'☐')+' '+esc(it[1])+'</button>').join('')+'</div></div>').join('')
+    :'<p class="muted" style="font-size:12px">Aucun dossier de sortie incomplet.</p>';
+  h+=(sans?'<p class="muted" style="font-size:12px;margin-top:10px">'+sans+' employé(s) sans date de dernière visite médicale renseignée.</p>':'');
+  div.innerHTML=h;
+  g.insertBefore(div,g.firstChild);
+}
+
+
 /* ============ TABLEAU DE BORD PAR MODULE, COLONNES PERSONNALISÉES, MODULES PAR SOCIÉTÉ ============ */
 function xColsDef(){try{const a=JSON.parse(PARAMS.perso_cols||'[]');return Array.isArray(a)?a.filter(d=>d&&d.l):[];}catch(e){return[];}}
 function fillModCard(k){
@@ -2239,6 +2352,7 @@ function xModDash(A){
   const g=$('dgrid');if(!g)return;
   g.querySelectorAll('[data-xm]').forEach(e=>e.remove());
   const cb=$('xcolbtn');if(cb)cb.style.display=CAN.params()?'':'none';
+  try{xAlertsCard(g);}catch(e){console.warn('xAlertsCard',e);}
   const M6=window.MODULES6||{},D=window.MDATA||{};
   Object.keys(M6).forEach(k=>{
     let on=false;try{on=modOn(k);}catch(e){}
@@ -2741,7 +2855,7 @@ const sys=`Assistant RH (Cameroun).${AI_DIRECT} Ne cite pas le nom de la sociét
   send.disabled=false;
 }
 
-function showHist(r){let l=histC()[nName(r.n)]||[];if(!l.length&&r.deb)l=[{y:r.annee,d:r.deb,f:r.finEffective||r.fin}];const t0=LD(T);$('rph').textContent='📅 Contrats de '+r.n;$('rpt').textContent=l.length?l.map(b=>'• '+(b.y||b.d.slice(0,4))+' : du '+F(b.d)+' au '+F(b.f)+(b.d<=t0&&b.f>=t0?'   ← en cours':b.d>t0?'   (à venir)':'   (terminé)')).join('\n'):'Aucun contrat enregistré pour cet agent. L\'historique se remplit à chaque import Excel.';$('rpb').classList.add('on');}
+function showHist(r){let l=histC()[nName(r.n)]||[];if(!l.length&&r.deb)l=[{y:r.annee,d:r.deb,f:r.finEffective||r.fin}];const t0=LD(T);$('rph').textContent='📅 Contrats de '+r.n;$('rpt').textContent=l.length?l.map(b=>'• '+(b.y||b.d.slice(0,4))+' : du '+F(b.d)+' au '+F(b.f)+(b.d<=t0&&b.f>=t0?'   ← en cours':b.d>t0?'   (à venir)':'   (terminé)')).join('\n'):'Aucun contrat enregistré pour cet agent. L\'historique se remplit à chaque import Excel.';$('rpt').textContent+=essaiText(r);$('rpb').classList.add('on');}
 
 
 /* ============ SIGNATURES NUMÉRIQUES ============ */
@@ -3583,7 +3697,7 @@ document.addEventListener('click',async e=>{
   if(b.dataset.soc!=='open'&&!canManageGroup()){toast('🔒 Réservé à l’administrateur du groupe');return;}
   try{
     if(b.id==='so_save')await socSave();
-    else if(b.id==='so_reset')socFill(null);
+    else if(b.id==='so_reset'){socFill(null);const f=$('so_nom');if(f){f.focus();f.scrollIntoView({behavior:'smooth',block:'center'});}toast('Formulaire vidé : vous pouvez saisir une nouvelle société');}
     else if(b.id==='so_saveacc')await socSaveAcc();
     else if(b.dataset.pend){const row=b.closest('[data-pend-row]');const co=row.querySelector('.pco').value,role=row.querySelector('.prl').value;if(!isOwnerUser()&&!managedCos().some(c=>c.id===co)){toast('🔒 Société non autorisée');return;}
       const {error}=await db.from('user_entreprises').upsert({user_id:b.dataset.pend,entreprise_id:co,role,perms:{lvl:{},deny:[]}},{onConflict:'user_id,entreprise_id'});if(error)throw error;toast('✅ Compte rattaché');SOC.uid=b.dataset.pend;renderSoc();}
