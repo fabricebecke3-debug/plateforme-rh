@@ -76,72 +76,112 @@
     st.av.setAttribute('data-s', e);
     st.av.style.boxShadow = e === 'parle' ? '0 0 0 4px #1f9d55' : e === 'ecoute' ? '0 0 0 4px #d97706' : e === 'pense' ? '0 0 0 4px #2563eb' : 'none';
   }
-  // ---------- Mode conversation (mains libres) ----------
-  var conv = { on: false, rec: null, parle: false };
-  function reprendre() { if (conv.on && !conv.parle) setTimeout(ecouter, 400); }
-  function stopEcoute() {
-    if (conv.rec) { try { conv.rec.abort(); } catch (e) {} conv.rec = null; }
+  // ---------- Écoute et voix (bouton Parler et mode conversation) ----------
+  var conv = { on: false, rec: null, parle: false, minuterie: null };
+
+  function etatParler(texte) { if (st.btnParler) st.btnParler.textContent = texte; }
+  function majBoutonConv() { if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non'; }
+
+  function messageErreur(code) {
+    var m = {
+      'not-allowed': "Le micro n'est pas autorisé. Autorisez-le dans les paramètres du navigateur, puis réessayez.",
+      'service-not-allowed': "Le micro n'est pas autorisé. Autorisez-le dans les paramètres du navigateur, puis réessayez.",
+      'audio-capture': "Aucun micro n'a été détecté sur cet appareil.",
+      'network': "La reconnaissance vocale demande une connexion internet. Écrivez votre question en attendant.",
+      'no-speech': "Je n'ai rien entendu. Appuyez sur Parler, puis parlez après le signal."
+    };
+    return m[code] || "Je n'ai pas pu écouter. Réessayez, ou écrivez votre question.";
   }
-  function ecouter() {
-    if (!conv.on || conv.parle || conv.rec || !SR) return;
-    var r = new SR();
+
+  function arreterEcoute() {
+    if (conv.rec) { var r = conv.rec; conv.rec = null; try { r.abort(); } catch (e) {} }
+  }
+  function stopParole() {
+    clearTimeout(conv.minuterie);
+    conv.parle = false;
+    try { if (global.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+  }
+  // Relance l'écoute en mode conversation, seulement si rien d'autre n'est en cours
+  function reprendre() {
+    if (!conv.on) return;
+    setTimeout(function () { if (conv.on && !conv.parle && !conv.rec) ecouter(false); }, 400);
+  }
+
+  function ecouter(manuel) {
+    if (!SR) {
+      dire("La reconnaissance vocale n'est pas disponible sur ce navigateur. Utilisez Chrome, Edge ou Safari récent, ou écrivez votre question.");
+      return;
+    }
+    if (conv.parle) {
+      if (!manuel) return;     // en conversation automatique : on n'écoute pas pendant que l'assistant parle
+      stopParole();            // bouton Parler : on coupe la voix et on écoute
+    }
+    arreterEcoute();
+    var r;
+    try { r = new SR(); } catch (e) { dire(messageErreur('')); return; }
     r.lang = 'fr-FR';
     r.interimResults = false;
     r.maxAlternatives = 1;
     r.continuous = false;
+    var recu = false;
     r.onresult = function (e) {
+      recu = true;
       conv.rec = null;
+      etatParler('🎤 Parler');
       var t = e.results && e.results[0] ? e.results[0][0].transcript : '';
       if (t && t.trim()) poser(t); else reprendre();
     };
-    r.onerror = function () { conv.rec = null; setEtat('repos'); reprendre(); };
-    r.onend = function () { conv.rec = null; if (!conv.parle) setEtat('repos'); reprendre(); };
+    r.onerror = function (e) {
+      var code = (e && e.error) || '';
+      conv.rec = null;
+      etatParler('🎤 Parler');
+      setEtat('repos');
+      if (code === 'aborted') return;                       // arrêt volontaire
+      if (code === 'no-speech' && conv.on) return;           // silence : onend relance l'écoute
+      if (conv.on) { conv.on = false; majBoutonConv(); }     // erreur : on quitte le mode automatique
+      dire(messageErreur(code));
+    };
+    r.onend = function () {
+      if (conv.rec === r) conv.rec = null;
+      etatParler('🎤 Parler');
+      if (!recu) { setEtat('repos'); reprendre(); }
+    };
     conv.rec = r;
     setEtat('ecoute');
-    try { r.start(); } catch (e) { conv.rec = null; setEtat('repos'); }
+    etatParler('🎤 Écoute…');
+    try { r.start(); }
+    catch (e) { conv.rec = null; etatParler('🎤 Parler'); setEtat('repos'); dire(messageErreur('')); }
   }
+
   function toggleConv() {
     if (!SR) { dire("Le mode conversation demande la reconnaissance vocale : utilisez Chrome, Edge ou Safari récent."); return; }
     conv.on = !conv.on;
-    if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non';
+    majBoutonConv();
     if (conv.on) { dire('Mode conversation activé. Vous pouvez parler.'); }
-    else {
-      stopEcoute(); conv.parle = false;
-      if (global.speechSynthesis) speechSynthesis.cancel();
-      setEtat('repos');
-    }
+    else { arreterEcoute(); stopParole(); setEtat('repos'); etatParler('🎤 Parler'); }
   }
 
   function parler(t) {
     if (!global.speechSynthesis || !st.voix) { setEtat('repos'); reprendre(); return; }
-    stopEcoute();
+    arreterEcoute();
     conv.parle = true;
-    speechSynthesis.cancel();
+    clearTimeout(conv.minuterie);
+    // Filet de sécurité : si le navigateur n'envoie jamais la fin de la lecture, on reprend quand même
+    conv.minuterie = setTimeout(fin, Math.min(25000, Math.max(8000, t.length * 110)));
+    function fin() { clearTimeout(conv.minuterie); conv.parle = false; setEtat('repos'); reprendre(); }
+    try { speechSynthesis.cancel(); } catch (e) {}
     var u = new SpeechSynthesisUtterance(t);
     u.lang = 'fr-FR';
     u.rate = st.vitesse || 1;
     u.onstart = function () { setEtat('parle'); };
     u.onboundary = function (e) { if (e.name === 'word') geste('pulse'); };
-    u.onend = function () { conv.parle = false; setEtat('repos'); reprendre(); };
-    u.onerror = function () { conv.parle = false; setEtat('repos'); reprendre(); };
-    speechSynthesis.speak(u);
+    u.onend = fin;
+    u.onerror = fin;
+    try { speechSynthesis.speak(u); } catch (e) { fin(); }
   }
-  function micro() {
-    if (!SR) {
-      dire("La reconnaissance vocale n'est pas disponible sur ce navigateur. Utilisez Chrome, Edge ou Safari récent, ou écrivez votre question.");
-      return;
-    }
-    if (conv.on) { ecouter(); return; }
-    var r = new SR();
-    r.lang = 'fr-FR';
-    r.interimResults = false;
-    r.maxAlternatives = 1;
-    r.onresult = function (e) { poser(e.results[0][0].transcript); };
-    r.onerror = function () { setEtat('repos'); dire("Je n'ai pas bien entendu. Réessayez ou écrivez votre question."); };
-    r.onend = function () { if (st.av && st.av.getAttribute('data-s') === 'ecoute') setEtat('repos'); };
-    setEtat('ecoute');
-    try { r.start(); } catch (e) { setEtat('repos'); }
-  }
+
+  // Bouton Parler : écoute une question (en mode conversation, il relance l'écoute)
+  function micro() { ecouter(true); }
 
   // ---------- Conversation ----------
   function ajouter(qui, texte) {
@@ -412,6 +452,7 @@
     bGal.onclick = galerie;
     var bMic = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎤 Parler');
     bMic.onclick = micro;
+    st.btnParler = bMic;
     st.btnConv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎧 Conversation : non');
     st.btnConv.onclick = toggleConv;
     st.input = el('input', 'flex:1;min-width:120px;padding:8px;font-size:14px');
