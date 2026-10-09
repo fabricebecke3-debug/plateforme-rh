@@ -1,5 +1,13 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="utf-8">
+<html lang="fr"><head>
+<script>
+/* Diagnostic et case « Afficher le mot de passe » : indépendants du reste de l'application */
+window.__errs=[];
+window.addEventListener('error',function(e){window.__errs.push((e.message||'erreur')+' (ligne '+(e.lineno||'?')+')');montrerErreur();});
+function montrerErreur(){var m=document.getElementById('aer');if(m&&window.__errs.length){m.style.color='#f87171';m.textContent='⚠ Erreur technique : '+window.__errs[0];}}
+window.addEventListener('load',montrerErreur);
+document.addEventListener('change',function(e){if(e.target&&e.target.id==='apsh'){var p=document.getElementById('ap');if(p)p.type=e.target.checked?'text':'password';}});
+</script><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PLATEFORME RH</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin><link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin><script async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
