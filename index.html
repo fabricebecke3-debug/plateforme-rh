@@ -1599,7 +1599,7 @@ function go(v){
   if(v==='soc')renderSoc();
   if(v==='p'){fillParamsUI();listUsers();}
   if(v==='x')renderAdmin();
-  if(v==='fo')renderFormation();
+  if(v==='fo')renderApprentissage();
   applyPerms();
   try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
 }
@@ -2754,14 +2754,13 @@ document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')
     if($('v-fo')) return;
     const l=$('v-l'); if(!l) return;
     const sec=document.createElement('section'); sec.className='v'; sec.id='v-fo';
-    sec.innerHTML='<h1>🎓 Formation</h1><div id="fo_box"></div>';
+    sec.innerHTML='<h1>🎓 Apprentissage</h1><div id="fo_box"></div>';
     l.insertAdjacentElement('afterend',sec);
   }
   function creerBouton(){
     if($('nfo')) return;
-    if([...document.querySelectorAll('nav button, button[data-v]')].some(b=>/Formation/.test(b.textContent) && b.id!=='nfo')) return;
     const h=document.querySelector('button[data-v="h"]'); if(!h) return;
-    const b=document.createElement('button'); b.dataset.v='fo'; b.id='nfo'; b.textContent='🎓 Formation';
+    const b=document.createElement('button'); b.dataset.v='fo'; b.id='nfo'; b.textContent='🎓 Apprentissage';
     h.insertAdjacentElement('afterend',b);
   }
   setInterval(function(){ try{ creerPage(); creerBouton(); }catch(e){} }, 800);
@@ -2774,7 +2773,7 @@ document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')
   });
 })();
 
-function renderFormation(){
+function renderApprentissage(){
   const box=$('fo_box'); if(!box) return;
   const esc2=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const admin=isOwnerUser()||(typeof isAdm==='function'&&isAdm());
@@ -2838,8 +2837,8 @@ async function chargerApprenants(){
 // Un seul bouton « Formation » : tout bouton Formation de la barre ouvre la page Formation
 document.addEventListener('click', function(e){
   const b=e.target && e.target.closest ? e.target.closest('button') : null;
-  if(!b || !/Formation/.test(b.textContent)) return;
-  if(b.dataset.v==='fo' || b.id==='nfo' || b.dataset.v==='formation'){
+  if(!b || !/Apprentissage/.test(b.textContent)) return;
+  if(b.dataset.v==='fo' || b.id==='nfo'){
     e.stopImmediatePropagation(); e.preventDefault();
     if(typeof go==='function') go('fo');
   }
