@@ -8765,10 +8765,7 @@ hook();setInterval(hook,1500);
       return r.data.text;
     }
   }); },800);
-  var deja=false;
-  setInterval(function(){
-    if(!deja&&window._avUrl){deja=true;AideAvatar.setPhoto(window._avUrl);}
-  },2000);
+  // L'assistant garde sa propre image : il n'affiche pas la photo de la personne connectée.
 })();
 </script>
 </body></html>

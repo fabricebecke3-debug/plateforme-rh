@@ -31,7 +31,7 @@
     { q: ['profil', 'droit', 'acces', 'permission', 'role'], a: "Les droits se règlent dans Centre de contrôle → Sociétés et accès. Le menu « Modèle rapide » applique un profil créé par l'administrateur." },
     { q: ['journal', 'audit', 'qui a modifie'], a: "Le journal enregistre automatiquement chaque modification avec son auteur. Les administrateurs de société le voient dans 🔔 Alertes ; le propriétaire dans Centre de contrôle → Audit." },
     { q: ['hors ligne', 'sans internet', 'pas de connexion', 'connexion'], a: "L'application s'ouvre sans connexion et affiche les dernières données. Vos ajouts et modifications restent sur l'appareil et sont envoyés dès le retour du réseau." },
-    { q: ['photo', 'avatar', 'ma photo', 'mon image'], a: "Appuyez sur « 📷 Ma photo » pour prendre une photo avec la caméra. Vous choisissez ensuite si elle devient votre photo de profil." },
+    { q: ['photo', 'avatar', 'ma photo', 'mon image'], a: "Les photos et les réglages de l'assistant se configurent dans le Centre de contrôle, onglet Profil et web, section « Assistant RH : paramètres ». Je n'ai pas besoin de ces réglages pour répondre à vos questions." },
     { q: ['barre', 'defilement', 'defiler', 'tableau trop large'], a: "Une barre de défilement apparaît en haut et en bas des tableaux trop larges. Tirez-la pour voir les colonnes à droite." },
     { q: ['tableau de bord', 'graphique', 'statistique'], a: "Le tableau de bord affiche les effectifs et les graphiques. Le mode édition (👁 et ▲▼) permet de masquer ou réordonner les cartes." }
   ];
@@ -311,7 +311,7 @@
       img.src = st.photoUrl; img.alt = st.nom;
       st.av.appendChild(img);
     } else {
-      st.av.textContent = initiales(st.nom);
+      st.av.innerHTML = '<svg width="52" height="52" viewBox="0 0 52 52" role="img" aria-label="Assistant"><rect width="52" height="52" fill="#E6F1FB"/><path d="M6 52 C6 38 16 34 26 34 C36 34 46 38 46 52 Z" fill="#378ADD"/><path d="M22 34 L26 40 L30 34 Z" fill="#E6F1FB"/><rect x="22" y="28" width="8" height="8" fill="#D9A58A"/><ellipse cx="26" cy="22" rx="11" ry="12.5" fill="#E8B99A"/><path d="M14 20 C14 9 38 9 38 20 C34 14 18 14 14 20 Z" fill="#3B2F2A"/><circle cx="22" cy="23" r="1.4" fill="#2C2C2A"/><circle cx="30" cy="23" r="1.4" fill="#2C2C2A"/></svg>';
     }
   }
   function construire() {
@@ -382,7 +382,7 @@
       var ouvert = panel.style.display === 'flex';
       panel.style.display = ouvert ? 'none' : 'flex';
       if (!ouvert && !st.msgs.childNodes.length) {
-        dire('Bonjour ' + st.nom + ' ! Je peux vous expliquer l’application, prendre votre photo ou répondre à vos questions à l’écrit ou à la voix.');
+        dire('Bonjour, je suis votre assistant RH.');
       }
     };
     majAvatar();
