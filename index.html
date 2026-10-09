@@ -2533,8 +2533,8 @@ document.addEventListener('click',e=>{const t=e.target;if(!t||!t.id)return;
     const h=document.createElement('div');h.id='jr_box';h.className='c';h.style.marginTop='14px';
     box.appendChild(h);jrLoad();
   };
-  new MutationObserver(mount).observe(box,{childList:true});
-  mount();
+  new MutationObserver(function(){try{mount();}catch(e){}}).observe(box,{childList:true});
+  setTimeout(function(){try{mount();}catch(e){}},1500);
 })();
 
 
