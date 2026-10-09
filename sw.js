@@ -6,7 +6,7 @@
  * - Les notifications sont gérées comme avant.
  * Pour forcer la mise à jour des utilisateurs, augmentez le numéro de VERSION.
  */
-const VERSION = 'terh-v2';
+const VERSION = 'terh-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -46,7 +46,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Autres fichiers du site : copie d'abord, puis réseau
+  // Fichiers de code (JavaScript, CSS, HTML) : réseau d'abord, pour recevoir les mises à jour immédiatement
+  if (/\.(js|css|html|json|webmanifest)$/i.test(url.pathname) || url.pathname === '/') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {}); }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Autres fichiers du site (images, etc.) : copie d'abord, puis réseau
   event.respondWith(
     caches.match(req).then((hit) =>
       hit || fetch(req)
