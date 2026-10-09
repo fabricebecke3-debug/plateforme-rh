@@ -274,7 +274,18 @@
   function micro() { ecouter(true); }
 
   // ---------- Conversation ----------
+  // Nettoie le texte affiché : pas d'étoiles ni de dièses de markdown
+  function nettoyer(t) {
+    return String(t || '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/^#{1,6}\s*/gm, '')
+      .replace(/^\s*[-*]\s+/gm, '• ')
+      .replace(/\s+\n/g, '\n')
+      .trim();
+  }
   function ajouter(qui, texte) {
+    texte = qui === 'av' ? nettoyer(texte) : texte;
     var d = el('div', 'margin:6px 0;padding:8px 10px;border-radius:10px;max-width:90%;' +
       (qui === 'moi' ? 'margin-left:auto;background:#dbe9ff;color:#1a1a1a' : (st.theme === 'sombre' ? 'background:#2a303c;color:#f1f3f6' : 'background:#f1f3f6;color:#1a1a1a')), texte);
     st.msgs.appendChild(d);
@@ -570,6 +581,11 @@
 
   // ---------- API publique ----------
   global.AideAvatar = {
+    // Efface la conversation affichée (à appeler à la déconnexion)
+    reset: function () {
+      if (st.msgs) st.msgs.innerHTML = '';
+      conv.on = false; arreterEcoute(); stopParole(); setEtat('repos'); majBoutonConv();
+    },
     _ecoute: { rms: rms, accepterTexte: accepterTexte, seuilDepuis: seuilDepuis, etat: function () { return ecoute; } },
     setStyle: function (o) {
       o = o || {};
