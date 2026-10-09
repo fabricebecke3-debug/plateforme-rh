@@ -44,6 +44,7 @@
   var FALLBACK = "Je ne suis pas sûr de bien comprendre votre demande. Pouvez-vous la reformuler ? Je peux vous aider sur les congés, la paie, les contrats, l'import de fichiers ou les alertes.";
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
   var st = { nom: 'Assistant RH', theme: 'clair', position: 'droite', police: 'normale', vitesse: 1, afficherAv: true, couleur: '#1f5fbf', forme: 'rond', taille: 'normale', lanceur: null, utilisateur: null, onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
+  var historique = [];   // échanges de la conversation en cours (effacés par reset)
 
   // ---------- Outils ----------
   function norm(t) {
@@ -251,23 +252,68 @@
     else { arreterEcoute(); stopParole(); setEtat('repos'); etatParler('🎤 Parler'); }
   }
 
+  // Texte prêt à être lu : sans markdown, sans symboles ni emojis
+  function texteParlable(t) {
+    return nettoyer(t)
+      .replace(/[*#_`>|~•]+/g, ' ')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ' ')
+      .replace(/\s+-\s+/g, ', ')
+      .replace(/([.!?])\s*,\s*/g, '$1 ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  // Découpe en phrases courtes, pour une diction plus claire
+  function decouper(t) {
+    var parties = t.match(/[^.!?;:]+[.!?;:]?/g) || [t];
+    var out = [];
+    parties.forEach(function (p) {
+      p = p.trim();
+      while (p.length > 180) {
+        var i = p.lastIndexOf(' ', 180);
+        if (i < 40) i = 180;
+        out.push(p.slice(0, i).trim());
+        p = p.slice(i).trim();
+      }
+      if (p) out.push(p);
+    });
+    return out.filter(Boolean);
+  }
+  // Voix française du navigateur, si disponible
+  function voixFr() {
+    var vs = (global.speechSynthesis && speechSynthesis.getVoices) ? speechSynthesis.getVoices() : [];
+    var fr = vs.filter(function (v) { return /^fr/i.test(v.lang); });
+    var pref = fr.find(function (v) { return /Google|Microsoft|Amélie|Thomas|Denise|Hortense/i.test(v.name); });
+    return pref || fr[0] || null;
+  }
   function parler(t) {
     if (!global.speechSynthesis || !st.voix) { setEtat('repos'); reprendre(); return; }
     arreterEcoute();
     conv.parle = true;
+    var morceaux = decouper(texteParlable(t));
+    var fini = false;
+    function fin() {
+      if (fini) return;
+      fini = true;
+      clearTimeout(conv.minuterie);
+      conv.parle = false; setEtat('repos'); reprendre();
+    }
     clearTimeout(conv.minuterie);
     // Filet de sécurité : si le navigateur n'envoie jamais la fin de la lecture, on reprend quand même
-    conv.minuterie = setTimeout(fin, Math.min(25000, Math.max(8000, t.length * 110)));
-    function fin() { clearTimeout(conv.minuterie); conv.parle = false; setEtat('repos'); reprendre(); }
+    conv.minuterie = setTimeout(fin, Math.min(60000, Math.max(8000, morceaux.join(' ').length * 110)));
     try { speechSynthesis.cancel(); } catch (e) {}
-    var u = new SpeechSynthesisUtterance(t);
-    u.lang = 'fr-FR';
-    u.rate = st.vitesse || 1;
-    u.onstart = function () { setEtat('parle'); };
-    u.onboundary = function (e) { if (e.name === 'word') geste('pulse'); };
-    u.onend = fin;
-    u.onerror = fin;
-    try { speechSynthesis.speak(u); } catch (e) { fin(); }
+    var voix = voixFr();
+    if (!morceaux.length) { fin(); return; }
+    morceaux.forEach(function (m, i) {
+      var u = new SpeechSynthesisUtterance(m);
+      u.lang = 'fr-FR';
+      u.rate = 0.95;
+      u.pitch = 1;
+      if (voix) u.voice = voix;
+      if (i === 0) u.onstart = function () { setEtat('parle'); };
+      if (i === morceaux.length - 1) { u.onend = fin; u.onerror = fin; }
+      u.onboundary = function (e) { if (e.name === 'word') geste('pulse'); };
+      try { speechSynthesis.speak(u); } catch (e) { fin(); }
+    });
   }
 
   // Bouton Parler : écoute une question (en mode conversation, il relance l'écoute)
@@ -316,21 +362,35 @@
     void st.av.offsetWidth;
     st.av.classList.add(nom === 'hoche' ? 'aa-hoche' : 'aa-pulse');
   }
+  var SALUTATION = /^(bonjour|bonsoir|salut|hello|coucou)(\s+[\p{L}-]+)?\s*[!.?,]*$/iu;
+  function memoriser(q, rep) {
+    historique.push({ role: 'user', content: q }, { role: 'assistant', content: rep });
+    while (historique.length > 24) historique.shift();
+  }
   function poser(q) {
     q = String(q || '').trim();
     if (!q) return;
     ajouter('moi', q);
+    // Une salutation répétée au cours d'une conversation ne relance pas l'accueil
+    if (SALUTATION.test(q) && historique.length > 0) {
+      var deja = 'Je vous écoute. Que puis-je faire pour vous ?';
+      memoriser(q, deja);
+      dire(deja);
+      return;
+    }
     var a = answerLocal(q);
-    if (a) { dire(a); return; }
+    if (a) { memoriser(q, a); dire(a); return; }
     if (st.onAI) {
       setEtat('pense');
-      Promise.resolve().then(function () { return st.onAI(q); })
-        .then(function (r) { dire(r || FALLBACK); })
+      var precedents = historique.slice(-12);
+      Promise.resolve().then(function () { return st.onAI(q, precedents); })
+        .then(function (r) { var txt = r || FALLBACK; memoriser(q, txt); dire(txt); })
         .catch(function () { dire(FALLBACK); });
       return;
     }
     dire(FALLBACK);
   }
+
 
   // ---------- Enregistrement commun (caméra ou galerie) ----------
   function enregistrerPhoto(blob) {
@@ -584,6 +644,7 @@
     // Efface la conversation affichée (à appeler à la déconnexion)
     reset: function () {
       if (st.msgs) st.msgs.innerHTML = '';
+      historique.length = 0;
       conv.on = false; arreterEcoute(); stopParole(); setEtat('repos'); majBoutonConv();
     },
     _ecoute: { rms: rms, accepterTexte: accepterTexte, seuilDepuis: seuilDepuis, etat: function () { return ecoute; } },

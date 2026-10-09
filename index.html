@@ -2781,12 +2781,22 @@ function renderApprentissage(){
     +'<p class="muted" style="font-size:13px">Cours, exercices et entraînement. Les personnes citées dans les exemples sont fictives.</p>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
     +'<button class="p" id="fo_qcm">📝 Faire le QCM</button>'
-    +'<a class="s" href="formation/cours-et-exercices.md" target="_blank" rel="noopener">📘 Cours et exercices</a>'
-    +'<a class="s" href="formation/programme.md" target="_blank" rel="noopener">🗺 Programme</a>'
+    +'<button class="s" data-doc="formation/cours-et-exercices.md">📘 Cours et exercices</button>'
+    +'<button class="s" data-doc="formation/programme.md">🗺 Programme</button>'
     +'<button class="s" id="fo_ass">💬 Poser une question à l\'assistant</button></div>'
-    +'<div id="fo_qcm_zone"></div>'
+    +'<div id="fo_qcm_zone"></div><div id="fo_doc"></div>'
     +'<h3 style="font-size:14px;margin-top:12px">Ma progression</h3><div id="fo_prog" class="muted">Chargement…</div></div>'
-    +(admin?'<div class="c" style="margin-top:14px"><h2>Gestion des apprenants</h2>'
+    +'<div class="c" style="margin-top:14px"><h2>Comment ça marche et où configurer</h2>'
+      +'<ol style="line-height:1.8;font-size:14px">'
+      +'<li><b>Le site</b> : les cours, le QCM et l’assistant sont déjà en place. Rien à régler.</li>'
+      +'<li><b>Base de données</b> : Supabase → SQL Editor → exécuter <code>sql/formation-comptes.sql</code> (une seule fois).</li>'
+      +'<li><b>Fonction serveur</b> : terminal → <code>supabase functions deploy formation-comptes</code> (voir DEPLOIEMENT.md).</li>'
+      +'<li><b>Invitations</b> : Supabase → Authentication → Email Templates (modèle en français).</li>'
+      +'<li><b>Inscription libre</b> : à désactiver dans Authentication → Sign In / Providers → Email.</li>'
+      +'<li><b>Apprenants indépendants</b> : invitez-les sans société (propriétaire seulement).</li>'
+      +'<li><b>Contenus</b> : les cours et le programme sont dans <code>formation/</code>, les questions dans <code>formation/qcm.json</code>.</li>'
+      +'</ol><button class="s" id="fo_test">🔍 Vérifier la configuration</button><div id="fo_diag" style="margin-top:8px"></div></div>'
+      +(admin?'<div class="c" style="margin-top:14px"><h2>Gestion des apprenants</h2>'
       +'<p class="muted" style="font-size:13px">Invitez une personne par e-mail. Sans société, l’apprenant est indépendant.</p>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'
       +'<label>E-mail<input id="fo_mail" type="email" placeholder="nom@exemple.com"></label>'
@@ -2795,8 +2805,37 @@ function renderApprentissage(){
       +'<div id="fo_liste" style="margin-top:12px" class="muted">Chargement…</div></div>':'');
   $('fo_qcm').onclick=()=>{ $('fo_qcm_zone').innerHTML='<iframe src="formation/entrainement-qcm.html" style="width:100%;height:620px;border:1px solid #d6dbe3;border-radius:10px" title="QCM"></iframe>'; };
   $('fo_ass').onclick=()=>{ toast('Ouvrez 💬 en bas à droite et posez votre question.'); };
+  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>afficherDoc(b.dataset.doc));
+  if($('fo_test')) $('fo_test').onclick=verifierFormation;
   chargerProgression();
   if(admin){ $('fo_inv').onclick=inviterApprenant; chargerApprenants(); }
+}
+
+async function afficherDoc(url){
+  const zone=$('fo_doc'); if(!zone) return;
+  zone.innerHTML='<p class="muted">Chargement…</p>';
+  try{
+    const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const md=await r.text();
+    const titre=url.indexOf('programme')>=0?'Programme':'Cours et exercices';
+    zone.innerHTML='<div class="c" style="margin-top:12px"><div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">'+titre+'</h2><button class="s" id="fo_doc_x">Fermer</button></div><div style="line-height:1.6;margin-top:10px;font-size:14px">'+ApprentissageOutils.mdToHtml(md)+'</div></div>';
+    $('fo_doc_x').onclick=()=>{ zone.innerHTML=''; };
+    zone.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    zone.innerHTML='<p class="ban">Document introuvable ('+esc(url)+'). Vérifiez que le dossier formation/ est bien à la racine du site.</p>';
+  }
+}
+async function verifierFormation(){
+  const d=$('fo_diag'); if(!d) return;
+  const lignes=[];
+  const ligne=(ok,titre,detail)=>lignes.push('<li>'+(ok?'✅':'⚠️')+' <b>'+titre+'</b> : '+esc(detail)+'</li>');
+  ligne(!!MY_USER,'Connexion',MY_USER?'vous êtes connecté.':'connectez-vous pour utiliser la progression et la gestion des apprenants.');
+  const t=await db.from('formation_apprenants').select('id',{count:'exact',head:true});
+  ligne(!t.error,'Tables de formation',t.error?ApprentissageOutils.expliquerErreur(t.error.message):'présentes.');
+  const f=await db.functions.invoke('formation-comptes',{body:{action:'lister'}});
+  const fm=f.error?f.error.message:(f.data&&f.data.error);
+  ligne(!fm,'Fonction formation-comptes',fm?ApprentissageOutils.expliquerErreur(fm):'déployée et réactive.');
+  d.innerHTML='<ul style="list-style:none;padding:0;line-height:1.8;font-size:14px">'+lignes.join('')+'</ul>';
 }
 async function chargerProgression(){
   const el=$('fo_prog'); if(!el) return;
@@ -2812,14 +2851,14 @@ async function inviterApprenant(){
   const corps={action:'inviter',email:email,nom:nom};
   if(!isOwnerUser() && CO) corps.entreprise_id=CO;
   const r=await db.functions.invoke('formation-comptes',{body:corps});
-  if(r.error||(r.data&&r.data.error)){ toast((r.data&&r.data.error)||'Invitation impossible'); return; }
+  if(r.error||(r.data&&r.data.error)){ console.warn('formation-comptes inviter',r.error||r.data); toast(ApprentissageOutils.expliquerErreur((r.error&&r.error.message)||(r.data&&r.data.error)||'Invitation impossible')); return; }
   toast('Invitation envoyée'); $('fo_mail').value=''; $('fo_nom').value=''; chargerApprenants();
 }
 async function chargerApprenants(){
   const el=$('fo_liste'); if(!el) return;
   const corps={action:'lister'}; if(!isOwnerUser() && CO) corps.entreprise_id=CO;
   const r=await db.functions.invoke('formation-comptes',{body:corps});
-  if(r.error||(r.data&&r.data.error)){ el.textContent=(r.data&&r.data.error)||'Liste indisponible'; return; }
+  if(r.error||(r.data&&r.data.error)){ console.warn('formation-comptes lister',r.error||r.data); el.textContent=ApprentissageOutils.expliquerErreur((r.error&&r.error.message)||(r.data&&r.data.error)||''); return; }
   const liste=(r.data&&r.data.data)||[];
   if(!liste.length){ el.textContent='Aucun apprenant pour le moment.'; return; }
   el.innerHTML='<table style="width:100%;font-size:13px"><tr><th align="left">Nom</th><th align="left">E-mail</th><th align="left">Statut</th><th></th></tr>'
@@ -5371,7 +5410,7 @@ function showAv(){const i=$('myav');if(!i)return;if(window._avUrl){i.src=window.
 /* Cabinet (ex. TOTAL EMPLOI RH) et son client (ex. ACC) : l'en-tête montre « cabinet › client », le pied de page nomme toujours le cabinet */
 function cabinetInfo(){const co=curCo();if(!co)return {cab:'',cli:'',all:'',logo:''};const lc=x=>String(x||'').trim().toLowerCase();let cab='',cli=co.nom||'',logo='';
   const pool=(window.__ALLCOS&&window.__ALLCOS.length)?window.__ALLCOS:(typeof COS!=='undefined'?COS:[]);
-  let par=co.groupe_id?pool.find(x=>x.id===co.groupe_id):null;if(!par&&co.groupe_id&&co.type_entreprise!=='groupe')par={nom:OWNER.societe,logo_url:''};
+  let par=co.groupe_id?pool.find(x=>x.id===co.groupe_id):null;
   if(par&&par.nom){cab=par.nom;logo=par.logo_url||'';}
   else if(co.client&&lc(co.client)!==lc(co.nom)){cab=co.nom;cli=co.client;logo=co.logo_url||'';}
   else if(co.type_entreprise==='groupe'){cab=co.nom;cli=(co.client&&lc(co.client)!==lc(co.nom))?co.client:co.nom;logo=co.logo_url||'';}
@@ -8847,6 +8886,7 @@ hook();setInterval(hook,1500);
 })();
 </script>
 <script src="formation/assistant-formation.js"></script>
+<script src="formation/apprentissage-outils.js"></script>
 <script src="aide-avatar.js"></script>
 <script>
 (function(){
@@ -8898,12 +8938,12 @@ hook();setInterval(hook,1500);
       }
       throw new Error('délai dépassé, réessayez');
     },
-    onAI:async function(q){
+    onAI:async function(q,precedents){
       if(window.FormationAssistant){var lf=await window.FormationAssistant.repondre(q);if(lf.source==='local')return lf.texte;}
       var ctx='';try{ctx=(typeof ctxAgg==='function'?ctxAgg():'')+(typeof aiFacts==='function'?aiFacts(q,false):'');}catch(e){}
       try{var qq=db.from('audit_log').select('created_at,user_email,table_name,action,row_id').order('created_at',{ascending:false}).limit(30);if(!isOwnerUser()&&CO)qq=qq.eq('entreprise_id',CO);var rr=await qq;if(rr.data&&rr.data.length)ctx+='\n\nJOURNAL RECENT (30 dernieres modifications, plus recentes d\'abord) :\n'+rr.data.map(function(x){return String(x.created_at).slice(0,16).replace('T',' ')+' | '+(x.user_email||'?')+' | '+x.action+' '+x.table_name+' #'+String(x.row_id||'').slice(0,8);}).join('\n');}catch(e){}
       ctx+='\n\nRECIT DE LA PLATEFORME (genese et parcours du createur, a utiliser pour repondre aux questions sur l\'histoire) :\n'+recitPlateforme();
-      var r=await window.TERH_callAI({messages:[{role:'user',content:q}],context:ctx,user_first:(typeof userFirst==='function'?userFirst():''),client_hour:new Date().getHours(),lang:'fr',max_tokens:800},26000);
+      var r=await window.TERH_callAI({messages:(precedents||[]).map(function(m){return {role:m.role,content:m.content};}).concat([{role:'user',content:q}]),context:ctx,user_first:(typeof userFirst==='function'?userFirst():''),client_hour:new Date().getHours(),lang:'fr',max_tokens:800},26000);
       if(r.error||!r.data||!r.data.text)throw new Error('IA indisponible');
       return r.data.text;
     }
