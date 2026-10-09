@@ -19,6 +19,10 @@
 
   // ---------- Base d'aide intégrée (hors connexion) ----------
   var FAQ = [
+    { q: ['comment vas tu', 'comment ca va', 'ca va', 'tu vas bien', 'comment allez vous', 'comment allez-vous', 'comment tu vas'], a: "Je vais très bien, merci de demander ! Et vous, comment se passe votre journée ? Dites-moi ce dont vous avez besoin, je suis là pour vous aider." },
+    { q: ['merci', 'merci beaucoup'], a: "Avec plaisir ! N'hésitez pas si vous avez une autre question." },
+    { q: ['au revoir', 'a bientot', 'bonne journee', 'bonne soiree', 'a plus'], a: "Au revoir, et bonne journée ! Je reste disponible pour vos questions." },
+    { q: ['bonsoir'], a: "Bonsoir ! Comment puis-je vous aider ?" },
     { q: ['comment tu t appelles', 'ton nom', 'qui es tu', 'qui etes vous', 'votre nom'], a: "Je suis l'Assistant RH, un assistant IA de la plateforme. Je réponds à vos questions RH et sur l'application." },
     { q: ['bonjour', 'salut', 'aide'], a: "Bonjour ! Comment puis-je vous aider ?" },
     { q: ['ajouter un employe', 'nouvel employe', 'creer un employe', 'ajouter employe'], a: "Ouvrez l'onglet Personnel, puis « ➕ Nouvel employé ». Renseignez le nom, le poste et le type de contrat, puis enregistrez." },
@@ -37,7 +41,7 @@
     { q: ['tableau de bord', 'graphique', 'statistique'], a: "Le tableau de bord affiche les effectifs et les graphiques. Le mode édition (👁 et ▲▼) permet de masquer ou réordonner les cartes." }
   ];
 
-  var FALLBACK = "Je n'ai pas trouvé de réponse précise. Essayez des mots comme : importer, congé, alertes, contrat, profil, journal, hors ligne.";
+  var FALLBACK = "Je ne suis pas sûr de bien comprendre votre demande. Pouvez-vous la reformuler ? Je peux vous aider sur les congés, la paie, les contrats, l'import de fichiers ou les alertes.";
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
   var st = { nom: 'Assistant RH', theme: 'clair', position: 'droite', police: 'normale', vitesse: 1, afficherAv: true, couleur: '#1f5fbf', forme: 'rond', taille: 'normale', lanceur: null, utilisateur: null, onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
 
@@ -375,7 +379,7 @@
     st.av = el('div', 'width:52px;height:52px;border-radius:50%;background:#1f5fbf;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden;flex:0 0 auto;transition:box-shadow .2s');
     st.av.id = 'aa-av'; st.av.setAttribute('data-s', 'repos');
     var titre = el('div', 'flex:1;min-width:0');
-    titre.appendChild(el('div', 'font-weight:700', 'Assistant de Fabrice'));
+    titre.appendChild(el('div', 'font-weight:700', 'Assistant RH'));
     st.btnVoix = el('button', 'padding:6px 8px;font-size:12px;cursor:pointer', '🔊 Voix : oui');
     st.btnVoix.onclick = function () {
       st.voix = !st.voix;

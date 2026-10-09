@@ -8729,7 +8729,7 @@ hook();setInterval(hook,1500);
   function signedAv(p){return db.storage.from('avatars').createSignedUrl(p,3600).then(function(r){return r.data&&r.data.signedUrl||'';});}
   var _avTimer=setInterval(function(){ if(!MY_USER)return; clearInterval(_avTimer); AideAvatar.start({
     nom:'Assistant RH',
-    utilisateur:function(){var m=MY_USER||{};var n=(m.user_metadata&&m.user_metadata.full_name)||String(m.email||'').split('@')[0];return n||'';},
+    utilisateur:function(){var m=MY_USER||{};var n='';try{n=localStorage.getItem('terh_name_'+m.id)||'';}catch(e){}if(!n)n=(m.user_metadata&&(m.user_metadata.display_name||m.user_metadata.full_name))||'';return n;},
     onPhoto:async function(blob){
       if(!MY_USER)throw new Error('connectez-vous d’abord');
       var p=MY_USER.id+'/avatar.jpg';
