@@ -727,6 +727,7 @@ function TERH_noCo(on){let o=document.getElementById('terh-noco');if(!on){if(o)o
  o.querySelector('#noco-r').onclick=()=>location.reload();
  o.querySelector('#noco-o').onclick=async()=>{try{await db.auth.signOut();}catch(e){}location.reload();};}
 function modOn(v){
+  if(v==='fo')return true;
   if(isOwnerUser()||!MULTI)return true;
   if(v==='grp'||v==='soc')return true;
   if(v==='formation'&&!formationOk())return false;
@@ -1598,6 +1599,7 @@ function go(v){
   if(v==='soc')renderSoc();
   if(v==='p'){fillParamsUI();listUsers();}
   if(v==='x')renderAdmin();
+  if(v==='fo')renderFormation();
   applyPerms();
   try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
 }
@@ -2723,6 +2725,114 @@ document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')
   new MutationObserver(function(){try{mount();}catch(e){}}).observe(box,{childList:true});
   setTimeout(function(){try{mount();}catch(e){}},1500);
 })();
+
+/* ============ ACTIONS DU PERSONNEL : Disciplinaire, Congés et Colonnes sortent de la barre du haut ============ */
+(function persActions(){
+  function trouver(mot, data){
+    return [...document.querySelectorAll('button[data-v]')].find(b=>b.dataset.v===data && b.textContent.includes(mot)) || null;
+  }
+  function deplacer(){
+    const v=$('v-l'); if(!v) return;
+    const h=v.querySelector('h1'); if(!h) return;
+    let box=$('pers_actions');
+    if(!box){
+      box=document.createElement('div'); box.id='pers_actions';
+      box.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px';
+      h.insertAdjacentElement('afterend',box);
+    }
+    const cibles=[trouver('Disciplinaire','dsp'), trouver('Congés','c'), $('xcolbtn')];
+    cibles.forEach(b=>{ if(b && !box.contains(b) && !v.contains(b)) box.appendChild(b); });
+  }
+  setInterval(function(){ try{deplacer();}catch(e){} }, 800);
+  document.addEventListener('DOMContentLoaded', function(){ try{deplacer();}catch(e){} });
+})();
+
+
+/* ============ MODULE FORMATION : apprenants (tous) et gestion des comptes (propriétaire, administrateur) ============ */
+(function formationModule(){
+  function creerPage(){
+    if($('v-fo')) return;
+    const l=$('v-l'); if(!l) return;
+    const sec=document.createElement('section'); sec.className='v'; sec.id='v-fo';
+    sec.innerHTML='<h1>🎓 Formation</h1><div id="fo_box"></div>';
+    l.insertAdjacentElement('afterend',sec);
+  }
+  function creerBouton(){
+    if($('nfo')) return;
+    const h=document.querySelector('button[data-v="h"]'); if(!h) return;
+    const b=document.createElement('button'); b.dataset.v='fo'; b.id='nfo'; b.textContent='🎓 Formation';
+    h.insertAdjacentElement('afterend',b);
+  }
+  setInterval(function(){ try{ creerPage(); creerBouton(); }catch(e){} }, 800);
+  window.addEventListener('message', function(e){
+    if(e.origin!==window.location.origin || !e.data || e.data.type!=='qcm-fin') return;
+    if(!MY_USER) return;
+    db.functions.invoke('formation-comptes',{body:{action:'progres',module:'qcm-'+String(e.data.theme||'tous'),score:Math.round(100*e.data.score/Math.max(1,e.data.total)),termine:true}})
+      .then(function(r){ toast(r.error?'Progression non enregistrée':'Progression enregistrée'); })
+      .catch(function(){ toast('Progression non enregistrée (connexion requise)'); });
+  });
+})();
+
+function renderFormation(){
+  const box=$('fo_box'); if(!box) return;
+  const esc2=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const admin=isOwnerUser()||(typeof isAdm==='function'&&isAdm());
+  box.innerHTML='<div class="c"><h2>Mes formations</h2>'
+    +'<p class="muted" style="font-size:13px">Cours, exercices et entraînement. Les personnes citées dans les exemples sont fictives.</p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
+    +'<button class="p" id="fo_qcm">📝 Faire le QCM</button>'
+    +'<a class="s" href="formation/cours-et-exercices.md" target="_blank" rel="noopener">📘 Cours et exercices</a>'
+    +'<a class="s" href="formation/programme.md" target="_blank" rel="noopener">🗺 Programme</a>'
+    +'<button class="s" id="fo_ass">💬 Poser une question à l\'assistant</button></div>'
+    +'<div id="fo_qcm_zone"></div>'
+    +'<h3 style="font-size:14px;margin-top:12px">Ma progression</h3><div id="fo_prog" class="muted">Chargement…</div></div>'
+    +(admin?'<div class="c" style="margin-top:14px"><h2>Gestion des apprenants</h2>'
+      +'<p class="muted" style="font-size:13px">Invitez une personne par e-mail. Sans société, l’apprenant est indépendant.</p>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'
+      +'<label>E-mail<input id="fo_mail" type="email" placeholder="nom@exemple.com"></label>'
+      +'<label>Nom<input id="fo_nom" placeholder="Prénom Nom"></label>'
+      +'<button class="p" id="fo_inv">➕ Inviter</button></div>'
+      +'<div id="fo_liste" style="margin-top:12px" class="muted">Chargement…</div></div>':'');
+  $('fo_qcm').onclick=()=>{ $('fo_qcm_zone').innerHTML='<iframe src="formation/entrainement-qcm.html" style="width:100%;height:620px;border:1px solid #d6dbe3;border-radius:10px" title="QCM"></iframe>'; };
+  $('fo_ass').onclick=()=>{ toast('Ouvrez 💬 en bas à droite et posez votre question.'); };
+  chargerProgression();
+  if(admin){ $('fo_inv').onclick=inviterApprenant; chargerApprenants(); }
+}
+async function chargerProgression(){
+  const el=$('fo_prog'); if(!el) return;
+  if(!MY_USER){ el.textContent='Connectez-vous pour voir votre progression.'; return; }
+  const {data,error}=await db.from('formation_progres').select('module,score,termine,mis_a_jour').eq('apprenant_user_id',MY_USER.id).order('mis_a_jour',{ascending:false});
+  if(error||!data||!data.length){ el.textContent='Aucune progression enregistrée pour le moment.'; return; }
+  el.innerHTML='<table style="width:100%;font-size:13px"><tr><th align="left">Module</th><th align="left">Score</th><th align="left">Date</th></tr>'
+    +data.map(r=>'<tr><td>'+String(r.module).replace(/</g,'&lt;')+'</td><td>'+(r.score==null?'—':r.score+' %')+'</td><td>'+String(r.mis_a_jour||'').slice(0,10)+'</td></tr>').join('')+'</table>';
+}
+async function inviterApprenant(){
+  const email=($('fo_mail').value||'').trim(), nom=($('fo_nom').value||'').trim();
+  if(!email||nom.length<2){ toast('Indiquez un e-mail et un nom'); return; }
+  const corps={action:'inviter',email:email,nom:nom};
+  if(!isOwnerUser() && CO) corps.entreprise_id=CO;
+  const r=await db.functions.invoke('formation-comptes',{body:corps});
+  if(r.error||(r.data&&r.data.error)){ toast((r.data&&r.data.error)||'Invitation impossible'); return; }
+  toast('Invitation envoyée'); $('fo_mail').value=''; $('fo_nom').value=''; chargerApprenants();
+}
+async function chargerApprenants(){
+  const el=$('fo_liste'); if(!el) return;
+  const corps={action:'lister'}; if(!isOwnerUser() && CO) corps.entreprise_id=CO;
+  const r=await db.functions.invoke('formation-comptes',{body:corps});
+  if(r.error||(r.data&&r.data.error)){ el.textContent=(r.data&&r.data.error)||'Liste indisponible'; return; }
+  const liste=(r.data&&r.data.data)||[];
+  if(!liste.length){ el.textContent='Aucun apprenant pour le moment.'; return; }
+  el.innerHTML='<table style="width:100%;font-size:13px"><tr><th align="left">Nom</th><th align="left">E-mail</th><th align="left">Statut</th><th></th></tr>'
+    +liste.map(a=>'<tr><td>'+String(a.nom).replace(/</g,'&lt;')+'</td><td>'+String(a.email).replace(/</g,'&lt;')+'</td><td>'+a.statut+'</td><td>'
+      +(a.statut==='suspendu'
+        ?'<button class="s" data-fa="reactiver" data-id="'+a.id+'">Réactiver</button>'
+        :'<button class="s" data-fa="suspendre" data-id="'+a.id+'">Suspendre</button>')+'</td></tr>').join('')+'</table>';
+  el.querySelectorAll('[data-fa]').forEach(b=>b.onclick=async()=>{
+    const rr=await db.functions.invoke('formation-comptes',{body:{action:b.dataset.fa,id:b.dataset.id}});
+    if(rr.error||(rr.data&&rr.data.error)){ toast((rr.data&&rr.data.error)||'Action impossible'); return; }
+    chargerApprenants();
+  });
+}
 /* ============ TABLEAU DE BORD PAR MODULE, COLONNES PERSONNALISÉES, MODULES PAR SOCIÉTÉ ============ */
 function xColsDef(){try{const a=JSON.parse(PARAMS.perso_cols||'[]');return Array.isArray(a)?a.filter(d=>d&&d.l):[];}catch(e){return[];}}
 function fillModCard(k){

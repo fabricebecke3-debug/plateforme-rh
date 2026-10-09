@@ -167,6 +167,7 @@ function fin(){
       +'<button class="primary" id="revoir">Revoir les erreurs</button>':'<p>Excellent, aucune erreur.</p>')
     +'<button id="rejouer">Recommencer</button>';
   $('rejouer').onclick=()=>$('start').click();
+  if(window.parent&&window.parent!==window){window.parent.postMessage({type:'qcm-fin',theme:$('theme').value,score:score,total:liste.length},window.location.origin);}
   if($('revoir')) $('revoir').onclick=()=>commencer(erreurs.slice());
 }
 

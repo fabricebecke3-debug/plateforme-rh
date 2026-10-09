@@ -24,7 +24,7 @@
     { q: ['au revoir', 'a bientot', 'bonne journee', 'bonne soiree', 'a plus'], a: "Au revoir, et bonne journée ! Je reste disponible pour vos questions." },
     { q: ['bonsoir'], a: "Bonsoir ! Comment puis-je vous aider ?" },
     { q: ['comment tu t appelles', 'ton nom', 'qui es tu', 'qui etes vous', 'votre nom'], a: "Je suis l'Assistant RH, un assistant IA de la plateforme. Je réponds à vos questions RH et sur l'application." },
-    { q: ['bonjour', 'salut', 'aide'], a: "Bonjour ! Comment puis-je vous aider ?" },
+    { q: ['bonjour', 'salut', 'bonjour a tous'], a: "Bonjour, ravi de vous accompagner ! Que puis-je faire pour vous aujourd'hui ?" },
     { q: ['ajouter un employe', 'nouvel employe', 'creer un employe', 'ajouter employe'], a: "Ouvrez l'onglet Personnel, puis « ➕ Nouvel employé ». Renseignez le nom, le poste et le type de contrat, puis enregistrez." },
     { q: ['importer', 'import', 'fichier excel', 'effectif'], a: "Cliquez sur « ⬆ Importer » et choisissez votre fichier Excel. Les colonnes inconnues sont créées automatiquement comme colonnes personnalisées." },
     { q: ['colonne', 'colonnes personnalisees', 'ajouter une colonne'], a: "Administrateur : cliquez sur « 🧱 Colonnes » pour ajouter ou supprimer une colonne. « 👁 Colonnes affichées » choisit ce qui apparaît dans la liste." },
@@ -79,22 +79,101 @@
   // ---------- Écoute et voix (bouton Parler et mode conversation) ----------
   var conv = { on: false, rec: null, parle: false, minuterie: null };
 
+  // ---------- Écoute intelligente : mesure le bruit ambiant et n'accepte que la voix ----------
+  // L'analyse du son reste sur l'appareil. Aucun enregistrement n'est conservé.
+  var ecoute = { ctx: null, analyser: null, flux: null, data: null, bruit: 0, seuil: 0, voix: false, suivi: null, parole: 0 };
+  var PAROLES_PARASITES = ['euh', 'hum', 'hmm', 'mm', 'ah', 'oh', 'bah', 'ben', 'heu'];
+
+  function rms(donnees) {
+    var s = 0;
+    for (var i = 0; i < donnees.length; i++) { var v = (donnees[i] - 128) / 128; s += v * v; }
+    return Math.sqrt(s / donnees.length);
+  }
+  function seuilDepuis(bruit) { return Math.max(bruit * 2.5, 0.02); }
+  function normaliserTexte(t) {
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  // Décide si une phrase reconnue doit être prise en compte. Renvoie { ok, raison }.
+  function accepterTexte(texte, confiance, voixDetectee) {
+    var n = normaliserTexte(texte);
+    if (!n) return { ok: false, raison: 'vide' };
+    if (!voixDetectee) return { ok: false, raison: 'bruit' };
+    if (typeof confiance === 'number' && confiance > 0 && confiance < 0.35) return { ok: false, raison: 'peu sur' };
+    var mots = n.split(' ').filter(Boolean);
+    if (n.length < 3 || mots.length === 0) return { ok: false, raison: 'court' };
+    if (mots.every(function (m) { return PAROLES_PARASITES.indexOf(m) !== -1; })) return { ok: false, raison: 'parasite' };
+    return { ok: true, raison: '' };
+  }
+
+  function demarrerAnalyse() {
+    var AC = global.AudioContext || global.webkitAudioContext;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !AC) return;
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+      .then(function (flux) {
+        var ctx = new AC();
+        var an = ctx.createAnalyser();
+        an.fftSize = 1024;
+        ctx.createMediaStreamSource(flux).connect(an);
+        ecoute.flux = flux; ecoute.ctx = ctx; ecoute.analyser = an;
+        ecoute.data = new Uint8Array(an.fftSize);
+        // Calibrage du bruit ambiant pendant ~0,5 seconde
+        var mesures = [], t0 = Date.now();
+        var cal = setInterval(function () {
+          if (!ecoute.analyser) { clearInterval(cal); return; }
+          an.getByteTimeDomainData(ecoute.data);
+          mesures.push(rms(ecoute.data));
+          if (Date.now() - t0 >= 500) {
+            clearInterval(cal);
+            ecoute.bruit = mesures.reduce(function (x, y) { return x + y; }, 0) / mesures.length;
+            ecoute.seuil = seuilDepuis(ecoute.bruit);
+            ecoute.suivi = setInterval(suivreVoix, 60);
+          }
+        }, 50);
+      })
+      .catch(function () { /* pas d'analyse : on se fie à la reconnaissance seule */ });
+  }
+  function suivreVoix() {
+    if (!ecoute.analyser) return;
+    ecoute.analyser.getByteTimeDomainData(ecoute.data);
+    if (rms(ecoute.data) > ecoute.seuil) { ecoute.parole++; if (ecoute.parole >= 3) ecoute.voix = true; }
+    else { ecoute.parole = 0; }
+  }
+  function arreterAnalyse() {
+    clearInterval(ecoute.suivi);
+    if (ecoute.flux) { ecoute.flux.getTracks().forEach(function (t) { t.stop(); }); }
+    if (ecoute.ctx) { try { ecoute.ctx.close(); } catch (e) {} }
+    ecoute.ctx = null; ecoute.analyser = null; ecoute.flux = null; ecoute.data = null;
+    ecoute.bruit = 0; ecoute.seuil = 0; ecoute.voix = false; ecoute.suivi = null; ecoute.parole = 0;
+  }
+
   function etatParler(texte) { if (st.btnParler) st.btnParler.textContent = texte; }
   function majBoutonConv() { if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non'; }
 
   function messageErreur(code) {
     var m = {
-      'not-allowed': "Le micro n'est pas autorisé. Autorisez-le dans les paramètres du navigateur, puis réessayez.",
-      'service-not-allowed': "Le micro n'est pas autorisé. Autorisez-le dans les paramètres du navigateur, puis réessayez.",
-      'audio-capture': "Aucun micro n'a été détecté sur cet appareil.",
-      'network': "La reconnaissance vocale demande une connexion internet. Écrivez votre question en attendant.",
-      'no-speech': "Je n'ai rien entendu. Appuyez sur Parler, puis parlez après le signal."
+      'not-allowed': "Je n'ai pas l'autorisation d'utiliser le micro. Vous pouvez l'autoriser dans les paramètres du navigateur, puis réessayer.",
+      'service-not-allowed': "Je n'ai pas l'autorisation d'utiliser le micro. Vous pouvez l'autoriser dans les paramètres du navigateur, puis réessayer.",
+      'audio-capture': "Je ne trouve pas de micro sur cet appareil.",
+      'network': "La reconnaissance vocale a besoin d'une connexion internet. Vous pouvez m'écrire votre question en attendant.",
+      'no-speech': "Je ne vous ai pas entendu. Appuyez de nouveau sur Parler quand vous êtes prêt."
     };
-    return m[code] || "Je n'ai pas pu écouter. Réessayez, ou écrivez votre question.";
+    return m[code] || "Je n'ai pas pu vous entendre. Vous pouvez réessayer ou m'écrire votre question.";
+  }
+  function messageRefus(raison) {
+    var m = {
+      'bruit': "J'ai surtout entendu du bruit. Pouvez-vous reprendre votre question, un peu plus près du micro ?",
+      'peu sur': "Je ne suis pas certain d'avoir bien compris. Pouvez-vous répéter, s'il vous plaît ?",
+      'court': "Pouvez-vous me poser votre question en une phrase ?",
+      'parasite': "Je vous écoute, dites-moi ce dont vous avez besoin.",
+      'vide': "Je ne vous ai pas entendu. Vous pouvez reprendre quand vous voulez."
+    };
+    return m[raison] || "Pouvez-vous reformuler, s'il vous plaît ?";
   }
 
   function arreterEcoute() {
     if (conv.rec) { var r = conv.rec; conv.rec = null; try { r.abort(); } catch (e) {} }
+    arreterAnalyse();
   }
   function stopParole() {
     clearTimeout(conv.minuterie);
@@ -104,7 +183,7 @@
   // Relance l'écoute en mode conversation, seulement si rien d'autre n'est en cours
   function reprendre() {
     if (!conv.on) return;
-    setTimeout(function () { if (conv.on && !conv.parle && !conv.rec) ecouter(false); }, 400);
+    setTimeout(function () { if (conv.on && !conv.parle && !conv.rec) ecouter(false); }, 500);
   }
 
   function ecouter(manuel) {
@@ -113,10 +192,11 @@
       return;
     }
     if (conv.parle) {
-      if (!manuel) return;     // en conversation automatique : on n'écoute pas pendant que l'assistant parle
-      stopParole();            // bouton Parler : on coupe la voix et on écoute
+      if (!manuel) return;     // en conversation automatique : on n'écoute pas pendant que je parle
+      stopParole();            // bouton Parler : je m'arrête de parler et j'écoute
     }
     arreterEcoute();
+    demarrerAnalyse();
     var r;
     try { r = new SR(); } catch (e) { dire(messageErreur('')); return; }
     r.lang = 'fr-FR';
@@ -128,29 +208,39 @@
       recu = true;
       conv.rec = null;
       etatParler('🎤 Parler');
-      var t = e.results && e.results[0] ? e.results[0][0].transcript : '';
-      if (t && t.trim()) poser(t); else reprendre();
+      var res = e.results && e.results[0] ? e.results[0][0] : null;
+      var texte = res ? res.transcript : '';
+      var confiance = res ? res.confidence : undefined;
+      // Si l'analyse n'est pas disponible, on se fie à la reconnaissance seule
+      var voixOk = ecoute.analyser ? ecoute.voix : true;
+      var verdict = accepterTexte(texte, confiance, voixOk);
+      arreterAnalyse();
+      if (verdict.ok) { poser(texte); return; }
+      setEtat('repos');
+      if (conv.on) { reprendre(); return; }      // en conversation, on écoute à nouveau sans bruit
+      dire(messageRefus(verdict.raison));
     };
     r.onerror = function (e) {
       var code = (e && e.error) || '';
       conv.rec = null;
       etatParler('🎤 Parler');
       setEtat('repos');
-      if (code === 'aborted') return;                       // arrêt volontaire
-      if (code === 'no-speech' && conv.on) return;           // silence : onend relance l'écoute
-      if (conv.on) { conv.on = false; majBoutonConv(); }     // erreur : on quitte le mode automatique
+      if (code === 'aborted') return;
+      if (code === 'no-speech' && conv.on) return;
+      if (conv.on) { conv.on = false; majBoutonConv(); }
       dire(messageErreur(code));
     };
     r.onend = function () {
       if (conv.rec === r) conv.rec = null;
       etatParler('🎤 Parler');
+      arreterAnalyse();
       if (!recu) { setEtat('repos'); reprendre(); }
     };
     conv.rec = r;
     setEtat('ecoute');
     etatParler('🎤 Écoute…');
     try { r.start(); }
-    catch (e) { conv.rec = null; etatParler('🎤 Parler'); setEtat('repos'); dire(messageErreur('')); }
+    catch (e) { conv.rec = null; arreterAnalyse(); etatParler('🎤 Parler'); setEtat('repos'); dire(messageErreur('')); }
   }
 
   function toggleConv() {
@@ -480,6 +570,7 @@
 
   // ---------- API publique ----------
   global.AideAvatar = {
+    _ecoute: { rms: rms, accepterTexte: accepterTexte, seuilDepuis: seuilDepuis, etat: function () { return ecoute; } },
     setStyle: function (o) {
       o = o || {};
       if (o.couleur) st.couleur = o.couleur;
