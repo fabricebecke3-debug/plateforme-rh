@@ -19,7 +19,8 @@
 
   // ---------- Base d'aide intégrée (hors connexion) ----------
   var FAQ = [
-    { q: ['bonjour', 'salut', 'aide'], a: "Bonjour ! Je peux vous expliquer une fonction de l'application, prendre votre photo de profil ou répondre à vos questions. Que voulez-vous faire ?" },
+    { q: ['comment tu t appelles', 'ton nom', 'qui es tu', 'qui etes vous', 'votre nom'], a: "Je suis l'Assistant RH, un assistant IA de la plateforme. Je réponds à vos questions RH et sur l'application." },
+    { q: ['bonjour', 'salut', 'aide'], a: "Bonjour ! Comment puis-je vous aider ?" },
     { q: ['ajouter un employe', 'nouvel employe', 'creer un employe', 'ajouter employe'], a: "Ouvrez l'onglet Personnel, puis « ➕ Nouvel employé ». Renseignez le nom, le poste et le type de contrat, puis enregistrez." },
     { q: ['importer', 'import', 'fichier excel', 'effectif'], a: "Cliquez sur « ⬆ Importer » et choisissez votre fichier Excel. Les colonnes inconnues sont créées automatiquement comme colonnes personnalisées." },
     { q: ['colonne', 'colonnes personnalisees', 'ajouter une colonne'], a: "Administrateur : cliquez sur « 🧱 Colonnes » pour ajouter ou supprimer une colonne. « 👁 Colonnes affichées » choisit ce qui apparaît dans la liste." },
@@ -38,7 +39,7 @@
 
   var FALLBACK = "Je n'ai pas trouvé de réponse précise. Essayez des mots comme : importer, congé, alertes, contrat, profil, journal, hors ligne.";
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
-  var st = { nom: 'Assistant', onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
+  var st = { nom: 'Assistant RH', theme: 'clair', position: 'droite', police: 'normale', vitesse: 1, afficherAv: true, couleur: '#1f5fbf', forme: 'rond', taille: 'normale', lanceur: null, utilisateur: null, onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
 
   // ---------- Outils ----------
   function norm(t) {
@@ -114,7 +115,7 @@
     speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(t);
     u.lang = 'fr-FR';
-    u.rate = 1;
+    u.rate = st.vitesse || 1;
     u.onstart = function () { setEtat('parle'); };
     u.onboundary = function (e) { if (e.name === 'word') geste('pulse'); };
     u.onend = function () { conv.parle = false; setEtat('repos'); reprendre(); };
@@ -141,7 +142,7 @@
   // ---------- Conversation ----------
   function ajouter(qui, texte) {
     var d = el('div', 'margin:6px 0;padding:8px 10px;border-radius:10px;max-width:90%;' +
-      (qui === 'moi' ? 'margin-left:auto;background:#dbe9ff' : 'background:#f1f3f6'), texte);
+      (qui === 'moi' ? 'margin-left:auto;background:#dbe9ff;color:#1a1a1a' : (st.theme === 'sombre' ? 'background:#2a303c;color:#f1f3f6' : 'background:#f1f3f6;color:#1a1a1a')), texte);
     st.msgs.appendChild(d);
     st.msgs.scrollTop = st.msgs.scrollHeight;
   }
@@ -364,10 +365,11 @@
       '#aa-av[data-s="parle"]{animation:aaSway 1.6s ease-in-out infinite}';
     var s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
 
-    var lanceur = el('button', 'position:fixed;right:16px;bottom:64px;z-index:9999;width:56px;height:56px;border-radius:50%;border:none;background:#1f5fbf;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)', '💬');
-    lanceur.title = 'Assistant';
+    var lanceur = el('button', 'position:fixed;right:16px;bottom:64px;z-index:9999;width:48px;height:48px;border-radius:50%;border:none;background:#1f5fbf;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)', '💬');
+    lanceur.title = 'Assistant RH';
+    st.lanceur = lanceur;
 
-    var panel = el('div', 'position:fixed;right:12px;bottom:128px;z-index:9999;width:min(360px,calc(100vw - 24px));max-height:70vh;display:none;flex-direction:column;background:#fff;border:1px solid #d6dbe3;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);overflow:hidden;font-family:inherit');
+    var panel = el('div', 'position:fixed;right:12px;bottom:128px;z-index:9999;width:min(340px,calc(100vw - 24px));max-height:60vh;display:none;flex-direction:column;background:#fff;color:#1a1a1a;border:1px solid #d6dbe3;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);overflow:hidden;font-family:inherit');
 
     var entete = el('div', 'display:flex;align-items:center;gap:10px;padding:10px;background:#f5f6f8;border-bottom:1px solid #e3e6ec');
     st.av = el('div', 'width:52px;height:52px;border-radius:50%;background:#1f5fbf;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden;flex:0 0 auto;transition:box-shadow .2s');
@@ -424,7 +426,8 @@
       var ouvert = panel.style.display === 'flex';
       panel.style.display = ouvert ? 'none' : 'flex';
       if (!ouvert && !st.msgs.childNodes.length) {
-        dire('Bonjour, je suis votre assistant RH.');
+        var u = (st.utilisateur && st.utilisateur()) || '';
+        dire('Bonjour' + (u ? ' ' + u : '') + ', je suis votre Assistant RH.');
       }
     };
     majAvatar();
@@ -432,6 +435,32 @@
 
   // ---------- API publique ----------
   global.AideAvatar = {
+    setStyle: function (o) {
+      o = o || {};
+      if (o.couleur) st.couleur = o.couleur;
+      if (o.forme) st.forme = o.forme;
+      if (o.taille) st.taille = o.taille;
+      if (o.theme) st.theme = o.theme;
+      if (o.position) st.position = o.position;
+      if (o.police) st.police = o.police;
+      if (o.vitesse) st.vitesse = parseFloat(o.vitesse) || 1;
+      if (o.afficherAv !== undefined) st.afficherAv = !!o.afficherAv;
+      var gauche = st.position === 'gauche', sombre = st.theme === 'sombre';
+      if (st.lanceur) {
+        st.lanceur.style.background = st.couleur;
+        st.lanceur.style.left = gauche ? '16px' : 'auto';
+        st.lanceur.style.right = gauche ? 'auto' : '16px';
+      }
+      if (st.av) { st.av.style.borderRadius = st.forme === 'carre' ? '10px' : '50%'; st.av.style.display = st.afficherAv ? 'flex' : 'none'; }
+      if (st.panel) {
+        st.panel.style.width = ({ petite: '300px', normale: '340px', grande: '420px' }[st.taille] || '340px');
+        st.panel.style.left = gauche ? '12px' : 'auto';
+        st.panel.style.right = gauche ? 'auto' : '12px';
+        st.panel.style.background = sombre ? '#1b1f27' : '#fff';
+        st.panel.style.color = sombre ? '#f1f3f6' : '#1a1a1a';
+        st.panel.style.fontSize = ({ petite: '13px', normale: '14px', grande: '17px' }[st.police] || '14px');
+      }
+    },
     actions: {
       profil: function () { galerie(); },
       camera: function () { photo(); },
@@ -456,6 +485,7 @@
       st.onSpeak = typeof opts.onSpeak === 'function' ? opts.onSpeak : null;
       st.onVoice = typeof opts.onVoice === 'function' ? opts.onVoice : null;
       st.onAvatarPhoto = typeof opts.onAvatarPhoto === 'function' ? opts.onAvatarPhoto : null;
+      st.utilisateur = typeof opts.utilisateur === 'function' ? opts.utilisateur : null;
       st.started = true;
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', construire);
       else construire();

@@ -1,6 +1,7 @@
 // Fonction Supabase « formation-comptes » — gestion des comptes d'apprenants.
 // Actions :
-//   inviter   { email, nom, entreprise_id }  → envoie une invitation par e-mail (propriétaire ou admin de la société)
+//   inviter   { email, nom, entreprise_id? } → envoie une invitation par e-mail. Sans entreprise_id : apprenant indépendant (propriétaire seulement).
+//             Avec entreprise_id : propriétaire ou administrateur de cette société.
 //   lister    { entreprise_id }               → liste des apprenants (propriétaire ou admin de la société)
 //   suspendre { id } / reactiver { id }       → bloque ou rétablit l'accès (propriétaire ou admin de la société)
 //   progres   { module, score, termine }      → enregistre la progression de l'apprenant connecté

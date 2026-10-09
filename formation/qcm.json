@@ -1,0 +1,338 @@
+[
+ {
+  "id": "anc-1",
+  "theme": "Ancienneté",
+  "niveau": "base",
+  "question": "Un salarié est entré le 15 janvier 2020. Au 15 janvier 2026, quelle est son ancienneté ?",
+  "choix": [
+   "5 ans",
+   "6 ans",
+   "6 ans et 1 mois",
+   "7 ans"
+  ],
+  "reponse": 1,
+  "explication": "Du 15 janvier 2020 au 15 janvier 2026, cela fait exactement 6 ans. L'ancienneté se calcule à partir de la date d'entrée, en années, mois et jours."
+ },
+ {
+  "id": "anc-2",
+  "theme": "Ancienneté",
+  "niveau": "base",
+  "question": "Pour calculer l'ancienneté entre le 31 mars et le 30 avril, quelle méthode évite une erreur ?",
+  "choix": [
+   "Soustraire les jours sans rien ajuster",
+   "Emprunter les jours du mois précédent lorsque le jour de fin est plus petit que le jour de début",
+   "Compter 30 jours par mois fixe",
+   "Ignorer les jours restants"
+  ],
+  "reponse": 1,
+  "explication": "Le 30 est plus petit que le 31 : on emprunte les jours du mois précédent. Le résultat exact est 30 jours."
+ },
+ {
+  "id": "heu-1",
+  "theme": "Heures supplémentaires",
+  "niveau": "base",
+  "question": "Quel est le taux horaire d'un salaire de base de 173 330 FCFA pour 173,33 heures par mois ?",
+  "choix": [
+   "900 FCFA",
+   "1 000 FCFA",
+   "1 200 FCFA",
+   "1 730 FCFA"
+  ],
+  "reponse": 1,
+  "explication": "Taux horaire = salaire / heures mensuelles = 173 330 / 173,33 = 1 000 FCFA."
+ },
+ {
+  "id": "heu-2",
+  "theme": "Heures supplémentaires",
+  "niveau": "intermediaire",
+  "question": "Un salarié à 1 000 FCFA de l'heure fait 8 heures supplémentaires à 120 %. Quel est le montant ?",
+  "choix": [
+   "8 000 FCFA",
+   "9 600 FCFA",
+   "12 000 FCFA",
+   "9 000 FCFA"
+  ],
+  "reponse": 1,
+  "explication": "8 x 1 000 x 1,20 = 9 600 FCFA. Le taux de majoration s'applique au taux horaire de base. Attention : ce taux de majoration est un exemple de calcul. Le Code renvoie à des décrets pour les majorations (art. 80, al. 4) ; utilisez le taux du décret applicable."
+ },
+ {
+  "id": "heu-3",
+  "theme": "Heures supplémentaires",
+  "niveau": "intermediaire",
+  "question": "Un salarié fait 10 heures supplémentaires de jour : 8 à 120 % puis 2 à 150 %, pour un taux de base de 1 000 FCFA. Quel est le total ?",
+  "choix": [
+   "10 000 FCFA",
+   "12 600 FCFA",
+   "13 000 FCFA",
+   "15 000 FCFA"
+  ],
+  "reponse": 1,
+  "explication": "8 x 1 000 x 1,20 = 9 600 ; 2 x 1 000 x 1,50 = 3 000 ; total 12 600 FCFA. Les taux utilisés sont des paramètres à vérifier avec le Code du travail. Attention : ce taux de majoration est un exemple de calcul. Le Code renvoie à des décrets pour les majorations (art. 80, al. 4) ; utilisez le taux du décret applicable."
+ },
+ {
+  "id": "heu-4",
+  "theme": "Heures supplémentaires",
+  "niveau": "base",
+  "question": "Qu'est-ce qu'une majoration d'heures supplémentaires ?",
+  "choix": [
+   "Une réduction du salaire horaire",
+   "Un supplément appliqué au taux horaire pour les heures au-delà de la durée légale ou conventionnelle",
+   "Une prime de fin d'année",
+   "Une retenue sur les congés"
+  ],
+  "reponse": 1,
+  "explication": "La majoration est un supplément qui s'ajoute au taux horaire pour les heures effectuées au-delà de la durée de travail applicable."
+ },
+ {
+  "id": "con-1",
+  "theme": "Congés payés",
+  "niveau": "base",
+  "question": "Un salarié a 31,5 jours acquis et en a pris 10. Quel est son solde ?",
+  "choix": [
+   "41,5 jours",
+   "21,5 jours",
+   "31,5 jours",
+   "10 jours"
+  ],
+  "reponse": 1,
+  "explication": "Solde = acquis - pris = 31,5 - 10 = 21,5 jours. Acquisition : 1,5 jour ouvrable par mois de service effectif (art. 89 du Code du travail, loi 92/007)."
+ },
+ {
+  "id": "con-2",
+  "theme": "Congés payés",
+  "niveau": "intermediaire",
+  "question": "Avec 1,5 jour acquis par mois de service effectif, combien de jours un salarié a-t-il acquis après 21 mois ?",
+  "choix": [
+   "21 jours",
+   "31,5 jours",
+   "42 jours",
+   "63 jours"
+  ],
+  "reponse": 1,
+  "explication": "21 x 1,5 = 31,5 jours (art. 89 du Code du travail). Le droit au congé est acquis après un an de service (art. 92)."
+ },
+ {
+  "id": "con-3",
+  "theme": "Congés payés",
+  "niveau": "base",
+  "question": "Quelle est la différence entre jours ouvrables et jours ouvrés ?",
+  "choix": [
+   "Il n'y a aucune différence",
+   "Les jours ouvrables incluent en général le samedi, les jours ouvrés ne le comptent pas",
+   "Les jours ouvrés incluent les dimanches",
+   "Les jours ouvrables sont les jours fériés"
+  ],
+  "reponse": 1,
+  "explication": "Les jours ouvrables incluent en général le samedi ; les jours ouvrés non. Vérifiez la convention applicable, car la définition change selon les textes."
+ },
+ {
+  "id": "pai-1",
+  "theme": "Paie",
+  "niveau": "base",
+  "question": "Un salarié travaille 15 jours sur une base de 30 jours. Son salaire de base est 300 000 FCFA. Quel est le salaire proratisé ?",
+  "choix": [
+   "100 000 FCFA",
+   "150 000 FCFA",
+   "200 000 FCFA",
+   "300 000 FCFA"
+  ],
+  "reponse": 1,
+  "explication": "300 000 x 15 / 30 = 150 000 FCFA."
+ },
+ {
+  "id": "pai-2",
+  "theme": "Paie",
+  "niveau": "base",
+  "question": "Quelle est la différence entre salaire brut et salaire net ?",
+  "choix": [
+   "Le net est toujours supérieur au brut",
+   "Le net est le brut diminué des cotisations et retenues salariales",
+   "Le brut ne contient pas les primes",
+   "Il n'y a pas de différence"
+  ],
+  "reponse": 1,
+  "explication": "Le salaire brut est le montant avant retenues ; le net est le montant versé, après retenues salariales."
+ },
+ {
+  "id": "pai-3",
+  "theme": "Paie",
+  "niveau": "intermediaire",
+  "question": "Quelle déclaration sociale concerne la Caisse nationale de prévoyance sociale (CNPS) au Cameroun ?",
+  "choix": [
+   "La déclaration mensuelle des cotisations sociales",
+   "La déclaration de TVA",
+   "La déclaration des bénéfices",
+   "La déclaration d'importation"
+  ],
+  "reponse": 0,
+  "explication": "La CNPS reçoit les déclarations et cotisations sociales des employeurs et des salariés. Les modalités et taux se vérifient auprès de la CNPS."
+ },
+ {
+  "id": "con-4",
+  "theme": "Contrats",
+  "niveau": "base",
+  "question": "Quelle est la principale différence entre un CDI et un CDD ?",
+  "choix": [
+   "Le CDI n'a pas de période d'essai",
+   "Le CDD a une durée définie à l'avance, le CDI est à durée indéterminée",
+   "Le CDD ne donne droit à aucun congé",
+   "Il n'y a pas de différence"
+  ],
+  "reponse": 1,
+  "explication": "Le CDD a un terme fixé ; le CDI n'a pas de terme. Les conditions de recours et de renouvellement du CDD sont encadrées par le Code du travail."
+ },
+ {
+  "id": "con-5",
+  "theme": "Contrats",
+  "niveau": "intermediaire",
+  "question": "Qu'est-ce qu'une reconduction tacite ?",
+  "choix": [
+   "Une signature écrite obligatoire",
+   "La poursuite du contrat sans nouvel écrit, lorsque le salarié continue de travailler après le terme",
+   "Un licenciement automatique",
+   "Une prime de renouvellement"
+  ],
+  "reponse": 1,
+  "explication": "La reconduction tacite prolonge le contrat sans nouvel écrit. Ses conditions et ses limites dépendent du type de contrat : à vérifier avec le Code du travail."
+ },
+ {
+  "id": "ess-1",
+  "theme": "Période d'essai",
+  "niveau": "base",
+  "question": "Pourquoi faut-il suivre la date de fin de période d'essai ?",
+  "choix": [
+   "Pour fixer le salaire",
+   "Pour décider à temps de confirmer ou de rompre la relation de travail",
+   "Pour calculer les congés",
+   "Ce n'est pas nécessaire"
+  ],
+  "reponse": 1,
+  "explication": "Une décision prise après l'échéance peut poser problème. Le suivi permet de confirmer ou de rompre dans les délais."
+ },
+ {
+  "id": "doc-1",
+  "theme": "Documents RH",
+  "niveau": "base",
+  "question": "Quels documents doivent être présents dans le dossier de sortie d'un salarié ?",
+  "choix": [
+   "Aucun document",
+   "Certificat de travail, attestation de fin de contrat (CNPS), solde de tout compte, dernier bulletin",
+   "Seulement la lettre de démission",
+   "Uniquement le contrat de travail"
+  ],
+  "reponse": 1,
+  "explication": "Ces documents sont en général requis à la fin du contrat. La liste exacte dépend du motif de rupture : à vérifier."
+ },
+ {
+  "id": "rgpd-1",
+  "theme": "Protection des données",
+  "niveau": "base",
+  "question": "Qui peut consulter les pièces d'identité des salariés ?",
+  "choix": [
+   "Tout collègue",
+   "Seulement les personnes habilitées, pour une finalité précise",
+   "Tout le monde sur l'intranet",
+   "Le client de la société"
+  ],
+  "reponse": 1,
+  "explication": "Les données sensibles ne sont accessibles qu'aux personnes habilitées, pour une finalité précise, et seulement le temps nécessaire."
+ },
+ {
+  "id": "rgpd-2",
+  "theme": "Protection des données",
+  "niveau": "intermediaire",
+  "question": "Combien de temps conserver le journal des modifications ?",
+  "choix": [
+   "Indéfiniment",
+   "Une durée définie et justifiée, validée juridiquement",
+   "Une semaine",
+   "Il ne faut pas en garder"
+  ],
+  "reponse": 1,
+  "explication": "Une durée de conservation doit être définie et justifiée. Dans la plateforme, elle est configurable et doit être validée par un juriste."
+ },
+ {
+  "id": "ia-1",
+  "theme": "Assistant IA",
+  "niveau": "base",
+  "question": "Un assistant IA donne une réponse juridique précise. Que faites-vous ?",
+  "choix": [
+   "Je l'applique sans vérifier",
+   "Je vérifie le texte officiel ou la convention avant d'agir",
+   "Je demande à un collègue au hasard",
+   "Je l'ignore"
+  ],
+  "reponse": 1,
+  "explication": "Une réponse d'IA est une aide. Pour le droit, le texte officiel et un juriste font foi."
+ },
+ {
+  "id": "exc-1",
+  "theme": "Excel et Power BI",
+  "niveau": "base",
+  "question": "Dans Excel, quelle fonction permet de rechercher une valeur dans une colonne à partir d'une clé ?",
+  "choix": [
+   "RECHERCHEV",
+   "SOMME",
+   "MOYENNE",
+   "TEXTE"
+  ],
+  "reponse": 0,
+  "explication": "RECHERCHEV (ou XLOOKUP selon la version) recherche une clé dans la première colonne d'une plage et renvoie une valeur de la même ligne."
+ },
+ {
+  "id": "exc-2",
+  "theme": "Excel et Power BI",
+  "niveau": "intermediaire",
+  "question": "Quel outil de Power BI sert à transformer et nettoyer les données avant l'analyse ?",
+  "choix": [
+   "Power Query",
+   "Power Pivot",
+   "Power Apps",
+   "Power Automate"
+  ],
+  "reponse": 0,
+  "explication": "Power Query prépare les données (nettoyage, fusion, transformation) avant leur utilisation dans les rapports."
+ },
+ {
+  "id": "cdd-2",
+  "theme": "Contrats",
+  "niveau": "base",
+  "question": "Un CDD d'un salarié camerounais peut-il être renouvelé plusieurs fois avec la même entreprise ?",
+  "choix": [
+   "Autant de fois que nécessaire",
+   "Une seule fois ; ensuite le contrat devient à durée indéterminée",
+   "Trois fois au maximum",
+   "Jamais"
+  ],
+  "reponse": 1,
+  "explication": "Art. 25 du Code du travail (loi 92/007) : le CDD ne peut dépasser 2 ans, peut être renouvelé pour la même durée, et ne peut être renouvelé qu'une fois avec la même entreprise pour un salarié camerounais ; au terme, il devient à durée indéterminée."
+ },
+ {
+  "id": "ess-2",
+  "theme": "Période d'essai",
+  "niveau": "base",
+  "question": "Quelle est la durée maximale de l'engagement à l'essai, hors cadres, renouvellement compris ?",
+  "choix": [
+   "3 mois",
+   "6 mois",
+   "12 mois",
+   "2 ans"
+  ],
+  "reponse": 1,
+  "explication": "Art. 28 du Code du travail (loi 92/007) : 6 mois maximum renouvellement compris ; 8 mois pour les cadres. L'engagement doit être écrit."
+ },
+ {
+  "id": "ref-1",
+  "theme": "Droit du travail",
+  "niveau": "base",
+  "question": "Quel texte est la référence principale du droit du travail au Cameroun ?",
+  "choix": [
+   "Loi n° 92/007 du 14 août 1992 portant Code du travail",
+   "Loi de finances annuelle",
+   "Décret sur les cotisations CNPS",
+   "Convention collective de la branche de l'agriculture"
+  ],
+  "reponse": 0,
+  "explication": "La loi n° 92/007 du 14 août 1992 portant Code du travail est la base. Texte officiel consulté : https://faolex.fao.org/docs/pdf/cmr198304.pdf . Les conventions collectives et décrets d'application la complètent."
+ }
+]

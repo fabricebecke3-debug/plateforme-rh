@@ -738,7 +738,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{let {data,error}=await db.from('entreprises').select('*').order('created_at');if(error){const r2=await db.from('entreprises').select('*');if(r2.error)throw r2.error;data=r2.data;error=null;}window.__coErr=null;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){window.__coErr=(e&&e.message)||String(e);const miss=/does not exist|42P01|schema cache|Could not find the table/i.test(window.__coErr);MULTI=isOwnerUser()?!miss:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json','recit_plateforme'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json','recit_plateforme','assistant_style'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -2356,7 +2356,7 @@ function xAlertsCard(g){
 /* ============ RÈGLES DES TYPES DE CONTRAT (configurables sans code) ============ */
 const TYPES_DEFAUT=[
   {code:'CDI',libelle:'CDI',dureeMois:null,renouv:null,mois:null,tacite:false},
-  {code:'CDD',libelle:'CDD',dureeMois:null,renouv:null,mois:null,tacite:false},
+  {code:'CDD',libelle:'CDD',dureeMois:null,renouv:1,mois:48,tacite:false},
   {code:'TEMPORAIRE',libelle:'CTT',dureeMois:1,renouv:12,mois:null,tacite:true},
   {code:'OCCASIONNEL',libelle:'Occasionnel',dureeMois:null,renouv:null,mois:null,tacite:false}];
 function typesRules(){try{const a=JSON.parse(PARAMS.types_contrat||'null');return Array.isArray(a)&&a.length?a:TYPES_DEFAUT;}catch(e){return TYPES_DEFAUT;}}
@@ -2381,7 +2381,7 @@ function openRegles(){
   const draw=()=>{
     w.innerHTML='<div class="c" style="max-width:760px;width:100%;max-height:90vh;overflow:auto">'
       +'<div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">⚙ Règles des types de contrat</h2><button class="s" id="rg_x">Fermer</button></div>'
-      +'<p class="muted" style="font-size:12px">Ces règles servent aux alertes de renouvellement. Laissez un champ vide pour « pas de limite ». Les types ajoutés apparaissent dans la fiche employé.</p>'
+      +'<p class="muted" style="font-size:12px">Ces règles servent aux alertes de renouvellement. Laissez un champ vide pour « pas de limite ». Les types ajoutés apparaissent dans la fiche employé. ⚠ Ce sont des paramètres internes : vérifiez-les avec le Code du travail et votre convention collective avant de vous y fier.</p>'
       +T.map((t,i)=>'<div style="border-bottom:1px solid var(--bd);padding:8px 0;display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr auto;gap:6px;align-items:end;font-size:12px">'
         +'<label>Type<input value="'+esc(t.libelle)+'" data-f="libelle" data-i="'+i+'"></label>'
         +'<label>Durée (mois)<input value="'+esc(vv(t.dureeMois))+'" data-f="dureeMois" data-i="'+i+'"></label>'
@@ -2666,7 +2666,7 @@ function openRecit(){
 (function recitWatch(){
   const box=$('v-own');if(!box){setTimeout(recitWatch,800);return;}
   const mount=()=>{
-    if(OTAB!=='pr'||$('recit_btn')||!box.querySelector('.c'))return;
+    return;
     const b=document.createElement('button');b.id='recit_btn';b.className='s';b.textContent='📖 Récit de la plateforme';b.style.margin='8px 0';
     box.insertBefore(b,box.firstChild);
   };
@@ -2691,9 +2691,25 @@ document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')
       +'<button class="s" data-ap="filmer">🎥 Filmer</button>'
       +'<button class="s" data-ap="video" id="ap_video">🎬 Vidéo : non</button>'
       +'<button class="s" data-ap="recit">📖 Récit</button>'
-      +'</div><p id="ap_info" class="muted" style="font-size:12px;margin:8px 0 0"></p>';
+      +'</div>'
+      +'<div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;font-size:13px">'
+      +'<label>Couleur</label><input type="color" id="as_c" value="#1f5fbf">'
+      +'<label>Thème</label><select id="as_th"><option value="clair">Clair</option><option value="sombre">Sombre</option></select>'
+      +'<label>Position</label><select id="as_p"><option value="droite">À droite</option><option value="gauche">À gauche</option></select>'
+      +'<label>Forme de l’avatar</label><select id="as_f"><option value="rond">Rond</option><option value="carre">Carré</option></select>'
+      +'<label>Avatar affiché</label><select id="as_av"><option value="oui">Oui</option><option value="non">Non</option></select>'
+      +'<label>Taille de la fenêtre</label><select id="as_t"><option value="petite">Petite</option><option value="normale" selected>Normale</option><option value="grande">Grande</option></select>'
+      +'<label>Taille du texte</label><select id="as_po"><option value="petite">Petit</option><option value="normale" selected>Normal</option><option value="grande">Grand</option></select>'
+      +'<label>Vitesse de la voix</label><select id="as_v"><option value="0.85">Lente</option><option value="1" selected>Normale</option><option value="1.2">Rapide</option></select>'
+      +'<span></span><button class="p" id="as_save">💾 Enregistrer le style</button></div>'
+      +'<p id="ap_info" class="muted" style="font-size:12px;margin:8px 0 0"></p>';
     box.insertBefore(d,box.firstChild);
     const info=(t)=>{const p=$('ap_info');if(p)p.textContent=t;};
+    d.querySelector('#as_save').onclick=async()=>{
+      const o={couleur:$('as_c').value,theme:$('as_th').value,position:$('as_p').value,forme:$('as_f').value,afficherAv:$('as_av').value==='oui',taille:$('as_t').value,police:$('as_po').value,vitesse:$('as_v').value};
+      try{await saveParam('assistant_style',JSON.stringify(o));if(window.AideAvatar)AideAvatar.setStyle(o);info('Style enregistré pour tous les comptes.');}
+      catch(err){info('Erreur : '+err.message);}
+    };
     d.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{
       const k=b.dataset.ap;
       if(k==='recit'){openRecit();return;}
@@ -8662,14 +8678,14 @@ setInterval(()=>{const b=$('alocal');if(b&&!b._l){b._l=1;b.onclick=open;}},800);
 'use strict';
 const nz=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const KB=[
-{k:/cnps|pension|vieillesse|prestations familiales|cotisation sociale|accident du travail/,t:"CNPS (Cameroun), taux usuels : pension vieillesse-invalidité-décès 2,8 % à la charge du salarié et 4,2 % à la charge de l'employeur, sur un salaire plafonné à 750 000 FCFA par mois ; prestations familiales 7 % employeur (même plafond) ; accidents du travail : 1,75 %, 2,5 % ou 5 % employeur selon le risque de l'activité. Déclaration (DIPE) et paiement avant le 15 du mois suivant."},
+{k:/cnps|pension|vieillesse|prestations familiales|cotisation sociale|accident du travail/,t:"CNPS (Cameroun) : les taux de cotisation, le plafond et les délais varient selon les sources et les textes : ne vous fiez à aucun taux sans vérification sur le site officiel cnps.cm. La plateforme ne fixe aucun taux. Obligations de l’employeur : immatriculer l’entreprise et chaque salarié, puis déclarer et payer les cotisations dans les délais publiés par la CNPS."},
 {k:/irpp|impot sur le revenu|bareme|centimes|abattement/,t:"IRPP sur salaires : on part du salaire imposable, après déduction de la cotisation CNPS salarié, puis abattement de 30 % pour frais professionnels et abattement annuel de 500 000 FCFA. Barème annuel : 10 % jusqu'à 2 000 000 ; 15 % de 2 000 001 à 3 000 000 ; 25 % de 3 000 001 à 5 000 000 ; 35 % au-delà. Centimes additionnels communaux : 10 % de l'IRPP. L'employeur retient et reverse avant le 15 du mois suivant."},
 {k:/credit foncier|cfc|fne|fonds national de l'emploi|taxe/,t:"Autres retenues et charges usuelles : Crédit foncier 1 % salarié et 1,5 % employeur ; Fonds national de l'emploi (FNE) 1 % employeur ; selon les cas redevance audiovisuelle et taxe de développement local (selon tranches de salaire)."},
 {k:/dipe|declaration individuelle/,t:"DIPE : déclaration individuelle de paie et des employeurs, mensuelle, à transmettre à la CNPS avant le 15 du mois suivant. Dans la plateforme : Paie & droit → DIPE depuis les bulletins."},
-{k:/cdd|duree determinee|renouvel|contrat a duree/,t:"CDD au Cameroun : durée maximale de 2 ans, renouvelable une fois, sans dépasser 4 ans au total ; au-delà, le contrat est considéré comme à durée indéterminée. Le CDD doit être écrit. Un CTT ou un contrat occasionnel suit ses règles propres (voir les paramètres de la plateforme)."},
-{k:/essai|periode d'essai/,t:"Période d'essai : elle doit être prévue par écrit ; sa durée maximale dépend de la catégorie professionnelle et de la convention collective (en règle générale jusqu'à 6 mois, renouvelable une fois). À vérifier dans la convention applicable."},
+{k:/cdd|duree determinee|renouvel|contrat a duree/,t:"CDD (art. 25 du Code du travail, loi 92/007) : 2 ans maximum, renouvelable une fois pour la même durée avec la même entreprise, puis contrat à durée indéterminée ; écrit au-delà de 3 mois (art. 27). Source : https://faolex.fao.org/docs/pdf/cmr198304.pdf"},
+{k:/essai|periode d'essai/,t:"Période d’essai (art. 28 du Code du travail, loi 92/007) : engagement écrit ; 6 mois maximum renouvellement compris (8 mois pour les cadres) ; si la relation se poursuit sans nouveau contrat, elle vaut engagement définitif. Source : https://faolex.fao.org/docs/pdf/cmr198304.pdf"},
 {k:/conge|vacances|allocation de conge/,t:"Congés payés : 1,5 jour ouvrable par mois de service effectif, soit 18 jours ouvrables par an ; le droit s'ouvre après 12 mois de service. L'allocation de congé est calculée sur le salaire moyen ; les majorations d'ancienneté et les périodes assimilées à du travail effectif sont fixées par le Code du travail et la convention collective."},
-{k:/heure.? sup|heures supp|majoration|duree legale|40 ?h/,t:"Durée légale : 40 heures par semaine hors agriculture (48 heures en agriculture). Heures supplémentaires majorées, selon le nombre d'heures, la nuit, le dimanche et les jours fériés : 120 %, 130 %, 140 %, 150 % et 200 % du taux normal."},
+{k:/heure.? sup|heures supp|majoration|duree legale|40 ?h/,t:"Durée légale : 40 heures par semaine dans les établissements non agricoles (art. 80). Les majorations des heures supplémentaires sont renvoyées à des décrets (art. 80, al. 4) : consultez le décret applicable avant tout calcul. Source : https://faolex.fao.org/docs/pdf/cmr198304.pdf"},
 {k:/licenci|rupture|preavis|demission|faute lourde|certificat de travail|solde de tout compte/,t:"Rupture du contrat : elle doit être motivée et notifiée par écrit ; le préavis dépend de la catégorie professionnelle et de l'ancienneté (sauf faute lourde) ; une indemnité de licenciement est due selon l'ancienneté ; le certificat de travail est obligatoire à la sortie. En cas de litige : inspection du travail ou conseil juridique."},
 {k:/disciplin|sanction|demande d'explication|avertissement|mise a pied|blame/,t:"Discipline : demande d'explication écrite d'abord (le salarié doit pouvoir s'expliquer), puis sanction proportionnée à la faute (avertissement, blâme, mise à pied, licenciement). Conserver les preuves et notifier par écrit."},
 {k:/delegue|representant du personnel/,t:"Délégués du personnel : obligatoires au-delà d'un certain effectif (généralement à partir de 20 salariés), élus pour un mandat limité ; à confirmer dans le Code du travail et la convention applicable."},
@@ -8706,12 +8722,14 @@ function hook(){
 hook();setInterval(hook,1500);
 })();
 </script>
+<script src="formation/assistant-formation.js"></script>
 <script src="aide-avatar.js"></script>
 <script>
 (function(){
   function signedAv(p){return db.storage.from('avatars').createSignedUrl(p,3600).then(function(r){return r.data&&r.data.signedUrl||'';});}
   var _avTimer=setInterval(function(){ if(!MY_USER)return; clearInterval(_avTimer); AideAvatar.start({
-    nom:'Assistant de Fabrice',
+    nom:'Assistant RH',
+    utilisateur:function(){var m=MY_USER||{};var n=(m.user_metadata&&m.user_metadata.full_name)||String(m.email||'').split('@')[0];return n||'';},
     onPhoto:async function(blob){
       if(!MY_USER)throw new Error('connectez-vous d’abord');
       var p=MY_USER.id+'/avatar.jpg';
@@ -8757,6 +8775,7 @@ hook();setInterval(hook,1500);
       throw new Error('délai dépassé, réessayez');
     },
     onAI:async function(q){
+      if(window.FormationAssistant){var lf=await window.FormationAssistant.repondre(q);if(lf.source==='local')return lf.texte;}
       var ctx='';try{ctx=(typeof ctxAgg==='function'?ctxAgg():'')+(typeof aiFacts==='function'?aiFacts(q,false):'');}catch(e){}
       try{var qq=db.from('audit_log').select('created_at,user_email,table_name,action,row_id').order('created_at',{ascending:false}).limit(30);if(!isOwnerUser()&&CO)qq=qq.eq('entreprise_id',CO);var rr=await qq;if(rr.data&&rr.data.length)ctx+='\n\nJOURNAL RECENT (30 dernieres modifications, plus recentes d\'abord) :\n'+rr.data.map(function(x){return String(x.created_at).slice(0,16).replace('T',' ')+' | '+(x.user_email||'?')+' | '+x.action+' '+x.table_name+' #'+String(x.row_id||'').slice(0,8);}).join('\n');}catch(e){}
       ctx+='\n\nRECIT DE LA PLATEFORME (genese et parcours du createur, a utiliser pour repondre aux questions sur l\'histoire) :\n'+recitPlateforme();
@@ -8765,6 +8784,7 @@ hook();setInterval(hook,1500);
       return r.data.text;
     }
   }); },800);
+  setTimeout(function(){try{var o=JSON.parse(PARAMS.assistant_style||'null');if(o)AideAvatar.setStyle(o);}catch(e){}},2000);
   // L'assistant garde sa propre image : il n'affiche pas la photo de la personne connectée.
 })();
 </script>

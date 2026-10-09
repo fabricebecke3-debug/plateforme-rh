@@ -1,0 +1,10 @@
+{
+  "avertissement": "DONNÉES FICTIVES À DES FINS DE FORMATION. Aucune de ces personnes n'existe. Toute ressemblance avec une personne réelle est fortuite.",
+  "salaries": [
+    {"code":"SF-001","nom":"Exemple Un","sexe":"F","poste":"Assistante administrative","date_entree":"2020-01-15","salaire_base":300000,"type_contrat":"CDI"},
+    {"code":"SF-002","nom":"Exemple Deux","sexe":"M","poste":"Chef d'équipe","date_entree":"2018-06-20","salaire_base":260000,"type_contrat":"CDI"},
+    {"code":"SF-003","nom":"Exemple Trois","sexe":"F","poste":"Agent de saisie","date_entree":"2023-02-01","salaire_base":225000,"type_contrat":"CDD","date_fin_cdd":"2026-12-31"},
+    {"code":"SF-004","nom":"Exemple Quatre","sexe":"M","poste":"Technicien","date_entree":"2024-11-30","salaire_base":180000,"type_contrat":"CDD","date_fin_cdd":"2025-11-29"},
+    {"code":"SF-005","nom":"Exemple Cinq","sexe":"F","poste":"Responsable RH (stagiaire)","date_entree":"2025-01-01","salaire_base":400000,"type_contrat":"CDI","periode_essai_fin":"2025-06-30"}
+  ]
+}
