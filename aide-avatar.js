@@ -71,16 +71,54 @@
     st.av.setAttribute('data-s', e);
     st.av.style.boxShadow = e === 'parle' ? '0 0 0 4px #1f9d55' : e === 'ecoute' ? '0 0 0 4px #d97706' : e === 'pense' ? '0 0 0 4px #2563eb' : 'none';
   }
+  // ---------- Mode conversation (mains libres) ----------
+  var conv = { on: false, rec: null, parle: false };
+  function reprendre() { if (conv.on && !conv.parle) setTimeout(ecouter, 400); }
+  function stopEcoute() {
+    if (conv.rec) { try { conv.rec.abort(); } catch (e) {} conv.rec = null; }
+  }
+  function ecouter() {
+    if (!conv.on || conv.parle || conv.rec || !SR) return;
+    var r = new SR();
+    r.lang = 'fr-FR';
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    r.continuous = false;
+    r.onresult = function (e) {
+      conv.rec = null;
+      var t = e.results && e.results[0] ? e.results[0][0].transcript : '';
+      if (t && t.trim()) poser(t); else reprendre();
+    };
+    r.onerror = function () { conv.rec = null; setEtat('repos'); reprendre(); };
+    r.onend = function () { conv.rec = null; if (!conv.parle) setEtat('repos'); reprendre(); };
+    conv.rec = r;
+    setEtat('ecoute');
+    try { r.start(); } catch (e) { conv.rec = null; setEtat('repos'); }
+  }
+  function toggleConv() {
+    if (!SR) { dire("Le mode conversation demande la reconnaissance vocale : utilisez Chrome, Edge ou Safari récent."); return; }
+    conv.on = !conv.on;
+    if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non';
+    if (conv.on) { dire('Mode conversation activé. Vous pouvez parler.'); }
+    else {
+      stopEcoute(); conv.parle = false;
+      if (global.speechSynthesis) speechSynthesis.cancel();
+      setEtat('repos');
+    }
+  }
+
   function parler(t) {
-    if (!global.speechSynthesis || !st.voix) { setEtat('repos'); return; }
+    if (!global.speechSynthesis || !st.voix) { setEtat('repos'); reprendre(); return; }
+    stopEcoute();
+    conv.parle = true;
     speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(t);
     u.lang = 'fr-FR';
     u.rate = 1;
     u.onstart = function () { setEtat('parle'); };
     u.onboundary = function (e) { if (e.name === 'word') geste('pulse'); };
-    u.onend = function () { setEtat('repos'); };
-    u.onerror = function () { setEtat('repos'); };
+    u.onend = function () { conv.parle = false; setEtat('repos'); reprendre(); };
+    u.onerror = function () { conv.parle = false; setEtat('repos'); reprendre(); };
     speechSynthesis.speak(u);
   }
   function micro() {
@@ -88,6 +126,7 @@
       dire("La reconnaissance vocale n'est pas disponible sur ce navigateur. Utilisez Chrome, Edge ou Safari récent, ou écrivez votre question.");
       return;
     }
+    if (conv.on) { ecouter(); return; }
     var r = new SR();
     r.lang = 'fr-FR';
     r.interimResults = false;
@@ -110,13 +149,14 @@
     ajouter('av', t);
     geste('hoche');
     if (st.videoOn && st.onSpeak) {
-      setEtat('parle');
+      stopEcoute(); conv.parle = true; setEtat('parle');
+      st.vid.onended = function () { conv.parle = false; setEtat('repos'); reprendre(); };
       Promise.resolve().then(function () { return st.onSpeak(t); })
         .then(function (url) {
-          if (!url) { setEtat('repos'); return; }
+          if (!url) { conv.parle = false; setEtat('repos'); reprendre(); return; }
           st.vid.src = url; st.vid.style.display = 'block'; st.vid.play().catch(function () {});
         })
-        .catch(function (e) { setEtat('repos'); ajouter('av', 'Vidéo indisponible : ' + ((e && e.message) || e)); });
+        .catch(function (e) { conv.parle = false; setEtat('repos'); ajouter('av', 'Vidéo indisponible : ' + ((e && e.message) || e)); reprendre(); });
       return;
     }
     if (st.vid) { st.vid.pause(); st.vid.style.display = 'none'; }
@@ -366,12 +406,14 @@
     bGal.onclick = galerie;
     var bMic = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎤 Parler');
     bMic.onclick = micro;
+    st.btnConv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎧 Conversation : non');
+    st.btnConv.onclick = toggleConv;
     st.input = el('input', 'flex:1;min-width:120px;padding:8px;font-size:14px');
     st.input.placeholder = 'Posez votre question…';
     st.input.onkeydown = function (e) { if (e.key === 'Enter') { var v = st.input.value; st.input.value = ''; poser(v); } };
     var bEnv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', 'Envoyer');
     bEnv.onclick = function () { var v = st.input.value; st.input.value = ''; poser(v); };
-    barre.appendChild(bMic); barre.appendChild(st.input); barre.appendChild(bEnv);
+    barre.appendChild(bMic); barre.appendChild(st.btnConv); barre.appendChild(st.input); barre.appendChild(bEnv);
 
     panel.appendChild(entete); panel.appendChild(st.msgs); panel.appendChild(barre);
     document.body.appendChild(lanceur);
