@@ -2783,6 +2783,7 @@ $('af').onsubmit=async e=>{
   }
 };
 $('apsh').onchange=e=>{$('ap').type=e.target.checked?'text':'password';};
+$('apsh').addEventListener('click',function(){setTimeout(function(){$('ap').type=$('apsh').checked?'text':'password';},0);});
 try{const _le=localStorage.getItem('terh_email');if(_le&&!$('ae').value)$('ae').value=_le;}catch(e){}
 $('ae').addEventListener('change',()=>{try{localStorage.setItem('terh_email',$('ae').value.trim());}catch(e){}});
 /* Messages d'erreur d'authentification en français */
@@ -8622,7 +8623,7 @@ hook();setInterval(hook,1500);
 <script>
 (function(){
   function signedAv(p){return db.storage.from('avatars').createSignedUrl(p,3600).then(function(r){return r.data&&r.data.signedUrl||'';});}
-  AideAvatar.start({
+  var _avTimer=setInterval(function(){ if(!MY_USER)return; clearInterval(_avTimer); AideAvatar.start({
     nom:'Assistant RH',
     onPhoto:async function(blob){
       if(!MY_USER)throw new Error('connectez-vous d’abord');
@@ -8645,7 +8646,7 @@ hook();setInterval(hook,1500);
       if(r.error||!r.data||!r.data.text)throw new Error('IA indisponible');
       return r.data.text;
     }
-  });
+  }); },800);
   var deja=false;
   setInterval(function(){
     if(!deja&&window._avUrl){deja=true;AideAvatar.setPhoto(window._avUrl);}

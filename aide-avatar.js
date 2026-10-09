@@ -131,6 +131,33 @@
     dire(FALLBACK);
   }
 
+  // ---------- Enregistrement commun (caméra ou galerie) ----------
+  function enregistrerPhoto(blob) {
+    if (st.photoUrl) URL.revokeObjectURL(st.photoUrl);
+    st.photoUrl = URL.createObjectURL(blob);
+    majAvatar();
+    if (!st.onPhoto) { dire('Photo choisie. Aucun enregistrement n’est configuré pour le moment.'); return; }
+    if (!confirm('Utiliser cette photo comme photo de profil ?')) { dire('Photo non enregistrée.'); return; }
+    Promise.resolve().then(function () { return st.onPhoto(blob); })
+      .then(function () { dire('Photo de profil enregistrée.'); })
+      .catch(function (e) { dire('Enregistrement impossible : ' + ((e && e.message) || e)); });
+  }
+
+  // Galerie du téléphone ou fichiers de l'ordinateur : fonctionne même si la caméra est refusée
+  function galerie() {
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = function () {
+      var f = inp.files && inp.files[0];
+      inp.remove();
+      if (f) enregistrerPhoto(f);
+    };
+    inp.click();
+  }
+
   // ---------- Photo par caméra ----------
   function prendrePhoto() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -176,7 +203,7 @@
     }).catch(function (e) {
       var m = String((e && e.message) || e);
       if (/annul/i.test(m)) return;
-      dire("Je ne peux pas utiliser la caméra : " + m + ". Vérifiez l’autorisation du navigateur (le site doit être en https).");
+      dire("Je ne peux pas utiliser la caméra : " + m + ". Vérifiez l’autorisation du navigateur (le site doit être en https), ou utilisez 🖼 Galerie.");
     });
   }
 
@@ -267,6 +294,8 @@
     bPhoto.onclick = photo;
     var bVid = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎥 Filmer');
     bVid.onclick = filmer;
+    var bGal = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🖼 Galerie');
+    bGal.onclick = galerie;
     var bMic = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎤 Parler');
     bMic.onclick = micro;
     st.input = el('input', 'flex:1;min-width:120px;padding:8px;font-size:14px');
@@ -274,7 +303,7 @@
     st.input.onkeydown = function (e) { if (e.key === 'Enter') { var v = st.input.value; st.input.value = ''; poser(v); } };
     var bEnv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', 'Envoyer');
     bEnv.onclick = function () { var v = st.input.value; st.input.value = ''; poser(v); };
-    barre.appendChild(bPhoto); barre.appendChild(bVid); barre.appendChild(bMic); barre.appendChild(st.input); barre.appendChild(bEnv);
+    barre.appendChild(bPhoto); barre.appendChild(bGal); barre.appendChild(bVid); barre.appendChild(bMic); barre.appendChild(st.input); barre.appendChild(bEnv);
 
     panel.appendChild(entete); panel.appendChild(st.msgs); panel.appendChild(barre);
     document.body.appendChild(lanceur);
