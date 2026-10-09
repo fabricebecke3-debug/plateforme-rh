@@ -38,7 +38,7 @@
 
   var FALLBACK = "Je n'ai pas trouvé de réponse précise. Essayez des mots comme : importer, congé, alertes, contrat, profil, journal, hors ligne.";
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
-  var st = { nom: 'Assistant', onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
+  var st = { nom: 'Assistant', onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
 
   // ---------- Outils ----------
   function norm(t) {
@@ -106,7 +106,22 @@
     st.msgs.appendChild(d);
     st.msgs.scrollTop = st.msgs.scrollHeight;
   }
-  function dire(t) { ajouter('av', t); geste('hoche'); parler(t); }
+  function dire(t) {
+    ajouter('av', t);
+    geste('hoche');
+    if (st.videoOn && st.onSpeak) {
+      setEtat('parle');
+      Promise.resolve().then(function () { return st.onSpeak(t); })
+        .then(function (url) {
+          if (!url) { setEtat('repos'); return; }
+          st.vid.src = url; st.vid.style.display = 'block'; st.vid.play().catch(function () {});
+        })
+        .catch(function (e) { setEtat('repos'); ajouter('av', 'Vidéo indisponible : ' + ((e && e.message) || e)); });
+      return;
+    }
+    if (st.vid) { st.vid.pause(); st.vid.style.display = 'none'; }
+    parler(t);
+  }
 
   // Gestes simples de l'avatar : hochement de tête, pulsation sur chaque mot, retour au calme
   function geste(nom) {
@@ -156,6 +171,47 @@
       if (f) enregistrerPhoto(f);
     };
     inp.click();
+  }
+
+  // ---------- Photo de l'avatar (séparée de la photo de profil) ----------
+  function photoAvatar() {
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = function () {
+      var f = inp.files && inp.files[0];
+      inp.remove();
+      if (!f) return;
+      if (!st.onAvatarPhoto) { dire("Aucun enregistrement de photo d'avatar n'est configuré."); return; }
+      dire('Envoi de la photo de l’avatar…');
+      Promise.resolve().then(function () { return st.onAvatarPhoto(f); })
+        .then(function () { dire('Photo de l’avatar enregistrée. Votre profil n’est pas modifié.'); })
+        .catch(function (e) { dire('Enregistrement impossible : ' + ((e && e.message) || e)); });
+    };
+    inp.click();
+  }
+
+  // ---------- Enregistrement de votre voix (pour cloner votre voix) ----------
+  function enregistrerVoix() {
+    if (!navigator.mediaDevices || !global.MediaRecorder) { dire("L'enregistrement audio n'est pas disponible sur cet appareil."); return; }
+    if (!st.onVoice) { dire("Aucun enregistrement de voix n'est configuré."); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (flux) {
+      var morceaux = [], rec;
+      try { rec = new MediaRecorder(flux); } catch (e) { flux.getTracks().forEach(function (t) { t.stop(); }); dire('Enregistrement impossible sur ce navigateur.'); return; }
+      dire('Parlez naturellement pendant 20 secondes, dans un endroit calme.');
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) morceaux.push(e.data); };
+      rec.onstop = function () {
+        flux.getTracks().forEach(function (t) { t.stop(); });
+        var blob = new Blob(morceaux, { type: rec.mimeType || 'audio/webm' });
+        Promise.resolve().then(function () { return st.onVoice(blob); })
+          .then(function () { dire('Voix enregistrée. Votre assistant peut maintenant parler avec votre voix.'); })
+          .catch(function (e) { dire('Enregistrement de la voix impossible : ' + ((e && e.message) || e)); });
+      };
+      rec.start();
+      setTimeout(function () { if (rec.state !== 'inactive') rec.stop(); }, 20000);
+    }).catch(function (e) { dire('Micro refusé : ' + ((e && e.message) || e)); });
   }
 
   // ---------- Photo par caméra ----------
@@ -277,8 +333,7 @@
     st.av = el('div', 'width:52px;height:52px;border-radius:50%;background:#1f5fbf;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;overflow:hidden;flex:0 0 auto;transition:box-shadow .2s');
     st.av.id = 'aa-av'; st.av.setAttribute('data-s', 'repos');
     var titre = el('div', 'flex:1;min-width:0');
-    titre.appendChild(el('div', 'font-weight:700', 'Assistant RH'));
-    titre.appendChild(el('div', 'font-size:12px;color:#5b6472', 'Aide sur l’application, texte ou voix'));
+    titre.appendChild(el('div', 'font-weight:700', 'Assistant de Fabrice'));
     st.btnVoix = el('button', 'padding:6px 8px;font-size:12px;cursor:pointer', '🔊 Voix : oui');
     st.btnVoix.onclick = function () {
       st.voix = !st.voix;
@@ -287,11 +342,24 @@
     };
     entete.appendChild(st.av); entete.appendChild(titre); entete.appendChild(st.btnVoix);
 
+    st.vid = el('video', 'width:100%;max-height:220px;background:#000;display:none');
+    st.vid.playsInline = true; st.vid.controls = true;
+    st.btnVideo = el('button', 'padding:6px 8px;font-size:12px;cursor:pointer;margin-left:6px', '🎬 Vidéo : non');
+    st.btnVideo.onclick = function () {
+      st.videoOn = !st.videoOn;
+      st.btnVideo.textContent = st.videoOn ? '🎬 Vidéo : oui' : '🎬 Vidéo : non';
+      if (!st.videoOn && st.vid) { st.vid.pause(); st.vid.style.display = 'none'; }
+    };
+    panel.appendChild(st.vid);
     st.msgs = el('div', 'flex:1;overflow-y:auto;padding:10px;min-height:160px;max-height:40vh;font-size:14px');
 
     var barre = el('div', 'display:flex;gap:6px;padding:6px 8px;border-top:1px solid #e3e6ec;flex-wrap:wrap');
     var bPhoto = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '📷 Ma photo');
     bPhoto.onclick = photo;
+    var bAv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🧑 Photo avatar');
+    bAv.onclick = photoAvatar;
+    var bVoix = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎙 Ma voix');
+    bVoix.onclick = enregistrerVoix;
     var bVid = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🎥 Filmer');
     bVid.onclick = filmer;
     var bGal = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', '🖼 Galerie');
@@ -303,7 +371,7 @@
     st.input.onkeydown = function (e) { if (e.key === 'Enter') { var v = st.input.value; st.input.value = ''; poser(v); } };
     var bEnv = el('button', 'padding:8px 10px;cursor:pointer;font-size:13px', 'Envoyer');
     bEnv.onclick = function () { var v = st.input.value; st.input.value = ''; poser(v); };
-    barre.appendChild(bPhoto); barre.appendChild(bGal); barre.appendChild(bVid); barre.appendChild(bMic); barre.appendChild(st.input); barre.appendChild(bEnv);
+    barre.appendChild(bMic); barre.appendChild(st.input); barre.appendChild(bEnv);
 
     panel.appendChild(entete); panel.appendChild(st.msgs); panel.appendChild(barre);
     document.body.appendChild(lanceur);
@@ -322,6 +390,20 @@
 
   // ---------- API publique ----------
   global.AideAvatar = {
+    actions: {
+      profil: function () { galerie(); },
+      camera: function () { photo(); },
+      avatar: function () { photoAvatar(); },
+      voix: function () { enregistrerVoix(); },
+      filmer: function () { filmer(); },
+      toggleVideo: function () {
+        st.videoOn = !st.videoOn;
+        if (st.btnVideo) st.btnVideo.textContent = st.videoOn ? '🎬 Vidéo : oui' : '🎬 Vidéo : non';
+        if (!st.videoOn && st.vid) { st.vid.pause(); st.vid.style.display = 'none'; }
+        return st.videoOn;
+      },
+      videoActive: function () { return st.videoOn; }
+    },
     start: function (opts) {
       if (st.started) return;
       opts = opts || {};
@@ -329,6 +411,9 @@
       st.onPhoto = typeof opts.onPhoto === 'function' ? opts.onPhoto : null;
       st.onAI = typeof opts.onAI === 'function' ? opts.onAI : null;
       st.onVideo = typeof opts.onVideo === 'function' ? opts.onVideo : null;
+      st.onSpeak = typeof opts.onSpeak === 'function' ? opts.onSpeak : null;
+      st.onVoice = typeof opts.onVoice === 'function' ? opts.onVoice : null;
+      st.onAvatarPhoto = typeof opts.onAvatarPhoto === 'function' ? opts.onAvatarPhoto : null;
       st.started = true;
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', construire);
       else construire();

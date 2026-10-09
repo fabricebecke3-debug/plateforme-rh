@@ -738,7 +738,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{let {data,error}=await db.from('entreprises').select('*').order('created_at');if(error){const r2=await db.from('entreprises').select('*');if(r2.error)throw r2.error;data=r2.data;error=null;}window.__coErr=null;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){window.__coErr=(e&&e.message)||String(e);const miss=/does not exist|42P01|schema cache|Could not find the table/i.test(window.__coErr);MULTI=isOwnerUser()?!miss:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json','recit_plateforme'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -2628,6 +2628,85 @@ window.addEventListener('offline',outqNotice);
 setInterval(()=>{if(OUTQ.length)outqFlush();},30000);
 setTimeout(()=>{outqNotice();if(OUTQ.length)outqFlush();},1500);
 
+
+/* ============ RÉCIT DE LA PLATEFORME : modifiable par le propriétaire, transmis à l'assistant ============ */
+const RECIT_DEFAUT=[
+"Comment tout a commencé",
+"Tout est parti d'une fatigue bien connue des professionnels RH : des effectifs dans un tableau, des contrats dans un dossier, des congés notés sur un papier, une paie à reprendre chaque mois. Fabrice Becke connaissait ce quotidien de l'intérieur. Il voulait simplement avoir moins de temps perdu à chercher une information, et plus de temps pour les personnes.",
+"Alors il a commencé à construire son propre outil. Pas pour impressionner, mais pour soulager sa propre gestion. Peu à peu, la plateforme a grandi : elle a appris à suivre les dossiers, à signaler les échéances qui approchent, à rédiger des documents à partir des données qu'elle contient. Ce qui était une aide personnelle est devenu un véritable compagnon de travail.",
+"Un parcours construit sur le terrain",
+"Fabrice Becke a plus de deux ans d'expérience dans la gestion du personnel. Il a travaillé sur la paie, les contrats et les tableaux de bord, et il a suivi plusieurs clients, pour plus de 200 employés au total. Sa formation est un Master en ressources humaines, obtenu à l'Université de Douala en 2022.",
+"Ce qu'il sait faire, il l'a appris en le pratiquant : l'administration du personnel, la paie et les déclarations sociales comme la CNPS, l'IRPP ou la CGI au Cameroun, la gestion des contrats à durée déterminée et indéterminée, le reporting RH. Excel avancé, Power BI, Softlabor, Word et PowerPoint sont ses outils au quotidien.",
+"Son envie aujourd'hui est d'aller plus loin : approfondir Power BI et le droit social camerounais, pour évoluer vers un poste RH senior.",
+"Pourquoi ouvrir la plateforme aux autres",
+"Très vite, une évidence s'est imposée : les difficultés qu'il rencontrait, d'autres les vivent aussi. Des entreprises indépendantes, des cabinets RH, des structures multisites, des cabinets de mise à disposition et d'intérim. La plateforme a donc été pensée pour eux, utilisable sur ordinateur comme sur téléphone, et conçue pour fonctionner même quand la connexion est faible, parce que le terrain ne se limite pas aux bureaux bien câblés.",
+"Le projet a été construit par passion pour le code et l'HTML, sans équipe de développement derrière. Aujourd'hui, il se présente comme un outil de digitalisation des ressources humaines : une façon de faire le travail RH autrement, avec des données plus fiables et moins de tâches répétitives."
+].join('\n\n');
+function recitPlateforme(){return (PARAMS.recit_plateforme&&String(PARAMS.recit_plateforme).trim())||RECIT_DEFAUT;}
+function openRecit(){
+  if(!isOwnerUser()){toast('🔒 Réservé au propriétaire');return;}
+  const w=document.createElement('div');
+  w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  w.innerHTML='<div class="c" style="max-width:760px;width:100%;max-height:92vh;overflow:auto">'
+    +'<div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">📖 Récit de la plateforme</h2><button class="s" id="rc_x">Fermer</button></div>'
+    +'<p class="muted" style="font-size:12px">Ce texte sert à l’assistant pour raconter la genèse de la plateforme et le parcours du créateur. Modifiez-le librement : la version enregistrée remplace le texte d’origine.</p>'
+    +'<textarea id="rc_t" style="width:100%;min-height:340px;font-size:14px;line-height:1.6"></textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="p" id="rc_s">💾 Enregistrer</button><button class="s" id="rc_d">↺ Revenir au texte d’origine</button></div></div>';
+  document.body.appendChild(w);
+  const ta=w.querySelector('#rc_t');ta.value=recitPlateforme();
+  w.querySelector('#rc_x').onclick=()=>w.remove();
+  w.onclick=e=>{if(e.target===w)w.remove();};
+  w.querySelector('#rc_d').onclick=()=>{ta.value=RECIT_DEFAUT;};
+  w.querySelector('#rc_s').onclick=async()=>{
+    const v=ta.value.trim();if(!v){toast('Le récit ne peut pas être vide');return;}
+    try{await saveParam('recit_plateforme',v);toast('Récit enregistré : l’assistant le utilisera');w.remove();}
+    catch(err){toast('Erreur : '+err.message);}
+  };
+}
+(function recitWatch(){
+  const box=$('v-own');if(!box){setTimeout(recitWatch,800);return;}
+  const mount=()=>{
+    if(OTAB!=='pr'||$('recit_btn')||!box.querySelector('.c'))return;
+    const b=document.createElement('button');b.id='recit_btn';b.className='s';b.textContent='📖 Récit de la plateforme';b.style.margin='8px 0';
+    box.insertBefore(b,box.firstChild);
+  };
+  new MutationObserver(function(){try{mount();}catch(e){}}).observe(box,{childList:true});
+  setTimeout(function(){try{mount();}catch(e){}},1500);
+})();
+document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')openRecit();});
+
+
+/* ============ PARAMÈTRES DE L'ASSISTANT RH (Centre de contrôle, onglet Profil et web) ============ */
+(function assistParamWatch(){
+  const box=$('v-own');if(!box){setTimeout(assistParamWatch,800);return;}
+  const mount=()=>{
+    if(OTAB!=='pr'||$('assist_params')||!box.querySelector('.c'))return;
+    const d=document.createElement('div');d.id='assist_params';d.className='c';d.style.margin='12px 0';
+    d.innerHTML='<h2 style="margin:0 0 6px">🤖 Assistant RH : paramètres</h2>'
+      +'<p class="muted" style="font-size:12px;margin:0 0 10px">Ces réglages s’appliquent à l’assistant. Les conversations se font dans le panneau 💬, à l’écrit ou à la voix.</p>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +'<button class="s" data-ap="profil">📷 Photo de profil</button>'
+      +'<button class="s" data-ap="avatar">🧑 Photo de l’avatar</button>'
+      +'<button class="s" data-ap="voix">🎙 Enregistrer ma voix</button>'
+      +'<button class="s" data-ap="filmer">🎥 Filmer</button>'
+      +'<button class="s" data-ap="video" id="ap_video">🎬 Vidéo : non</button>'
+      +'<button class="s" data-ap="recit">📖 Récit</button>'
+      +'</div><p id="ap_info" class="muted" style="font-size:12px;margin:8px 0 0"></p>';
+    box.insertBefore(d,box.firstChild);
+    const info=(t)=>{const p=$('ap_info');if(p)p.textContent=t;};
+    d.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{
+      const k=b.dataset.ap;
+      if(k==='recit'){openRecit();return;}
+      const A=window.AideAvatar;
+      if(!A||!A.actions){info('L’assistant n’est pas encore prêt : ouvrez-le une fois avec 💬, puis réessayez.');return;}
+      if(k==='video'){const on=A.actions.toggleVideo();b.textContent=on?'🎬 Vidéo : oui':'🎬 Vidéo : non';info(on?'Les réponses seront lues par la vidéo parlante (consomme des crédits).':'Les réponses sont lues par la voix du navigateur.');return;}
+      const fn={profil:A.actions.profil,avatar:A.actions.avatar,voix:A.actions.voix,filmer:A.actions.filmer}[k];
+      if(fn){fn();info('Suivez les indications dans la fenêtre de l’assistant.');}
+    });
+  };
+  new MutationObserver(function(){try{mount();}catch(e){}}).observe(box,{childList:true});
+  setTimeout(function(){try{mount();}catch(e){}},1500);
+})();
 /* ============ TABLEAU DE BORD PAR MODULE, COLONNES PERSONNALISÉES, MODULES PAR SOCIÉTÉ ============ */
 function xColsDef(){try{const a=JSON.parse(PARAMS.perso_cols||'[]');return Array.isArray(a)?a.filter(d=>d&&d.l):[];}catch(e){return[];}}
 function fillModCard(k){
@@ -8632,7 +8711,7 @@ hook();setInterval(hook,1500);
 (function(){
   function signedAv(p){return db.storage.from('avatars').createSignedUrl(p,3600).then(function(r){return r.data&&r.data.signedUrl||'';});}
   var _avTimer=setInterval(function(){ if(!MY_USER)return; clearInterval(_avTimer); AideAvatar.start({
-    nom:'Assistant RH',
+    nom:'Assistant de Fabrice',
     onPhoto:async function(blob){
       if(!MY_USER)throw new Error('connectez-vous d’abord');
       var p=MY_USER.id+'/avatar.jpg';
@@ -8647,9 +8726,40 @@ hook();setInterval(hook,1500);
       var up=await db.storage.from('avatars').upload(p,blob,{upsert:true,contentType:blob.type||'video/webm'});
       if(up.error)throw up.error;
     },
+    onAvatarPhoto:async function(f){
+      if(!MY_USER)throw new Error('connectez-vous d’abord');
+      var ext=/png$/i.test(f.name)?'png':'jpg';
+      var mime=ext==='png'?'image/png':'image/jpeg';
+      var p=MY_USER.id+'/source/visage.'+ext;
+      var up=await db.storage.from('avatars').upload(p,f,{upsert:true,contentType:mime});
+      if(up.error)throw up.error;
+      var r=await db.functions.invoke('avatar-hedra',{body:{action:'setup_image',path:p,mime:mime}});
+      if(r.error||!r.data||!r.data.ok)throw new Error((r.data&&r.data.error)||'envoi à Hedra impossible');
+    },
+    onVoice:async function(blob){
+      if(!MY_USER)throw new Error('connectez-vous d’abord');
+      var p=MY_USER.id+'/source/voix.webm';
+      var up=await db.storage.from('avatars').upload(p,blob,{upsert:true,contentType:blob.type||'audio/webm'});
+      if(up.error)throw up.error;
+      var r=await db.functions.invoke('avatar-hedra',{body:{action:'setup_voice',path:p}});
+      if(r.error||!r.data||!r.data.ok)throw new Error((r.data&&r.data.error)||'clonage de la voix impossible');
+    },
+    onSpeak:async function(t){
+      var c=await db.functions.invoke('avatar-hedra',{body:{action:'speak',text:t}});
+      if(c.error||!c.data||!c.data.generation_id)throw new Error((c.data&&c.data.error)||'service vidéo indisponible');
+      for(var i=0;i<80;i++){
+        await new Promise(function(ok){setTimeout(ok,4000);});
+        var st=await db.functions.invoke('avatar-hedra',{body:{action:'status',id:c.data.generation_id}});
+        var d=st.data||{};
+        if(d.url)return d.url;
+        if(d.status==='error'||d.status==='failed')throw new Error(d.error||'génération échouée');
+      }
+      throw new Error('délai dépassé, réessayez');
+    },
     onAI:async function(q){
       var ctx='';try{ctx=(typeof ctxAgg==='function'?ctxAgg():'')+(typeof aiFacts==='function'?aiFacts(q,false):'');}catch(e){}
       try{var qq=db.from('audit_log').select('created_at,user_email,table_name,action,row_id').order('created_at',{ascending:false}).limit(30);if(!isOwnerUser()&&CO)qq=qq.eq('entreprise_id',CO);var rr=await qq;if(rr.data&&rr.data.length)ctx+='\n\nJOURNAL RECENT (30 dernieres modifications, plus recentes d\'abord) :\n'+rr.data.map(function(x){return String(x.created_at).slice(0,16).replace('T',' ')+' | '+(x.user_email||'?')+' | '+x.action+' '+x.table_name+' #'+String(x.row_id||'').slice(0,8);}).join('\n');}catch(e){}
+      ctx+='\n\nRECIT DE LA PLATEFORME (genese et parcours du createur, a utiliser pour repondre aux questions sur l\'histoire) :\n'+recitPlateforme();
       var r=await window.TERH_callAI({messages:[{role:'user',content:q}],context:ctx,user_first:(typeof userFirst==='function'?userFirst():''),client_hour:new Date().getHours(),lang:'fr',max_tokens:800},26000);
       if(r.error||!r.data||!r.data.text)throw new Error('IA indisponible');
       return r.data.text;
