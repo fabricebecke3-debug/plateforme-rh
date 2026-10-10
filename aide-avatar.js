@@ -18,33 +18,29 @@
   'use strict';
 
   // ---------- Base d'aide intégrée (hors connexion) ----------
-  var FAQ = [
-    { q: ['comment vas tu', 'comment ca va', 'ca va', 'tu vas bien', 'comment allez vous', 'comment allez-vous', 'comment tu vas'], a: "Je vais très bien, merci de demander ! Et vous, comment se passe votre journée ? Dites-moi ce dont vous avez besoin, je suis là pour vous aider." },
-    { q: ['merci', 'merci beaucoup'], a: "Avec plaisir ! N'hésitez pas si vous avez une autre question." },
-    { q: ['au revoir', 'a bientot', 'bonne journee', 'bonne soiree', 'a plus'], a: "Au revoir, et bonne journée ! Je reste disponible pour vos questions." },
-    { q: ['bonsoir'], a: "Bonsoir ! Comment puis-je vous aider ?" },
-    { q: ['comment tu t appelles', 'ton nom', 'qui es tu', 'qui etes vous', 'votre nom'], a: "Je suis l'Assistant RH, un assistant IA de la plateforme. Je réponds à vos questions RH et sur l'application." },
-    { q: ['bonjour', 'salut', 'bonjour a tous'], a: "Bonjour, ravi de vous accompagner ! Que puis-je faire pour vous aujourd'hui ?" },
-    { q: ['ajouter un employe', 'nouvel employe', 'creer un employe', 'ajouter employe'], a: "Ouvrez l'onglet Personnel, puis « ➕ Nouvel employé ». Renseignez le nom, le poste et le type de contrat, puis enregistrez." },
-    { q: ['importer', 'import', 'fichier excel', 'effectif'], a: "Cliquez sur « ⬆ Importer » et choisissez votre fichier Excel. Les colonnes inconnues sont créées automatiquement comme colonnes personnalisées." },
-    { q: ['colonne', 'colonnes personnalisees', 'ajouter une colonne'], a: "Administrateur : cliquez sur « 🧱 Colonnes » pour ajouter ou supprimer une colonne. « 👁 Colonnes affichées » choisit ce qui apparaît dans la liste." },
-    { q: ['conge', 'demande de conge', 'vacances'], a: "Ouvrez le module Congés, puis « nouvelle demande ». Le responsable approuve ou refuse. Ces décisions demandent la connexion." },
-    { q: ['alerte', 'echeance', 'expire', 'cni', 'visite medicale'], a: "Le module 🔔 Alertes affiche les périodes d'essai à décider, les pièces qui expirent, les fins de contrat et les CDD au-delà de leurs règles." },
-    { q: ['periode d essai', 'essai', 'confirmer', 'rompre'], a: "Dans 🔔 Alertes, section « Périodes d'essai à décider » : cliquez sur Confirmer ou Rompre. La décision est gardée avec sa date." },
-    { q: ['contrat', 'cdd', 'ctt', 'occasionnel', 'regle'], a: "Les règles de chaque type de contrat se modifient dans 🔔 Alertes → « ⚙ Règles des contrats » : durée, renouvellements, reconduction tacite." },
-    { q: ['sortie', 'dossier de sortie', 'certificat', 'solde de tout compte'], a: "Dès qu'un employé a une date de sortie, son dossier apparaît dans 🔔 Alertes : certificat, attestation CNPS, solde de tout compte, matériel." },
-    { q: ['profil', 'droit', 'acces', 'permission', 'role'], a: "Les droits se règlent dans Centre de contrôle → Sociétés et accès. Le menu « Modèle rapide » applique un profil créé par l'administrateur." },
-    { q: ['journal', 'audit', 'qui a modifie'], a: "Le journal enregistre automatiquement chaque modification avec son auteur. Les administrateurs de société le voient dans 🔔 Alertes ; le propriétaire dans Centre de contrôle → Audit." },
-    { q: ['hors ligne', 'sans internet', 'pas de connexion', 'connexion'], a: "L'application s'ouvre sans connexion et affiche les dernières données. Vos ajouts et modifications restent sur l'appareil et sont envoyés dès le retour du réseau." },
-    { q: ['photo', 'avatar', 'ma photo', 'mon image'], a: "Les photos et les réglages de l'assistant se configurent dans le Centre de contrôle, onglet Profil et web, section « Assistant RH : paramètres ». Je n'ai pas besoin de ces réglages pour répondre à vos questions." },
-    { q: ['barre', 'defilement', 'defiler', 'tableau trop large'], a: "Une barre de défilement apparaît en haut et en bas des tableaux trop larges. Tirez-la pour voir les colonnes à droite." },
-    { q: ['tableau de bord', 'graphique', 'statistique'], a: "Le tableau de bord affiche les effectifs et les graphiques. Le mode édition (👁 et ▲▼) permet de masquer ou réordonner les cartes." }
-  ];
 
+  // Textes : module assistant/texte.js (repli minimal si absent)
+  var T = global.AssistantTexte || { FAQ: [], norm: function (t) { return String(t || ''); }, nettoyer: function (t) { return String(t || ''); },
+    texteParlable: function (t) { return String(t || ''); }, decouper: function (t) { return [String(t || '')]; },
+    messageErreur: function () { return "Je n'ai pas pu vous entendre. Vous pouvez réessayer ou m'écrire votre question."; },
+    messageRefus: function () { return "Pouvez-vous reformuler, s'il vous plaît ?"; }, answerLocal: function () { return null; } };
+  var FAQ = T.FAQ, nettoyer = T.nettoyer, texteParlable = T.texteParlable, decouper = T.decouper, messageErreur = T.messageErreur, messageRefus = T.messageRefus;
+  function answerLocal(text) { return T.answerLocal(text, FAQ); }
   var FALLBACK = "Je ne suis pas sûr de bien comprendre votre demande. Pouvez-vous la reformuler ? Je peux vous aider sur les congés, la paie, les contrats, l'import de fichiers ou les alertes.";
   var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
   var st = { nom: 'Assistant RH', theme: 'clair', position: 'droite', police: 'normale', vitesse: 1, afficherAv: true, couleur: '#1f5fbf', forme: 'rond', taille: 'normale', lanceur: null, utilisateur: null, onSpeak: null, videoOn: false, vid: null, btnVideo: null, onPhoto: null, onAI: null, voix: true, av: null, msgs: null, input: null, photoUrl: null, panel: null, btnVoix: null, started: false };
-  var historique = [];   // échanges de la conversation en cours (effacés par reset)
+  // Mémoire de la conversation : module assistant/conversation.js (repli intégré si absent)
+  var historique = (global.AssistantConversation && global.AssistantConversation.creer())
+    || (function () {
+      var h = [];
+      return {
+        ajouter: function (q, r) { h.push({ role: 'user', content: q }, { role: 'assistant', content: r }); while (h.length > 24) h.shift(); },
+        precedents: function (n) { return h.slice(-(n || 12)); },
+        estVide: function () { return h.length === 0; },
+        reset: function () { h.length = 0; },
+        estSalutationRepetee: function (q) { return /^(bonjour|bonsoir|salut|hello|coucou)(\s+[\p{L}-]+)?\s*[!.?,]*$/iu.test(String(q || '').trim()) && h.length > 0; }
+      };
+    })();
 
   // ---------- Outils ----------
   function norm(t) {
@@ -61,15 +57,6 @@
   }
 
   // ---------- Réponses ----------
-  function answerLocal(text) {
-    var n = norm(text), best = null, score = 0;
-    FAQ.forEach(function (f) {
-      var sc = 0;
-      f.q.forEach(function (k) { if (n.indexOf(norm(k)) !== -1) sc += norm(k).length; });
-      if (sc > score) { score = sc; best = f; }
-    });
-    return best ? best.a : null;
-  }
 
   // ---------- Voix ----------
   function setEtat(e) {
@@ -151,26 +138,6 @@
   function etatParler(texte) { if (st.btnParler) st.btnParler.textContent = texte; }
   function majBoutonConv() { if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non'; }
 
-  function messageErreur(code) {
-    var m = {
-      'not-allowed': "Je n'ai pas l'autorisation d'utiliser le micro. Vous pouvez l'autoriser dans les paramètres du navigateur, puis réessayer.",
-      'service-not-allowed': "Je n'ai pas l'autorisation d'utiliser le micro. Vous pouvez l'autoriser dans les paramètres du navigateur, puis réessayer.",
-      'audio-capture': "Je ne trouve pas de micro sur cet appareil.",
-      'network': "La reconnaissance vocale a besoin d'une connexion internet. Vous pouvez m'écrire votre question en attendant.",
-      'no-speech': "Je ne vous ai pas entendu. Appuyez de nouveau sur Parler quand vous êtes prêt."
-    };
-    return m[code] || "Je n'ai pas pu vous entendre. Vous pouvez réessayer ou m'écrire votre question.";
-  }
-  function messageRefus(raison) {
-    var m = {
-      'bruit': "J'ai surtout entendu du bruit. Pouvez-vous reprendre votre question, un peu plus près du micro ?",
-      'peu sur': "Je ne suis pas certain d'avoir bien compris. Pouvez-vous répéter, s'il vous plaît ?",
-      'court': "Pouvez-vous me poser votre question en une phrase ?",
-      'parasite': "Je vous écoute, dites-moi ce dont vous avez besoin.",
-      'vide': "Je ne vous ai pas entendu. Vous pouvez reprendre quand vous voulez."
-    };
-    return m[raison] || "Pouvez-vous reformuler, s'il vous plaît ?";
-  }
 
   function arreterEcoute() {
     if (conv.rec) { var r = conv.rec; conv.rec = null; try { r.abort(); } catch (e) {} }
@@ -253,31 +220,7 @@
   }
 
   // Texte prêt à être lu : sans markdown, sans symboles ni emojis
-  function texteParlable(t) {
-    return nettoyer(t)
-      .replace(/[*#_`>|~•]+/g, ' ')
-      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ' ')
-      .replace(/\s+-\s+/g, ', ')
-      .replace(/([.!?])\s*,\s*/g, '$1 ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
   // Découpe en phrases courtes, pour une diction plus claire
-  function decouper(t) {
-    var parties = t.match(/[^.!?;:]+[.!?;:]?/g) || [t];
-    var out = [];
-    parties.forEach(function (p) {
-      p = p.trim();
-      while (p.length > 180) {
-        var i = p.lastIndexOf(' ', 180);
-        if (i < 40) i = 180;
-        out.push(p.slice(0, i).trim());
-        p = p.slice(i).trim();
-      }
-      if (p) out.push(p);
-    });
-    return out.filter(Boolean);
-  }
   // Voix française du navigateur, si disponible
   function voixFr() {
     var vs = (global.speechSynthesis && speechSynthesis.getVoices) ? speechSynthesis.getVoices() : [];
@@ -321,15 +264,6 @@
 
   // ---------- Conversation ----------
   // Nettoie le texte affiché : pas d'étoiles ni de dièses de markdown
-  function nettoyer(t) {
-    return String(t || '')
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/^#{1,6}\s*/gm, '')
-      .replace(/^\s*[-*]\s+/gm, '• ')
-      .replace(/\s+\n/g, '\n')
-      .trim();
-  }
   function ajouter(qui, texte) {
     texte = qui === 'av' ? nettoyer(texte) : texte;
     var d = el('div', 'margin:6px 0;padding:8px 10px;border-radius:10px;max-width:90%;' +
@@ -362,17 +296,15 @@
     void st.av.offsetWidth;
     st.av.classList.add(nom === 'hoche' ? 'aa-hoche' : 'aa-pulse');
   }
-  var SALUTATION = /^(bonjour|bonsoir|salut|hello|coucou)(\s+[\p{L}-]+)?\s*[!.?,]*$/iu;
   function memoriser(q, rep) {
-    historique.push({ role: 'user', content: q }, { role: 'assistant', content: rep });
-    while (historique.length > 24) historique.shift();
+    historique.ajouter(q, rep);
   }
   function poser(q) {
     q = String(q || '').trim();
     if (!q) return;
     ajouter('moi', q);
     // Une salutation répétée au cours d'une conversation ne relance pas l'accueil
-    if (SALUTATION.test(q) && historique.length > 0) {
+    if (historique.estSalutationRepetee(q)) {
       var deja = 'Je vous écoute. Que puis-je faire pour vous ?';
       memoriser(q, deja);
       dire(deja);
@@ -382,7 +314,7 @@
     if (a) { memoriser(q, a); dire(a); return; }
     if (st.onAI) {
       setEtat('pense');
-      var precedents = historique.slice(-12);
+      var precedents = historique.precedents(12);
       Promise.resolve().then(function () { return st.onAI(q, precedents); })
         .then(function (r) { var txt = r || FALLBACK; memoriser(q, txt); dire(txt); })
         .catch(function () { dire(FALLBACK); });
@@ -644,7 +576,7 @@
     // Efface la conversation affichée (à appeler à la déconnexion)
     reset: function () {
       if (st.msgs) st.msgs.innerHTML = '';
-      historique.length = 0;
+      historique.reset();
       conv.on = false; arreterEcoute(); stopParole(); setEtat('repos'); majBoutonConv();
     },
     _ecoute: { rms: rms, accepterTexte: accepterTexte, seuilDepuis: seuilDepuis, etat: function () { return ecoute; } },
