@@ -24,13 +24,25 @@ function json(obj: unknown, status = 200): Response {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
+    const manquantes = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"].filter((n) => !Deno.env.get(n));
+    if (manquantes.length) {
+      console.error("formation-comptes : variables manquantes", manquantes.join(","));
+      return json({ error: "Configuration serveur incomplète", etape: "configuration", manquantes }, 500);
+    }
     const url = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const token = (req.headers.get("authorization") || "").replace(/^Bearer /, "");
 
     const userDb = createClient(url, anon, { global: { headers: { Authorization: `Bearer ${token}` } } });
-    const { data: { user } } = await userDb.auth.getUser();
+    let user;
+    try {
+      const r = await userDb.auth.getUser();
+      user = r.data.user;
+    } catch (e) {
+      console.error("formation-comptes : vérification de session", (e as Error)?.message || e);
+      return json({ error: "Vérification de session impossible", etape: "session" }, 500);
+    }
     if (!user) return json({ error: "Connexion requise" }, 401);
     const admin = createClient(url, svc);
     const body = await req.json().catch(() => ({}));
@@ -78,7 +90,10 @@ Deno.serve(async (req: Request) => {
       let q = admin.from("formation_apprenants").select("id,email,nom,statut,cree_le,entreprise_id").order("cree_le", { ascending: false });
       if (!estProprio) q = q.eq("entreprise_id", eid);
       const { data, error } = await q;
-      if (error) return json({ error: "Lecture impossible" }, 500);
+      if (error) {
+        console.error("formation-comptes lister :", error.message);
+        return json({ error: "Lecture impossible : " + error.message, etape: "lister" }, 500);
+      }
       return json({ data });
     }
 
@@ -97,7 +112,8 @@ Deno.serve(async (req: Request) => {
 
     return json({ error: "Action inconnue" }, 400);
   } catch (e) {
-    console.error("formation-comptes :", (e as Error)?.message || e);
-    return json({ error: "Erreur du service de formation" }, 500);
+    const msg = (e as Error)?.message || String(e);
+    console.error("formation-comptes (erreur non prévue) :", msg);
+    return json({ error: "Erreur inattendue : " + msg, etape: "inattendue" }, 500);
   }
 });
