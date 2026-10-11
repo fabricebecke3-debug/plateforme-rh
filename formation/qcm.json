@@ -1958,5 +1958,103 @@
   ],
   "reponse": 1,
   "explication": "Accès restreint aux personnes habilitées (cours 9)."
+ },
+ {
+  "id": "cc-1",
+  "theme": "Convention collective",
+  "niveau": "base",
+  "question": "Selon la CCN Commerce 2024, combien de jours ouvrables de congé par mois de service effectif ?",
+  "choix": [
+   "1,5 jour",
+   "2 jours",
+   "2,5 jours",
+   "3 jours"
+  ],
+  "reponse": 1,
+  "explication": "CCN Commerce 2024, art. 63 al. 1 : deux jours ouvrables par mois de service effectif (le Code prévoit 1,5 jour, art. 89)."
+ },
+ {
+  "id": "cc-2",
+  "theme": "Convention collective",
+  "niveau": "intermediaire",
+  "question": "Un salarié de l'entreprise commerciale a 12 ans d'ancienneté. Quel est son total de jours de congé selon la CCN Commerce ?",
+  "choix": [
+   "24 jours",
+   "27 jours",
+   "30 jours",
+   "33 jours"
+  ],
+  "reponse": 2,
+  "explication": "CCN Commerce, art. 63 al. 5 : 24 jours, +6 jours entre 10 et 15 ans, soit 30 jours."
+ },
+ {
+  "id": "cc-3",
+  "theme": "Convention collective",
+  "niveau": "intermediaire",
+  "question": "Selon la CCN Commerce, quelle majoration s'applique aux heures supplémentaires faites un jour férié ?",
+  "choix": [
+   "20 %",
+   "50 %",
+   "100 %",
+   "Aucune majoration"
+  ],
+  "reponse": 1,
+  "explication": "CCN Commerce, art. 51 al. 3 : majoration de 50 % pour les heures de jour et jours fériés ; 100 % pour la nuit."
+ },
+ {
+  "id": "cc-4",
+  "theme": "Convention collective",
+  "niveau": "intermediaire",
+  "question": "Selon la CCN Commerce, combien de jours de liberté par semaine a le salarié pendant son préavis, payés ?",
+  "choix": [
+   "Un jour",
+   "Deux jours",
+   "Trois jours",
+   "Aucun"
+  ],
+  "reponse": 1,
+  "explication": "CCN Commerce, art. 42 al. 7 : deux jours de liberté par semaine, payés à plein salaire (le Code en prévoit un, art. 35)."
+ },
+ {
+  "id": "cc-5",
+  "theme": "Convention collective",
+  "niveau": "intermediaire",
+  "question": "À partir de quelle ancienneté la CCN Commerce accorde-t-elle une indemnité de licenciement ?",
+  "choix": [
+   "Six mois",
+   "Un an",
+   "Deux ans",
+   "Cinq ans"
+  ],
+  "reponse": 1,
+  "explication": "CCN Commerce, art. 45 B-1 : un an de service au moins. Le Code exige deux ans (art. 37)."
+ },
+ {
+  "id": "cc-6",
+  "theme": "Convention collective",
+  "niveau": "intermediaire",
+  "question": "Selon la CCN Commerce, quel taux s'applique à un salarié de 12 ans d'ancienneté pour l'indemnité de licenciement ?",
+  "choix": [
+   "30 %",
+   "35 %",
+   "45 %",
+   "55 %"
+  ],
+  "reponse": 2,
+  "explication": "CCN Commerce, art. 45 B-3 : 45 % pour la tranche de 10 à 15 ans, appliqué au salaire mensuel moyen des douze derniers mois."
+ },
+ {
+  "id": "cc-7",
+  "theme": "Convention collective",
+  "niveau": "base",
+  "question": "Une convention collective peut-elle être moins favorable que le Code du travail ?",
+  "choix": [
+   "Non : elle peut seulement prévoir des dispositions plus favorables aux travailleurs",
+   "Oui, toujours",
+   "Oui, si le salarié accepte",
+   "Oui, dans tous les cas"
+  ],
+  "reponse": 0,
+  "explication": "Art. 52 al. 2 du Code : la convention peut prévoir des dispositions plus favorables, sans déroger à l'ordre public. Vérification faite sur le texte de la CCN."
  }
 ]

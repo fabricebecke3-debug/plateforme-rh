@@ -29,6 +29,16 @@ Conduire une rupture de contrat régulière, et éviter les dommages-intérêts.
 
 Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
+## 3. Quand la convention du commerce s'applique (CCN Commerce 2024, vérifiée)
+
+Si l'entreprise relève de la CCN Commerce (champ à vérifier), les règles suivantes sont **plus favorables** que le Code et doivent être appliquées :
+
+- **Indemnité de licenciement dès un an de service** (art. 45 B-1), contre deux ans dans le Code.
+- **Taux selon l'ancienneté** (art. 45 B-3) : 30 % (1 à 5 ans), 35 % (5 à 10), 45 % (10 à 15), 50 % (15 à 20), 55 % (au-delà de 20), appliqués au salaire mensuel moyen des douze derniers mois.
+- **Deux jours de liberté par semaine** pendant le préavis (art. 42 al. 7), contre un dans le Code.
+
+**À valider** : la manière d'appliquer le taux (tranche globale ou par tranche) n'est pas tranchée par le texte. Voir `docs/convention-commerce-verifiee.md`.
+
 ## Points de vigilance
 - Un motif non prouvé coûte cher (art. 39).
 - Un délégué du personnel ne se licencie pas sans autorisation de l'inspecteur (art. 130, voir cours 6).
