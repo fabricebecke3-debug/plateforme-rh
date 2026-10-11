@@ -622,6 +622,32 @@ T.mount=function(ctx){
     T.askZero(()=>T.ia(x=>{const go=()=>x.gate(recap);
       if(x.step2)Promise.resolve(x.step2({local:true})).catch(()=>{}).then(go);else go();},recap));},true);
 
+
+  /* --- complément des nouveaux salariés : on ne devine rien, on demande ce qui figure sur le bulletin --- */
+  function completerNouveaux(list){
+    if(!list||!list.length)return;
+    const w=ctx.openWin('<h3 style="margin:0 0 6px">\u270f\ufe0f Compl\u00e9ter les nouveaux salari\u00e9s ('+list.length+')</h3>'
+      +'<p class="muted" style="font-size:12px;margin:0 0 8px">Ces salari\u00e9s viennent des fiches employ\u00e9s, sans bulletin lu. Saisissez les valeurs de leur bulletin de ce mois. Rien n\'est devin\u00e9 : une case vide reste \u00e0 corriger.</p>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px"><tr><th align="left">Nom</th><th align="left">N\u00b0 CNPS (fiche)</th><th>Jours</th><th>Brut</th><th>Cotisable (pension)</th></tr>'
+      +list.map((r,k)=>'<tr style="border-top:1px solid rgba(128,128,128,.25)"><td>'+esc(r.nom||'')+'</td><td>'+esc(r.cnps||'manquant')+'</td>'
+        +'<td><input data-k="'+k+'" data-f="jours" type="number" value="'+(r.jours||'')+'" style="width:70px"></td>'
+        +'<td><input data-k="'+k+'" data-f="brut" type="number" step="any" value="" style="width:110px"></td>'
+        +'<td><input data-k="'+k+'" data-f="cot" type="number" step="any" value="" style="width:110px"></td></tr>').join('')+'</table>'
+      +'<div style="margin-top:10px;display:flex;gap:8px"><button class="p" id="nv_ok">Enregistrer</button><button class="s" id="nv_no">Plus tard</button></div>');
+    w.querySelector('#nv_ok').onclick=()=>{
+      w.querySelectorAll('[data-k]').forEach(inp=>{
+        const r=list[+inp.dataset.k],f=inp.dataset.f,v=String(inp.value).trim();
+        if(v==='')return;
+        r.src=r.src||{};
+        if(f==='jours'){r.jours=+v;r.src.jours='saisie manuelle';}
+        if(f==='brut'){r.brut=+v;r.src.brut='saisie manuelle';}
+        if(f==='cot'){r.cot=+v;r.cotEst=false;r.src.cot='saisie manuelle';}
+      });
+      w.remove();render();
+    };
+    w.querySelector('#nv_no').onclick=()=>w.remove();
+  }
+
   /* --- ajouter les salariés des fiches qui ne sont pas dans le tableau --- */
   $('dpx_addemp').onclick=()=>{
     const haveE=new Set(R.map(r=>r.eid).filter(Boolean).map(String)),haveC=new Set(R.map(r=>digits(r.cnps)).filter(c=>c.length===11)),haveN=new Set(R.map(r=>nz(r.nom)).filter(Boolean));
@@ -629,7 +655,9 @@ T.mount=function(ctx){
     if(!add.length){say('Tous les salariés des fiches sont déjà dans le tableau');return;}
     if(!confirm('Ajouter '+add.length+' salarié(s) des fiches employés (brut à saisir ou à lire sur leur bulletin) ?'))return;
     add.forEach(e=>{const c=digits(e.cnps),m=MAT[e.id]||'';R.push({nom:e.n,eid:e.id,cnps:c.length===11?c:'',cnpsAuto:c.length===11,jours:30,brut:0,cot:0,exc:0,mat:String(m).slice(-4),mi:m,miAuto:!!m});});
-    T.refSync(true);filter='all';render();$('dpx_info').textContent='➕ '+add.length+' salarié(s) ajouté(s) : lisez leurs bulletins ou saisissez le brut ; supprimez ensuite ceux qui n\'ont pas de paie ce mois (🗑 Supprimer… → « lignes sans bulletin »).';};
+    const idsAjout=new Set(add.map(e=>String(e.id)));const nouveaux=R.filter(r=>r.eid&&idsAjout.has(String(r.eid)));
+    T.refSync(true);filter='all';render();$('dpx_info').textContent='➕ '+add.length+' salarié(s) ajouté(s) : lisez leurs bulletins ou saisissez le brut ; supprimez ensuite ceux qui n\'ont pas de paie ce mois (🗑 Supprimer… → « lignes sans bulletin »).';
+    completerNouveaux(nouveaux);};
 
   /* --- fusionner 2 lignes (ex. ancien absent + nouveau bulletin du même salarié) --- */
   $('dpx_merge').onclick=()=>{
