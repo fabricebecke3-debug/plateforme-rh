@@ -185,7 +185,17 @@
     r.interimResults = false;
     r.maxAlternatives = 3;   // trois hypothèses : on retient la plus sûre
     r.continuous = false;
-    var recu = false;
+    var recu = false, demarre = false;
+    ajouter('av', '🎤 Je demande l’accès au micro…');
+    r.onstart = function () { demarre = true; ajouter('av', '🎤 Micro actif : je vous écoute.'); };
+    // Si le navigateur ne démarre jamais l'écoute, on le dit au lieu de rester muet
+    setTimeout(function () {
+      if (!demarre && conv.rec === r) {
+        ajouter('av', "Le micro n'a pas démarré. Vérifiez l'autorisation du micro pour ce site (cadenas à côté de l'adresse), puis réessayez.");
+        try { r.abort(); } catch (e) {}
+        conv.rec = null; setEtat('repos'); etatParler('🎤 Parler');
+      }
+    }, 4000);
     r.onresult = function (e) {
       recu = true;
       conv.rec = null;
@@ -218,6 +228,7 @@
       if (conv.rec === r) conv.rec = null;
       etatParler('🎤 Parler');
       arreterAnalyse();
+      if (!recu && demarre && !conv.on) ajouter('av', 'Aucune voix reconnue. Réessayez en parlant près du micro.');
       if (!recu) { setEtat('repos'); reprendre(); }
     };
     conv.rec = r;
@@ -329,7 +340,7 @@
     // 1) base de formation (module Apprentissage) ; 2) questions juridiques vers l'IA, sans les règles de la plateforme
     var fa = global.FormationAssistant && typeof global.FormationAssistant.localPour === 'function' ? global.FormationAssistant.localPour(q) : null;
     if (fa) { memoriser(q, fa); dire(fa); return; }
-    var juridique = /code du travail|convention|d[ée]cret|article|\bloi\b|droit du travail/i.test(q);
+    var juridique = /code du travail|convention|d[ée]cret|article|\bloi\b|droit du travail|c.est quoi|qu.est.ce qu|d[ée]finition|expliqu/i.test(q);
     var a = juridique && st.onAI ? null : answerLocal(q);
     if (a) { memoriser(q, a); dire(a); return; }
     if (st.onAI) {

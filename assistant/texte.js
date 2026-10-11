@@ -16,7 +16,7 @@
     { q: ['conge', 'demande de conge', 'vacances'], a: "Ouvrez le module Congés, puis « nouvelle demande ». Le responsable approuve ou refuse. Ces décisions demandent la connexion." },
     { q: ['alerte', 'echeance', 'expire', 'cni', 'visite medicale'], a: "Le module 🔔 Alertes affiche les périodes d'essai à décider, les pièces qui expirent, les fins de contrat et les CDD au-delà de leurs règles." },
     { q: ['periode d essai', 'essai', 'confirmer', 'rompre'], a: "Dans 🔔 Alertes, section « Périodes d'essai à décider » : cliquez sur Confirmer ou Rompre. La décision est gardée avec sa date." },
-    { q: ['contrat', 'cdd', 'ctt', 'occasionnel', 'regle'], a: "Les règles de chaque type de contrat se modifient dans 🔔 Alertes → « ⚙ Règles des contrats » : durée, renouvellements, reconduction tacite." },
+    { q: ['type de contrat', 'regles des contrats', 'regle des contrats', 'cdd', 'ctt', 'occasionnel'], a: "Les règles de chaque type de contrat se modifient dans 🔔 Alertes → « ⚙ Règles des contrats » : durée, renouvellements, reconduction tacite." },
     { q: ['sortie', 'dossier de sortie', 'certificat', 'solde de tout compte'], a: "Dès qu'un employé a une date de sortie, son dossier apparaît dans 🔔 Alertes : certificat, attestation CNPS, solde de tout compte, matériel." },
     { q: ['profil', 'droit', 'acces', 'permission', 'role'], a: "Les droits se règlent dans Centre de contrôle → Sociétés et accès. Le menu « Modèle rapide » applique un profil créé par l'administrateur." },
     { q: ['journal', 'audit', 'qui a modifie'], a: "Le journal enregistre automatiquement chaque modification avec son auteur. Les administrateurs de société le voient dans 🔔 Alertes ; le propriétaire dans Centre de contrôle → Audit." },
