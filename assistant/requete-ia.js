@@ -26,7 +26,7 @@
   // Corps de la requête, tel qu'attendu par la fonction serveur ai-chat
   function construireRequete(opts) {
     opts = opts || {};
-    return {
+    var corps = {
       messages: messages(opts.question, opts.precedents),
       context: contexte(opts.contexte),
       user_first: opts.userFirst || '',
@@ -34,6 +34,8 @@
       lang: opts.lang || 'fr',
       max_tokens: 800
     };
+    if (opts.mode) corps.mode = opts.mode;
+    return corps;
   }
 
   var API = { construireRequete: construireRequete, messages: messages, contexte: contexte, HISTORIQUE_MAX: HISTORIQUE_MAX };

@@ -61,6 +61,11 @@
   }
 
   var API = {
+    // Réponse locale de la base de formation, sans appel réseau (null si aucun sujet ne correspond)
+    localPour: function (question) {
+      var e = meilleure(question);
+      return e ? e.reponse + AVERTISSEMENT : null;
+    },
     onAI: null,
     base: BASE,
     // Renvoie { texte, source: 'local' | 'ia' | 'aucune' }

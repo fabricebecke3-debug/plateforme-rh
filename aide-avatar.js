@@ -105,6 +105,8 @@
         ctx.createMediaStreamSource(flux).connect(an);
         ecoute.flux = flux; ecoute.ctx = ctx; ecoute.analyser = an;
         ecoute.data = new Uint8Array(an.fftSize);
+        ecoute.seuil = 0.02;
+        ecoute.suivi = setInterval(suivreVoix, 60);
         // Calibrage du bruit ambiant pendant ~0,5 seconde
         var mesures = [], t0 = Date.now();
         var cal = setInterval(function () {
@@ -115,7 +117,6 @@
             clearInterval(cal);
             ecoute.bruit = mesures.reduce(function (x, y) { return x + y; }, 0) / mesures.length;
             ecoute.seuil = seuilDepuis(ecoute.bruit);
-            ecoute.suivi = setInterval(suivreVoix, 60);
           }
         }, 50);
       })
@@ -194,7 +195,9 @@
       var confiance = res ? res.confidence : undefined;
       // Si l'analyse n'est pas disponible, on se fie à la reconnaissance seule
       var voixOk = ecoute.analyser ? ecoute.voix : true;
-      var verdict = accepterTexte(texte, confiance, voixOk);
+      var mots = normaliserTexte(texte).split(' ').filter(Boolean).length;
+      var fiable = typeof confiance === 'number' && confiance >= 0.6 && mots >= 2;
+      var verdict = fiable ? accepterTexte(texte, confiance, true) : accepterTexte(texte, confiance, voixOk);
       arreterAnalyse();
       if (verdict.ok) { poser(texte); return; }
       setEtat('repos');
@@ -323,7 +326,11 @@
       dire(deja);
       return;
     }
-    var a = answerLocal(q);
+    // 1) base de formation (module Apprentissage) ; 2) questions juridiques vers l'IA, sans les règles de la plateforme
+    var fa = global.FormationAssistant && typeof global.FormationAssistant.localPour === 'function' ? global.FormationAssistant.localPour(q) : null;
+    if (fa) { memoriser(q, fa); dire(fa); return; }
+    var juridique = /code du travail|convention|d[ée]cret|article|\bloi\b|droit du travail/i.test(q);
+    var a = juridique && st.onAI ? null : answerLocal(q);
     if (a) { memoriser(q, a); dire(a); return; }
     if (st.onAI) {
       setEtat('pense');
