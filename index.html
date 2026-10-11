@@ -2775,44 +2775,83 @@ document.addEventListener('click',e=>{const t=e.target;if(t&&t.id==='recit_btn')
 
 function renderApprentissage(){
   const box=$('fo_box'); if(!box) return;
-  const esc2=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const admin=isOwnerUser()||(typeof isAdm==='function'&&isAdm());
-  box.innerHTML='<div class="c"><h2>Mes formations</h2>'
-    +'<p class="muted" style="font-size:13px">Cours, exercices et entraînement. Les personnes citées dans les exemples sont fictives.</p>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'
-    +'<button class="p" id="fo_qcm">📝 Faire le QCM</button>'
-    +'<button class="s" data-doc="formation/cours-et-exercices.md">📘 Cours et exercices</button>'
-    +'<button class="s" data-doc="formation/programme.md">🗺 Programme</button>'
-    +'<button class="s" id="fo_ass">💬 Poser une question à l\'assistant</button></div>'
-    +'<div id="fo_qcm_zone"></div><div id="fo_doc"></div><div class="c" style="margin-top:14px"><h2>Bibliothèque des cours</h2><p class="muted" style="font-size:13px">Cours et exercices corrigés. Les personnes des exemples sont fictives.</p><div id="fo_cours" style="display:grid;gap:8px"></div></div><div class="c" style="margin-top:14px"><h2>Exercices vérifiés automatiquement</h2><p class="muted" style="font-size:13px">Saisissez votre résultat (virgule ou point). La plateforme le vérifie et explique la démarche.</p><div id="fo_exo" style="display:grid;gap:10px"></div></div><div class="c" style="margin-top:14px"><h2>Documents de formation</h2><p class="muted" style="font-size:13px">Word, PDF avec texte, Markdown ou texte. Les PDF scannés ne peuvent pas être lus automatiquement.</p><div id="fo_docs"></div></div>'
-    +'<h3 style="font-size:14px;margin-top:12px">Ma progression</h3><div id="fo_prog" class="muted">Chargement…</div></div>'
-    +'<div class="c" style="margin-top:14px"><h2>Comment ça marche et où configurer</h2>'
-      +'<ol style="line-height:1.8;font-size:14px">'
-      +'<li><b>Le site</b> : les cours, le QCM et l’assistant sont déjà en place. Rien à régler.</li>'
-      +'<li><b>Base de données</b> : Supabase → SQL Editor → exécuter <code>sql/formation-comptes.sql</code> (une seule fois).</li>'
-      +'<li><b>Fonction serveur</b> : terminal → <code>supabase functions deploy formation-comptes</code> (voir DEPLOIEMENT.md).</li>'
-      +'<li><b>Invitations</b> : Supabase → Authentication → Email Templates (modèle en français).</li>'
-      +'<li><b>Inscription libre</b> : à désactiver dans Authentication → Sign In / Providers → Email.</li>'
-      +'<li><b>Apprenants indépendants</b> : invitez-les sans société (propriétaire seulement).</li>'
-      +'<li><b>Contenus</b> : les cours et le programme sont dans <code>formation/</code>, les questions dans <code>formation/qcm.json</code>.</li>'
-      +'</ol><button class="s" id="fo_test">🔍 Vérifier la configuration</button><div id="fo_diag" style="margin-top:8px"></div></div>'
-      +(admin?'<div class="c" style="margin-top:14px"><h2>Gestion des apprenants</h2>'
-      +'<p class="muted" style="font-size:13px">Invitez une personne par e-mail. Sans société, l’apprenant est indépendant.</p>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'
-      +'<label>E-mail<input id="fo_mail" type="email" placeholder="nom@exemple.com"></label>'
-      +'<label>Nom<input id="fo_nom" placeholder="Prénom Nom"></label>'
-      +'<button class="p" id="fo_inv">➕ Inviter</button></div>'
-      +'<div id="fo_liste" style="margin-top:12px" class="muted">Chargement…</div></div>':'');
-  $('fo_qcm').onclick=()=>{ $('fo_qcm_zone').innerHTML='<iframe src="formation/entrainement-qcm.html" style="width:100%;height:620px;border:1px solid #d6dbe3;border-radius:10px" title="QCM"></iframe>'; };
-  $('fo_ass').onclick=()=>{ toast('Ouvrez 💬 en bas à droite et posez votre question.'); };
-  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>afficherDoc(b.dataset.doc));
-  chargerBibliotheque();
-  chargerExercices();
-  chargerDocuments();
-  if($('fo_test')) $('fo_test').onclick=verifierFormation;
-  chargerProgression();
-  if(admin){ $('fo_inv').onclick=inviterApprenant; chargerApprenants(); }
+  const onglets=[['cours','📘 Cours'],['exo','✏️ Exercices'],['qcm','📝 QCM'],['docs','📄 Documents'],['prog','📈 Progression'],['aide','❔ Aide']];
+  if(admin) onglets.push(['gestion','👥 Apprenants']);
+  box.innerHTML='<div class="c" style="padding:14px 18px">'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0;flex:1">🎓 Apprentissage</h2>'
+    +'<button class="s" id="fo_ass">💬 Question à l\'assistant</button></div>'
+    +'<nav id="fo_onglets" role="tablist" aria-label="Sections de l\'apprentissage" style="display:flex;gap:2px;flex-wrap:wrap;margin-top:12px;border-bottom:1px solid #d6dbe3">'
+    +onglets.map(o=>'<button role="tab" aria-selected="false" tabindex="-1" data-onglet="'+o[0]+'" style="border:0;background:none;padding:9px 12px;cursor:pointer;font:inherit;border-bottom:2px solid transparent;color:inherit">'+o[1]+'</button>').join('')
+    +'</nav></div><div id="fo_panel" role="tabpanel" style="margin-top:14px"></div>';
+  const nav=$('fo_onglets');
+  nav.addEventListener('keydown',e=>{
+    const liste=[...nav.querySelectorAll('[role="tab"]')]; const i=liste.indexOf(document.activeElement); if(i<0) return;
+    let j=null; if(e.key==='ArrowRight') j=(i+1)%liste.length; if(e.key==='ArrowLeft') j=(i-1+liste.length)%liste.length;
+    if(e.key==='Home') j=0; if(e.key==='End') j=liste.length-1;
+    if(j!==null){ e.preventDefault(); liste[j].focus(); montrerOnglet(liste[j].dataset.onglet); }
+  });
+  $('fo_ass').onclick=()=>toast('Ouvrez 💬 en bas à droite et posez votre question.');
+  box.querySelectorAll('[data-onglet]').forEach(b=>b.onclick=()=>montrerOnglet(b.dataset.onglet));
+  montrerOnglet('cours');
 }
+const PANNEAUX={
+  cours:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Chaque cours s\'ouvre dans une fenêtre de lecture : bouton Fermer en haut, ou touche Échap.</p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="s" data-doc="formation/programme.md">🗺 Voir le programme</button></div>'
+    +'<div id="fo_cours" style="display:grid;gap:8px"></div>',
+  exo:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Saisissez votre résultat (virgule ou point). La plateforme le vérifie et explique la démarche.</p><div id="fo_exo" style="display:grid;gap:10px"></div>',
+  qcm:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Questions avec correction et explication. Le score est enregistré à la fin.</p><button class="p" id="fo_qcm">📝 Lancer le QCM</button><div id="fo_qcm_zone" style="margin-top:12px"></div>',
+  docs:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Word, PDF avec texte, Markdown ou texte. Les PDF scannés ne sont pas lus automatiquement.</p><div id="fo_docs"></div>',
+  prog:()=>'<div id="fo_prog" class="muted">Chargement…</div>',
+  aide:()=>'<ol style="line-height:1.8;font-size:14px;padding-left:20px;margin:0 0 10px">'
+    +'<li><b>Le site</b> : les cours, le QCM et l’assistant sont en place.</li>'
+    +'<li><b>Base de données</b> : Supabase → SQL Editor → <code>sql/formation-comptes.sql</code> (une seule fois).</li>'
+    +'<li><b>Fonction serveur</b> : <code>supabase functions deploy formation-comptes</code> (voir DEPLOIEMENT.md).</li>'
+    +'<li><b>Invitations</b> : Supabase → Authentication → Email Templates.</li>'
+    +'<li><b>Inscription libre</b> : à désactiver dans Authentication → Sign In / Providers → Email.</li>'
+    +'<li><b>Contenus</b> : cours dans <code>formation/cours/</code>, questions dans <code>formation/qcm.json</code>.</li></ol>'
+    +'<button class="s" id="fo_test">🔍 Vérifier la configuration</button><div id="fo_diag" style="margin-top:8px"></div>',
+  gestion:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Invitez une personne par e-mail. Sans société, l’apprenant est indépendant.</p>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end"><label>E-mail<input id="fo_mail" type="email" placeholder="nom@exemple.com"></label>'
+    +'<label>Nom<input id="fo_nom" placeholder="Prénom Nom"></label><button class="p" id="fo_inv">➕ Inviter</button></div>'
+    +'<div id="fo_liste" style="margin-top:12px" class="muted">Chargement…</div>'
+};
+function montrerOnglet(id){
+  document.querySelectorAll('#fo_onglets [data-onglet]').forEach(b=>{const on=b.dataset.onglet===id; b.style.borderBottomColor=on?'#1f5fbf':'transparent'; b.style.fontWeight=on?'700':'400'; b.setAttribute('aria-selected',on?'true':'false'); b.tabIndex=on?0:-1;});
+  const pan=$('fo_panel'); if(!pan||!PANNEAUX[id]) return;
+  pan.innerHTML=PANNEAUX[id]();
+  if(id==='cours'){ pan.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>afficherDoc(b.dataset.doc)); chargerBibliotheque(); }
+  if(id==='exo') chargerExercices();
+  if(id==='qcm') $('fo_qcm').onclick=()=>{ $('fo_qcm_zone').innerHTML='<iframe src="formation/entrainement-qcm.html" style="width:100%;height:640px;border:1px solid #d6dbe3;border-radius:10px" title="QCM"></iframe>'; };
+  if(id==='docs') chargerDocuments();
+  if(id==='prog') chargerProgression();
+  if(id==='aide') $('fo_test').onclick=verifierFormation;
+  if(id==='gestion'){ $('fo_inv').onclick=inviterApprenant; chargerApprenants(); }
+}
+
+// Fenêtre de lecture unique : bouton Fermer visible, touche Échap, clic à l'extérieur
+function ouvrirLecteur(titre,html){
+  let ov=$('fo_overlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='fo_overlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:28px 12px;overflow:auto';
+    ov.innerHTML='<div role="dialog" aria-modal="true" aria-labelledby="fo_lect_t" style="background:#fff;color:#1a1a1a;max-width:840px;width:100%;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #e3e6ec;position:sticky;top:0;background:#fff;border-radius:14px 14px 0 0">'
+      +'<h2 id="fo_lect_t" style="margin:0;flex:1;font-size:18px;color:#1a1a1a"></h2>'
+      +'<button id="fo_lect_x" style="padding:8px 14px;border:0;border-radius:8px;background:#1f5fbf;color:#fff;cursor:pointer;font:inherit">✕ Fermer</button></div>'
+      +'<div id="fo_lect_c" style="padding:18px 22px 26px;line-height:1.65;font-size:15px"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',e=>{ if(e.target===ov) fermerLecteur(); });
+    $('fo_lect_x').addEventListener('click',fermerLecteur);
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('fo_overlay')&&$('fo_overlay').style.display!=='none') fermerLecteur(); });
+  }
+  window.__focusAvant=document.activeElement;
+  $('fo_lect_t').textContent=titre;
+  $('fo_lect_c').innerHTML=html;
+  ov.style.display='flex';
+  $('fo_lect_x').focus();
+}
+function fermerLecteur(){ const ov=$('fo_overlay'); if(ov) ov.style.display='none'; const f=window.__focusAvant; if(f&&f.focus) f.focus(); }
 
 async function chargerBibliotheque(){
   const box=$('fo_cours'); if(!box) return;
@@ -2824,19 +2863,17 @@ async function chargerBibliotheque(){
   }catch(e){ box.innerHTML='<p class="ban">La bibliothèque est indisponible. Vérifiez que le dossier formation/cours/ est bien sur le site.</p>'; }
 }
 async function afficherDoc(url,titreFourni){
-  const zone=$('fo_doc'); if(!zone) return;
-  zone.innerHTML='<p class="muted">Chargement…</p>';
+  const titre=titreFourni||(url.indexOf('programme')>=0?'Programme':'Cours et exercices');
+  ouvrirLecteur(titre,'<p class="muted">Chargement…</p>');
   try{
     const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
-    const md=await r.text();
-    const titre=titreFourni||(url.indexOf('programme')>=0?'Programme':'Cours et exercices');
-    zone.innerHTML='<div class="c" style="margin-top:12px"><div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">'+titre+'</h2><button class="s" id="fo_doc_x">Fermer</button></div><div style="line-height:1.6;margin-top:10px;font-size:14px">'+ApprentissageOutils.mdToHtml(md)+'</div></div>';
-    $('fo_doc_x').onclick=()=>{ zone.innerHTML=''; };
-    zone.scrollIntoView({behavior:'smooth',block:'start'});
+    $('fo_lect_c').innerHTML=ApprentissageOutils.mdToHtml(await r.text());
+    if(MY_USER&&url.indexOf('formation/cours/')===0){ db.functions.invoke('formation-comptes',{body:{action:'progres',module:'lu-'+url.split('/').pop(),score:null,termine:true}}).catch(()=>{}); }
   }catch(e){
-    zone.innerHTML='<p class="ban">Document introuvable ('+esc(url)+'). Vérifiez que le dossier formation/ est bien à la racine du site.</p>';
+    $('fo_lect_c').innerHTML='<p class="ban">Document introuvable. Vérifiez que le dossier formation/ est bien sur le site.</p>';
   }
 }
+
 async function verifierFormation(){
   const d=$('fo_diag'); if(!d) return;
   const lignes=[];
@@ -2863,6 +2900,7 @@ async function chargerExercices(){
       const out=$('fo_res_'+i);
       if(v.raison==='saisie'){ out.innerHTML='<span class="ban">Saisissez un nombre (ex. 14,29).</span>'; return; }
       out.innerHTML=(v.ok?'✅ <b>Bonne réponse.</b> ':'⚠️ <b>Pas tout à fait.</b> ')+'Valeur attendue : <b>'+String(e.attendu).replace('.',',')+' '+esc(e.unite)+'</b>. <span class="muted">'+esc(e.explication)+'</span>';
+      if(v.ok&&MY_USER){ db.functions.invoke('formation-comptes',{body:{action:'progres',module:'exo-'+e.id,score:100,termine:true}}).catch(()=>{}); }
     });
   }catch(err){ box.innerHTML='<p class="ban">Les exercices sont indisponibles. Vérifiez que formation/exercices.json est sur le site.</p>'; }
 }
@@ -2907,18 +2945,19 @@ async function chargerDocuments(){
   if(peutEcrire) html+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px"><label>Titre<input id="fd_titre" placeholder="Ex. Code du travail — extraits" style="width:240px"></label><label>Fichier<input id="fd_fichier" type="file" accept=".docx,.pdf,.md,.txt"></label><button class="p" id="fd_envoyer">📤 Importer</button></div><div id="fd_etat" class="muted" style="font-size:13px"></div>';
   if(error){ box.innerHTML=html+'<p class="ban">La liste des documents est indisponible : vérifiez que sql/formation-documents.sql a été exécuté.</p>'; }
   else if(!data||!data.length){ box.innerHTML=html+'<p class="muted">Aucun document importé pour le moment.</p>'; }
-  else { html+='<div style="display:grid;gap:6px">'+data.map(d=>'<div style="display:flex;gap:8px;align-items:center;border:1px solid #d6dbe3;border-radius:8px;padding:8px"><div style="flex:1"><b>'+esc(d.titre)+'</b><div class="muted" style="font-size:12px">'+esc(d.nom_fichier)+' · '+esc(String(d.cree_le||'').slice(0,10))+' · '+(d.entreprise_id?'société':'général')+'</div></div><button class="s" data-doc-lire="'+d.id+'">Lire</button>'+(peutEcrire?'<button class="s" data-doc-suppr="'+d.id+'" data-chemin="'+esc(d.chemin)+'">Supprimer</button>':'')+'</div>').join('')+'</div><div id="fd_texte" style="margin-top:10px"></div>'; box.innerHTML=html; }
+  else { html+='<div style="display:grid;gap:6px">'+data.map(d=>'<div style="display:flex;gap:8px;align-items:center;border:1px solid #d6dbe3;border-radius:8px;padding:8px"><div style="flex:1"><b>'+esc(d.titre)+'</b><div class="muted" style="font-size:12px">'+esc(d.nom_fichier)+' · '+esc(String(d.cree_le||'').slice(0,10))+' · '+(d.entreprise_id?'société':'général')+'</div></div><button class="s" data-doc-lire="'+d.id+'">Lire</button>'+(peutEcrire?'<button class="s" data-doc-suppr="'+d.id+'" data-chemin="'+esc(d.chemin)+'">Supprimer</button>':'')+'</div>').join('')+'</div>'; box.innerHTML=html; }
   if(peutEcrire&&$('fd_envoyer')) $('fd_envoyer').onclick=televerserDocument;
   box.querySelectorAll('[data-doc-lire]').forEach(b=>b.onclick=()=>lireDocument(b.dataset.docLire));
   box.querySelectorAll('[data-doc-suppr]').forEach(b=>b.onclick=()=>supprimerDocument(b.dataset.docSuppr,b.dataset.chemin));
 }
 async function lireDocument(id){
-  const zone=$('fd_texte'); if(!zone) return;
-  zone.innerHTML='<p class="muted">Chargement…</p>';
+  ouvrirLecteur('Document','<p class="muted">Chargement…</p>');
   const {data,error}=await db.from('formation_documents').select('titre,texte_extrait').eq('id',id).maybeSingle();
-  if(error||!data){ zone.innerHTML='<p class="ban">Document introuvable.</p>'; return; }
-  zone.innerHTML='<div class="c"><h3 style="margin:0 0 8px">'+esc(data.titre)+'</h3><div style="line-height:1.6;font-size:14px">'+ApprentissageOutils.mdToHtml(data.texte_extrait)+'</div></div>';
+  if(error||!data){ $('fo_lect_c').innerHTML='<p class="ban">Document introuvable.</p>'; return; }
+  $('fo_lect_t').textContent=data.titre;
+  $('fo_lect_c').innerHTML=ApprentissageOutils.mdToHtml(data.texte_extrait);
 }
+
 async function televerserDocument(){
   const etat=$('fd_etat'), titre=($('fd_titre').value||'').trim(), f=$('fd_fichier').files[0];
   const dire2=m=>{ if(etat) etat.innerHTML=m; };
@@ -2965,10 +3004,17 @@ async function chargerProgression(){
   const el=$('fo_prog'); if(!el) return;
   if(!MY_USER){ el.textContent='Connectez-vous pour voir votre progression.'; return; }
   const {data,error}=await db.from('formation_progres').select('module,score,termine,mis_a_jour').eq('apprenant_user_id',MY_USER.id).order('mis_a_jour',{ascending:false});
-  if(error||!data||!data.length){ el.textContent='Aucune progression enregistrée pour le moment.'; return; }
-  el.innerHTML='<table style="width:100%;font-size:13px"><tr><th align="left">Module</th><th align="left">Score</th><th align="left">Date</th></tr>'
-    +data.map(r=>'<tr><td>'+String(r.module).replace(/</g,'&lt;')+'</td><td>'+(r.score==null?'—':r.score+' %')+'</td><td>'+String(r.mis_a_jour||'').slice(0,10)+'</td></tr>').join('')+'</table>';
+  if(error){ el.innerHTML='<p class="ban">Progression indisponible : '+esc(ApprentissageOutils.expliquerErreur(error.message))+'</p>'; return; }
+  if(!data||!data.length){ el.innerHTML='<p class="muted">Aucune activité enregistrée. Lire un cours, faire un exercice ou un QCM la fera apparaître ici.</p>'; return; }
+  const r=ApprentissageOutils.resumeProgres(data);
+  el.innerHTML='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<div class="c" style="flex:1;min-width:140px;padding:10px"><div class="muted" style="font-size:12px">Activités terminées</div><b style="font-size:20px">'+r.termines+' / '+r.total+'</b></div>'
+    +'<div class="c" style="flex:1;min-width:140px;padding:10px"><div class="muted" style="font-size:12px">Score moyen</div><b style="font-size:20px">'+(r.moyenne==null?'—':r.moyenne+' %')+'</b></div></div>'
+    +'<table style="width:100%;font-size:13px;border-collapse:collapse"><caption class="muted" style="text-align:left;padding-bottom:6px">Détail</caption><thead><tr><th align="left" scope="col">Activité</th><th align="left" scope="col">Score</th><th align="left" scope="col">Statut</th><th align="left" scope="col">Date</th></tr></thead><tbody>'
+    +data.map(x=>'<tr style="border-top:1px solid #e3e6ec"><td style="padding:6px 0">'+esc(ApprentissageOutils.libelleModule(x.module))+'</td><td>'+(x.score==null?'—':x.score+' %')+'</td><td>'+(x.termine?'Terminé':'En cours')+'</td><td>'+esc(String(x.mis_a_jour||'').slice(0,10))+'</td></tr>').join('')
+    +'</tbody></table>';
 }
+
 async function inviterApprenant(){
   const email=($('fo_mail').value||'').trim(), nom=($('fo_nom').value||'').trim();
   if(!email||nom.length<2){ toast('Indiquez un e-mail et un nom'); return; }

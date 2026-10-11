@@ -88,7 +88,26 @@
     return { ok: ok, raison: ok ? '' : 'faux', valeur: x };
   }
 
-  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur, verifierReponse: verifierReponse };
+  // Nom lisible d'un élément de progression : qcm-<thème>, exo-<id>, lu-<fichier>
+  function libelleModule(m) {
+    m = String(m || '');
+    var q = /^qcm-(.*)$/.exec(m); if (q) return 'QCM — ' + (q[1] === 'tous' ? 'tous les thèmes' : q[1]);
+    var e = /^exo-(.*)$/.exec(m); if (e) return 'Exercice ' + e[1];
+    var l = /^lu-(.*)$/.exec(m);
+    if (l) return 'Lecture — ' + l[1].replace(/\.md$/, '').replace(/^\d+-/, '').replace(/-/g, ' ');
+    return m;
+  }
+
+  // Résumé de la progression : nombre d'éléments terminés, moyenne des scores
+  function resumeProgres(lignes) {
+    var l = lignes || [];
+    var termines = l.filter(function (r) { return r.termine; }).length;
+    var scores = l.filter(function (r) { return typeof r.score === 'number'; }).map(function (r) { return r.score; });
+    var moyenne = scores.length ? Math.round(scores.reduce(function (x, y) { return x + y; }, 0) / scores.length) : null;
+    return { total: l.length, termines: termines, moyenne: moyenne };
+  }
+
+  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur, verifierReponse: verifierReponse, libelleModule: libelleModule, resumeProgres: resumeProgres };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.ApprentissageOutils = API;
 })(typeof window !== 'undefined' ? window : globalThis);
