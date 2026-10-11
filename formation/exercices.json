@@ -1,0 +1,158 @@
+{
+  "avertissement": "Valeurs calculées par scripts/generer-exercices.js. Ne pas modifier à la main.",
+  "exercices": [
+    {
+      "id": "anc-1",
+      "module": "Module 1 — Ancienneté",
+      "enonce": "SF-002 est entré le 20 juin 2018. Quelle est son ancienneté totale en jours au 9 octobre 2026 ?",
+      "unite": "jours",
+      "attendu": 3033,
+      "tolerance": 0,
+      "explication": "Ancienneté totale en jours : 3 033 jours (8 ans, 3 mois, 19 jours)."
+    },
+    {
+      "id": "anc-2",
+      "module": "Module 1 — Ancienneté",
+      "enonce": "SF-004 est entré le 30 novembre 2024. Quelle est son ancienneté en jours au 1er mars 2025 ?",
+      "unite": "jours",
+      "attendu": 91,
+      "tolerance": 0,
+      "explication": "Du 30 novembre 2024 au 1er mars 2025 : 91 jours."
+    },
+    {
+      "id": "heu-1",
+      "module": "Module 2 — Heures supplémentaires",
+      "enonce": "Quel est le taux horaire de SF-002 (salaire de base 260 000 FCFA, base de 173,33 heures) ?",
+      "unite": "FCFA",
+      "attendu": 1500.03,
+      "tolerance": 0.01,
+      "explication": "Taux horaire = 260 000 / 173,33 = 1 500,03 FCFA. Base de calcul usuelle, à confirmer."
+    },
+    {
+      "id": "heu-2",
+      "module": "Module 2 — Heures supplémentaires",
+      "enonce": "SF-002 fait 12 heures supplémentaires de jour : 8 au premier taux, 4 au second. Quel est le montant total ? (Taux d'exemple, à remplacer par le décret applicable.)",
+      "unite": "FCFA",
+      "attendu": 23400.45,
+      "tolerance": 0.01,
+      "explication": "Les majorations réelles sont fixées par décret (art. 80 al. 4). Le calcul utilise les taux du paramétrage de la plateforme."
+    },
+    {
+      "id": "con-1",
+      "module": "Module 3 — Congés payés",
+      "enonce": "SF-003 est entré le 1er février 2023. Il a pris 15 jours de congé. Quel est son solde au 9 octobre 2026 (1,5 jour par mois, art. 89) ?",
+      "unite": "jours",
+      "attendu": 51,
+      "tolerance": 0,
+      "explication": "44 mois complets x 1,5 = 66 jours acquis ; 66 - 15 = 51 jours."
+    },
+    {
+      "id": "con-2",
+      "module": "Module 3 — Congés payés",
+      "enonce": "Un salarié a 24 mois complets de service. Combien de jours de congé a-t-il acquis ?",
+      "unite": "jours",
+      "attendu": 36,
+      "tolerance": 0,
+      "explication": "24 x 1,5 = 36 jours (art. 89 al. 1)."
+    },
+    {
+      "id": "pro-1",
+      "module": "Module 4 — Salaire proratisé",
+      "enonce": "SF-003 a 225 000 FCFA de salaire de base et travaille 18 jours sur 30. Quel est son salaire proratisé ?",
+      "unite": "FCFA",
+      "attendu": 135000,
+      "tolerance": 0,
+      "explication": "225 000 x 18 / 30 = 135 000 FCFA (méthode interne)."
+    },
+    {
+      "id": "pro-2",
+      "module": "Module 4 — Salaire proratisé",
+      "enonce": "SF-004 a 180 000 FCFA de salaire et travaille 15 jours sur 30. Quel est son salaire proratisé ?",
+      "unite": "FCFA",
+      "attendu": 90000,
+      "tolerance": 0,
+      "explication": "180 000 x 15 / 30 = 90 000 FCFA."
+    },
+    {
+      "id": "ind-1",
+      "module": "Indicateurs RH",
+      "enonce": "Effectif : 40 en début, 44 en fin, 6 départs sur le trimestre. Quel est le turnover en % (arrondi au centième) ?",
+      "unite": "%",
+      "attendu": 14.29,
+      "tolerance": 0.01,
+      "explication": "Effectif moyen 42 ; 6 / 42 x 100 = 14,29 %."
+    },
+    {
+      "id": "ind-2",
+      "module": "Indicateurs RH",
+      "enonce": "Un mois compte 264 jours théoriques et 26 jours d'absence. Quel est le taux d'absentéisme en % (arrondi au centième) ?",
+      "unite": "%",
+      "attendu": 9.85,
+      "tolerance": 0.01,
+      "explication": "26 / 264 x 100 = 9,85 %."
+    },
+    {
+      "id": "ind-3",
+      "module": "Indicateurs RH",
+      "enonce": "Quel est le taux de féminisation si l'effectif compte 18 femmes sur 60 salariés ? (en %)",
+      "unite": "%",
+      "attendu": 30,
+      "tolerance": 0,
+      "explication": "18 / 60 x 100 = 30 %."
+    },
+    {
+      "id": "ind-4",
+      "module": "Indicateurs RH",
+      "enonce": "La masse salariale est de 12 000 000 FCFA pour un effectif moyen de 40. Quel est le coût moyen par salarié ?",
+      "unite": "FCFA",
+      "attendu": 300000,
+      "tolerance": 0,
+      "explication": "12 000 000 / 40 = 300 000 FCFA."
+    },
+    {
+      "id": "dom-1",
+      "module": "Code du travail — Rupture",
+      "enonce": "Un salarié à 260 000 FCFA de salaire et 8 ans d'ancienneté : quel est le minimum de dommages-intérêts pour rupture abusive ?",
+      "unite": "FCFA",
+      "attendu": 780000,
+      "tolerance": 0,
+      "explication": "Au moins 3 mois de salaire : 780 000 FCFA (art. 39 al. 4)."
+    },
+    {
+      "id": "dom-2",
+      "module": "Code du travail — Rupture",
+      "enonce": "Même salarié (260 000 FCFA, 8 ans). Quel est le maximum de dommages-intérêts ?",
+      "unite": "FCFA",
+      "attendu": 2080000,
+      "tolerance": 0,
+      "explication": "Au plus un mois par année d'ancienneté : 8 x 260 000 = 2 080 000 FCFA (art. 39 al. 4)."
+    },
+    {
+      "id": "grl-1",
+      "module": "Recrutement — Grille",
+      "enonce": "Notes 4 (expérience, coef. 2), 3 (technique, coef. 3), 5 (entretien, coef. 1). Quelle est la note pondérée ?",
+      "unite": "points",
+      "attendu": 22,
+      "tolerance": 0,
+      "explication": "8 + 9 + 5 = 22 points."
+    },
+    {
+      "id": "pbi-1",
+      "module": "Cours 10 — Power BI",
+      "enonce": "Mesure « Turnover % » : départs = 6, effectif moyen = 42. Quelle valeur affiche la mesure (arrondie au centième) ?",
+      "unite": "%",
+      "attendu": 14.29,
+      "tolerance": 0.01,
+      "explication": "DIVIDE(6, 42) x 100 = 14,29 %."
+    },
+    {
+      "id": "fp-1",
+      "module": "Cours 11 — Plan de formation",
+      "enonce": "Une formation coûte 1 200 000 FCFA pour 15 personnes. Quel est le coût par personne ?",
+      "unite": "FCFA",
+      "attendu": 80000,
+      "tolerance": 0,
+      "explication": "1 200 000 / 15 = 80 000 FCFA."
+    }
+  ]
+}

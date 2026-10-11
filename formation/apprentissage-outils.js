@@ -79,7 +79,16 @@
     return m || "Erreur inconnue. Consultez la console du navigateur (F12) pour le détail.";
   }
 
-  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur };
+  // Compare la réponse saisie à la valeur attendue. Accepte virgule ou point, espaces (y compris insécables).
+  function verifierReponse(saisie, attendu, tolerance) {
+    var txt = String(saisie == null ? '' : saisie).replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+    if (txt === '' || !/^-?\d+(\.\d+)?$/.test(txt)) return { ok: false, raison: 'saisie' };
+    var x = parseFloat(txt);
+    var ok = Math.abs(x - Number(attendu)) <= (Number(tolerance) || 0) + 1e-9;
+    return { ok: ok, raison: ok ? '' : 'faux', valeur: x };
+  }
+
+  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur, verifierReponse: verifierReponse };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.ApprentissageOutils = API;
 })(typeof window !== 'undefined' ? window : globalThis);

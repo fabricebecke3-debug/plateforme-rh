@@ -45,6 +45,8 @@
       .replace(/__(.+?)__/g, '$1')
       .replace(/^#{1,6}\s*/gm, '')
       .replace(/^\s*[-*]\s+/gm, '• ')
+      .replace(/`+/g, '')
+      .replace(/\*+/g, '')
       .replace(/\s+\n/g, '\n')
       .trim();
   }
