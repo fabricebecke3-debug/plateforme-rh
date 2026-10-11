@@ -20,17 +20,8 @@ Mesurer la situation RH, la piloter et la présenter clairement à la direction.
 - **Ne pas** interpréter un indicateur isolé : le croiser avec un autre.
 - **Anonymiser** les tableaux présentés en dehors de la fonction RH.
 
-## Exercice 1 — Turnover
-Effectif au début du trimestre : 40 ; à la fin : 44 ; départs pendant le trimestre : 6.
-- Effectif moyen : (40 + 44) / 2 = 42.
-- Turnover : 6 / 42 x 100 = **14,29 %** sur le trimestre.
+---
 
-## Exercice 2 — Absentéisme
-Un mois compte 22 jours travaillés ; 12 salariés, soit 264 jours théoriques. Total des jours d'absence : 26.
-- Absentéisme : 26 / 264 x 100 = **9,85 %**.
+## Exercices
 
-## Exercice 3 — Lecture
-Un turnover de 14 % sur un trimestre est-il élevé ? **Réponse attendue** : il faut le comparer au trimestre précédent et au secteur, puis chercher la cause (salaire, conditions, encadrement). Un chiffre seul ne suffit pas.
-
-## Exercice 4 — Ancienneté moyenne
-Trois salariés : SF-001 (6 ans), SF-002 (8 ans), SF-003 (3 ans). Ancienneté moyenne : (6 + 8 + 3) / 3 = **5,67 ans**.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.

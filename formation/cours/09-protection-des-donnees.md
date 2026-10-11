@@ -17,11 +17,8 @@ Santé, situation familiale, pièces d'identité, opinions : limiter au strict n
 - Ne pas laisser un dossier papier sur un bureau ouvert.
 - Ne pas envoyer de données personnelles à un outil d'IA sans les avoir anonymisées.
 
-## Exercice 1 — Anonymiser
-Une demande d'analyse est formulée ainsi : « SF-002, 47 ans, absent 12 jours pour maladie ». **Anonymisé** : « Un salarié de plus de 40 ans, 12 jours d'absence pour maladie ». La donnée de santé reste sensible : l'analyse doit se limiter au nombre de jours.
+---
 
-## Exercice 2 — Accès
-Un collègue d'un autre service demande la fiche de paie de **SF-001**. **Réponse** : refus, sauf habilitation. La demande est tracée et transmise au responsable RH.
+## Exercices
 
-## Exercice 3 — Partage
-Un tableau d'effectifs avec noms et salaires est envoyé à tout le service. **Correction** : envoyer des totaux agrégés aux personnes non habilitées ; réserver les noms et salaires aux personnes habilitées.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.

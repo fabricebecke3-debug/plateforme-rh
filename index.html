@@ -2889,33 +2889,60 @@ async function verifierFormation(){
 
 async function chargerExercices(){
   const box=$('fo_exo'); if(!box) return;
+  let liste=[];
   try{
     const r=await fetch('formation/exercices.json',{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
-    const liste=(await r.json()).exercices||[];
-    box.innerHTML=liste.map((e,i)=>'<div style="border:1px solid #d6dbe3;border-radius:10px;padding:10px"><div class="muted" style="font-size:12px">'+esc(e.module)+'</div><div style="margin:4px 0">'+esc(e.enonce)+'</div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input data-ex="'+i+'" placeholder="Votre résultat" style="width:160px;padding:6px"> <span class="muted" style="font-size:12px">'+esc(e.unite)+'</span><button class="s" data-chk="'+i+'">Vérifier</button></div><div id="fo_res_'+i+'" style="margin-top:6px;font-size:14px"></div></div>').join('');
-    box.querySelectorAll('[data-chk]').forEach(b=>b.onclick=()=>{
-      const i=Number(b.dataset.chk), e=liste[i];
+    liste=(await r.json()).exercices||[];
+  }catch(err){ box.innerHTML='<p class="ban">Les exercices sont indisponibles. Vérifiez que formation/exercices.json est sur le site.</p>'; return; }
+  const COULEUR={'facile':'#1f9d55','intermédiaire':'#b7791f','avancé':'#c0392b'};
+  box.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
+    +'<label style="font-size:13px">Niveau <select id="fo_niv"><option value="">Tous</option><option>facile</option><option>intermédiaire</option><option>avancé</option></select></label>'
+    +'<span class="muted" style="font-size:12px" id="fo_nb"></span></div><div id="fo_liste_exo" style="display:grid;gap:10px"></div>';
+  function afficher(){
+    const niv=$('fo_niv').value;
+    const filtre=liste.filter(e=>!niv||e.niveau===niv);
+    $('fo_nb').textContent=filtre.length+' exercice(s)';
+    $('fo_liste_exo').innerHTML=filtre.map(e=>{
+      const i=liste.indexOf(e);
+      const badge='<span style="font-size:11px;color:#fff;background:'+(COULEUR[e.niveau]||'#555')+';border-radius:999px;padding:2px 8px">'+esc(e.niveau)+'</span>';
+      const saisie=e.type==='choix'
+        ? '<div style="display:grid;gap:4px;margin:6px 0">'+e.options.map((o,k)=>'<label style="font-size:14px"><input type="radio" name="ex'+i+'" value="'+k+'"> '+esc(o)+'</label>').join('')+'</div>'
+        : '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0"><input data-ex="'+i+'" placeholder="Votre résultat" style="width:170px;padding:6px"> <span class="muted" style="font-size:12px">'+esc(e.unite)+'</span></div>';
+      return '<div style="border:1px solid #d6dbe3;border-radius:10px;padding:12px">'
+        +'<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:#5b6472">'+badge+'<span>'+esc(e.module)+'</span></div>'
+        +'<div style="margin:6px 0 2px;font-size:15px">'+esc(e.enonce)+'</div>'+saisie
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="p" data-chk="'+i+'">Vérifier</button><button class="s" data-cor="'+i+'">Voir le corrigé</button></div>'
+        +'<div id="fo_res_'+i+'" style="margin-top:8px;font-size:14px"></div>'
+        +'<div id="fo_cor_'+i+'" style="display:none;margin-top:8px;padding:10px;border-radius:8px;background:#f1f5fb;font-size:14px"></div></div>';
+    }).join('');
+    box.querySelectorAll('[data-chk]').forEach(btn=>btn.onclick=()=>verifier(Number(btn.dataset.chk)));
+    box.querySelectorAll('[data-cor]').forEach(btn=>btn.onclick=()=>corrige(Number(btn.dataset.cor)));
+  }
+  function corrige(i){
+    const e=liste[i], zone=$('fo_cor_'+i);
+    if(zone.style.display==='block'){ zone.style.display='none'; return; }
+    const val=e.type==='choix'? 'Bonne réponse : <b>'+esc(e.options[e.reponse])+'</b>' : 'Valeur attendue : <b>'+esc(String(e.attendu).replace('.',','))+' '+esc(e.unite)+'</b>';
+    zone.innerHTML='<div style="margin-bottom:4px">'+val+'</div><div class="muted">'+esc(e.explication)+'</div>';
+    zone.style.display='block';
+  }
+  function verifier(i){
+    const e=liste[i], out=$('fo_res_'+i);
+    let v;
+    if(e.type==='choix'){
+      const c=document.querySelector('input[name="ex'+i+'"]:checked');
+      v=ApprentissageOutils.verifierChoix(c?c.value:null,e.reponse);
+    } else {
       const saisie=box.querySelector('[data-ex="'+i+'"]').value;
-      const v=ApprentissageOutils.verifierReponse(saisie,e.attendu,e.tolerance);
-      const out=$('fo_res_'+i);
-      if(v.raison==='saisie'){ out.innerHTML='<span class="ban">Saisissez un nombre (ex. 14,29).</span>'; return; }
-      out.innerHTML=(v.ok?'✅ <b>Bonne réponse.</b> ':'⚠️ <b>Pas tout à fait.</b> ')+'Valeur attendue : <b>'+String(e.attendu).replace('.',',')+' '+esc(e.unite)+'</b>. <span class="muted">'+esc(e.explication)+'</span>';
-      if(v.ok&&MY_USER){ db.functions.invoke('formation-comptes',{body:{action:'progres',module:'exo-'+e.id,score:100,termine:true}}).catch(()=>{}); }
-    });
-  }catch(err){ box.innerHTML='<p class="ban">Les exercices sont indisponibles. Vérifiez que formation/exercices.json est sur le site.</p>'; }
+      v=ApprentissageOutils.verifierReponse(saisie,e.attendu,e.tolerance);
+    }
+    if(v.raison==='saisie'){ out.innerHTML='<span class="ban">'+(e.type==='choix'?'Choisissez une réponse.':'Saisissez un nombre (ex. 14,29).')+'</span>'; return; }
+    out.innerHTML=(v.ok?'✅ <b>Bonne réponse.</b>':'⚠️ <b>Pas tout à fait.</b>')+' <span class="muted">Vous pouvez consulter le corrigé pour la démarche.</span>';
+    if(v.ok&&MY_USER){ db.functions.invoke('formation-comptes',{body:{action:'progres',module:'exo-'+e.id,score:100,termine:true}}).catch(()=>{}); }
+  }
+  $('fo_niv').onchange=afficher;
+  afficher();
 }
 
-// Charge une bibliothèque de lecture une seule fois, depuis son adresse fixe
-const BIBLIOTHEQUES={mammoth:'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js',pdfjs:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',pdfjsWorker:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'};
-const CHARGEMENTS={};
-function chargerBibliotheque_(nom,url){
-  if(!CHARGEMENTS[nom]) CHARGEMENTS[nom]=new Promise((ok,ko)=>{
-    const sc=document.createElement('script'); sc.src=url; sc.async=true;
-    sc.onload=()=>ok(); sc.onerror=()=>{ CHARGEMENTS[nom]=null; ko(new Error('Bibliothèque de lecture indisponible. Vérifiez la connexion et la politique de sécurité du site (fichier _headers).')); };
-    document.head.appendChild(sc);
-  });
-  return CHARGEMENTS[nom];
-}
 async function lireFichier(file,type){
   if(type==='md'||type==='txt') return await file.text();
   if(type==='docx'){
@@ -5966,7 +5993,7 @@ const hpop=k=>{hq.push({t:'pop',k});hrun();};
 const curV=()=>((Q('.v.on')||{}).id||'').replace('v-','')||null;
 
 /* -- fenêtres -- */
-const SKIP=new Set(['as','toast','fab3','app']);
+const SKIP=new Set(['as','toast','fab3','app','fo_overlay']);
 const isPanel=el=>el instanceof HTMLElement&&el.id==='am';
 const isOv=el=>el instanceof HTMLElement&&(isPanel(el)||(el.parentElement===document.body&&!SKIP.has(el.id)&&(el.classList.contains('mb')||el.id==='lt'||(/position:\s*fixed/.test(el.style.cssText)&&/inset:\s*0/.test(el.style.cssText)))));
 const isShown=el=>el.isConnected&&((isPanel(el)||el.classList.contains('mb')||el.id==='lt')?el.classList.contains('on'):true);

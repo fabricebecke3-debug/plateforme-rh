@@ -34,16 +34,11 @@ En DAX, une mesure de turnover s'écrit sur le modèle : `Turnover % = DIVIDE([D
 - **Barres** : absences par service.
 - **Tableau** : détail par société, sans données personnelles.
 
-## Exercice 1 — Turnover en DAX
-Sur le modèle, départs du trimestre = 6 ; effectif moyen = 42. Quelle est la valeur de la mesure ?
-- **Corrigé** : 6 / 42 x 100 = **14,29 %** (voir la correction automatique).
+---
 
-## Exercice 2 — Absentéisme
-Un mois compte 264 jours théoriques et 26 jours d'absence. Quelle est la valeur de la mesure absentéisme ?
-- **Corrigé** : 26 / 264 x 100 = **9,85 %**.
+## Exercices
 
-## Exercice 3 — Lecture critique
-Un visuel montre un turnover de 0 % sur un mois avec deux départs. **Question** : quelle erreur est probable ? **Réponse** : le filtre de date ou la table de faits n'est pas relié correctement, ou le dénominateur est nul et masqué.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## Erreurs fréquentes
 - Recalculer un pourcentage à la main dans le visuel au lieu d'utiliser la mesure.

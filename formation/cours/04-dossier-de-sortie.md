@@ -27,13 +27,11 @@ La mention « pour solde de tout compte » ne peut pas être opposée au salari�
 | Attestation de fin de contrat CNPS | procédure CNPS | à confirmer |
 | Restitution du matériel | pratique interne | à tracer |
 
-## Exercice 1 — Sortie de SF-004
-**SF-004** quitte l'entreprise le 15 août ; son dernier salaire, proratisé sur 15 jours (salaire 180 000 FCFA), est versé le 1er septembre.
-- Proratisation : 180 000 x 15 / 30 = **90 000 FCFA**.
-- **Analyse** : le salaire dû à la cessation doit être payé à la date de sortie, pas à la fin du mois suivant (art. 68 al. 3). Le versement du 1er septembre est en retard.
+---
 
-## Exercice 2 — Certificat avec appréciation
-Un certificat de **SF-001** indique « salariée peu productive ». **Analyse** : l'art. 44 limite le contenu aux dates et à la nature des emplois. **Correction** : retirer l'appréciation.
+## Exercices
+
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## Erreurs fréquentes
 - Oublier le certificat parce que le départ est « à l'amiable ».

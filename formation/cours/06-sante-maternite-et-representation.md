@@ -17,11 +17,8 @@ Visite obligatoire avant l'embauche, puis surveillance médicale régulière.
 - Obligatoires dans un établissement d'au moins **20 travailleurs** (art. 122 al. 1). Mandat de **2 ans**.
 - Le licenciement d'un délégué est soumis à **l'autorisation de l'inspecteur du travail** ; sans elle, il est nul (art. 130).
 
-## Exercice 1 — Congé de maternité
-Une salariée prend son congé de maternité à partir du 1er mars. **Calcul** : 14 semaines = 98 jours. Si une maladie liée à la grossesse prolonge le congé de 6 semaines, la durée totale est de **20 semaines** (140 jours). Date de reprise prévue, si le congé commence le 1er mars : la fin de 14 semaines tombe le 7 juin ; avec la prolongation, la fin tombe le 19 juillet.
+---
 
-## Exercice 2 — Protection
-Un employeur veut licencier une salariée enceinte, médicalement constatée, pour « baisse d'activité ». **Analyse** : la protection de l'art. 84 interdit la rupture du fait de la grossesse. Toute rupture doit être justifiée par un motif sans lien avec la grossesse, et soumise aux procédures de l'art. 40. **Démarche** : consulter le juriste avant toute décision.
+## Exercices
 
-## Exercice 3 — Délégué
-L'entreprise compte 24 travailleurs. **Analyse** : les délégués du personnel sont obligatoires (art. 122). Un délégué élu ne peut pas être licencié sans autorisation de l'inspecteur (art. 130).
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.

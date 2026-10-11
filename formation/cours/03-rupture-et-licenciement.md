@@ -23,17 +23,11 @@ Conduire une rupture de contrat régulière, et éviter les dommages-intérêts.
 4. Calculer préavis, indemnités et soldes dus.
 5. Remettre les documents de fin de contrat (cours 4).
 
-## Exercice 1 — Dommages-intérêts de SF-002
-**SF-002** : salaire 260 000 FCFA, 8 années complètes d'ancienneté. Rupture jugée abusive.
-- Minimum (3 mois) : 3 x 260 000 = **780 000 FCFA**.
-- Maximum (1 mois par année) : 8 x 260 000 = **2 080 000 FCFA**.
-- Le juge fixe le montant entre ces bornes. *(Exercice pédagogique : le salaire de référence doit être la moyenne des 12 derniers mois.)*
+---
 
-## Exercice 2 — Notification
-Un responsable annonce oralement à **SF-004** qu'il est licencié, sans écrit. **Analyse** : pas de notification écrite, donc rupture irrégulière (art. 34 al. 1). **Correction** : notifier par écrit avec le motif, puis appliquer le préavis.
+## Exercices
 
-## Exercice 3 — CDD
-La responsable veut mettre fin au CDD de **SF-003** avant son terme, faute de travail. **Analyse** : hors des cas admis par l'art. 38, la rupture anticipée n'est pas possible sans accord écrit des parties.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## Points de vigilance
 - Un motif non prouvé coûte cher (art. 39).

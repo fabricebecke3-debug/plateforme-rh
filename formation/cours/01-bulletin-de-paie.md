@@ -32,16 +32,11 @@ Savoir lire, établir et contrôler un bulletin de paie, et connaître les déla
 4. **Recalculer le net** : brut moins retenues.
 5. **Contrôler les cumuls** avec le mois précédent.
 
-## Exercice 1 — Brut d'un salarié fictif
-**SF-003** (Agent de saisie) : salaire de base 225 000 FCFA ; 18 jours travaillés sur 30 ; une prime de 15 000 FCFA.
-- Salaire proratisé : 225 000 x 18 / 30 = **135 000 FCFA**.
-- Brut : 135 000 + 15 000 = **150 000 FCFA**.
+---
 
-## Exercice 2 — Délai de paiement
-Le mois de travail de **SF-001** se termine le 31 mars. Date limite de paiement du salaire : **8 avril** (art. 68 al. 2). Si le salaire est payé le 10 avril, le délai est dépassé de deux jours.
+## Exercices
 
-## Exercice 3 — Cas d'erreur
-Un bulletin indique une retenue de 40 000 FCFA « pour matériel non rendu », sans accord écrit ni base légale. **Analyse** : l'art. 75 n'autorise que les retenues prévues par la loi ; cette retenue est à contester. Démarche : demande écrite à l'employeur, puis saisine de l'inspection du travail si nécessaire (art. 139).
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## À retenir
 - Le bulletin est une pièce juridique : son contrôle est une responsabilité RH.

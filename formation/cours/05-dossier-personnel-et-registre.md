@@ -23,11 +23,8 @@ Les pièces suivantes sont une **bonne pratique** de gestion. Leur liste exacte 
 ## 4. Règles de confidentialité
 Le dossier n'est accessible qu'aux personnes habilitées, pour une finalité précise. Une pièce d'identité n'est pas copiée dans des fichiers partagés.
 
-## Exercice 1 — Contrat de SF-003
-**SF-003** a un CDD de 6 mois signé oralement. **Analyse** : un CDD de plus de 3 mois doit être écrit (art. 27). **Correction** : régulariser par écrit ; signaler le manquement au responsable.
+---
 
-## Exercice 2 — Visite médicale
-**SF-005** est embauchée le 1er janvier 2025, sans visite médicale. **Analyse** : la visite est obligatoire avant l'embauche (art. 100). **Correction** : organiser la visite, consigner le résultat dans le dossier.
+## Exercices
 
-## Exercice 3 — Audit de dossier (fiche de contrôle)
-Pour chaque salarié, cocher : contrat écrit ✔ ; visite médicale ✔ ; registre à jour ✔ ; bulletins du mois ✔. Tout point non coché est une action à traiter dans la semaine.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.

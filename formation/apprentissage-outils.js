@@ -36,9 +36,9 @@
       if (/^\s*\|/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
         flush(); var head = cellules(l); i += 2; var rows = [];
         while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(cellules(lines[i])); i++; }
-        out.push('<table><thead><tr>' + head.map(function (c) { return '<th>' + inline(c) + '</th>'; }).join('') +
+        out.push('<div style="overflow-x:auto;margin:10px 0"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr>' + head.map(function (c) { return '<th>' + inline(c) + '</th>'; }).join('') +
           '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + inline(c) + '</td>'; }).join('') + '</tr>'; }).join('') +
-          '</tbody></table>');
+          '</tbody></table></div>');
         continue;
       }
       if (/^>\s?/.test(l)) {
@@ -107,7 +107,13 @@
     return { total: l.length, termines: termines, moyenne: moyenne };
   }
 
-  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur, verifierReponse: verifierReponse, libelleModule: libelleModule, resumeProgres: resumeProgres };
+  // Exercice à choix : compare l'option choisie (indice) à la bonne réponse
+  function verifierChoix(choisi, bonne) {
+    if (choisi === null || choisi === undefined || choisi === '') return { ok: false, raison: 'saisie' };
+    return { ok: Number(choisi) === Number(bonne), raison: Number(choisi) === Number(bonne) ? '' : 'faux' };
+  }
+
+  var API = { mdToHtml: mdToHtml, expliquerErreur: expliquerErreur, verifierReponse: verifierReponse, verifierChoix: verifierChoix, libelleModule: libelleModule, resumeProgres: resumeProgres };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.ApprentissageOutils = API;
 })(typeof window !== 'undefined' ? window : globalThis);

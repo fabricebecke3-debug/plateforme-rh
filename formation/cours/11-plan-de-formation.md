@@ -25,14 +25,11 @@ Concevoir un plan de formation utile à l'entreprise et aux salariés, et mesure
 - Un budget suivi chaque mois.
 - Un bilan de fin d'année : actions réalisées, écarts, décisions pour l'année suivante.
 
-## Exercice 1 — Coût par personne formée
-Une formation coûte 1 200 000 FCFA et concerne 15 personnes. Coût par personne : 1 200 000 / 15 = **80 000 FCFA**.
+---
 
-## Exercice 2 — Taux de réalisation du plan
-Sur 12 actions prévues, 9 sont réalisées. Taux de réalisation : 9 / 12 x 100 = **75 %**.
+## Exercices
 
-## Exercice 3 — Évaluation
-Une formation sur la paie obtient 90 % de satisfaction au niveau 1, mais aucune erreur de paie n'est évitée au niveau 4. **Analyse** : la satisfaction ne prouve pas l'acquisition ni l'application. Il faut revoir le contenu, ou accompagner la mise en pratique.
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## Erreurs fréquentes
 - Former sans besoin identifié.

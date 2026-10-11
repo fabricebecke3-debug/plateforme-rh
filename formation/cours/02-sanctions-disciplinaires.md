@@ -29,16 +29,11 @@ Appliquer une sanction de façon régulière, proportionnée, et conforme au Cod
 | Absence injustifiée | mise en demeure de justifier | ne pas sanctionner une absence justifiée |
 | Faute grave avérée | procédure disciplinaire complète | proportionnalité, délai de l'inspection |
 
-## Exercice 1 — Mise à pied de SF-002
-Le chef d'équipe **SF-002** a commis une faute. La direction décide une mise à pied de **10 jours ouvrables**.
-- **Analyse** : 10 jours dépasse le maximum légal de 8 jours ouvrables (art. 30 al. 2). **Correction** : limiter la mise à pied à 8 jours ouvrables au plus.
+---
 
-## Exercice 2 — Amende
-Un responsable propose de retenir **25 000 FCFA** sur le salaire de **SF-001** pour une erreur de saisie.
-- **Analyse** : l'amende est interdite (art. 30 al. 1). **Démarche** : reprendre la faute par la procédure disciplinaire du règlement intérieur, sans amende.
+## Exercices
 
-## Exercice 3 — Délai
-Une mise à pied est notifiée à **SF-004** le lundi. Déclaration à l'inspecteur du travail : au plus tard **48 heures** après la notification (art. 30 al. 3).
+Les exercices de ce module sont dans l'onglet **✏️ Exercices** de la page Apprentissage. Chaque exercice se résout par saisie ou par choix ; le **corrigé** et son explication restent masqués jusqu'à ce que vous le demandiez.
 
 ## Erreurs fréquentes
 - Sanctionner sans écrit.
