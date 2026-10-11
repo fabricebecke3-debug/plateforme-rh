@@ -548,7 +548,7 @@ T.mount=function(ctx){
     const refOk=!!(window.TERH_CNPSREF&&TERH_CNPSREF.S&&TERH_CNPSREF.S.list&&TERH_CNPSREF.S.list.length);
     const an=log.map(x=>{const r=x.row,sl=x.slip,p=[];
       if(!x.matched)p.push('🆕 non rattaché à une ligne existante (nouvelle ligne)');
-      if(!(sl.cot>0))p.push('❌ pas de « Pension vieillesse CNPS » → cotisable 0 → exclu du DIPE');
+      if(!(sl.cot>0))p.push('⚠️ cotisable non lu sur le bulletin (ligne « Pension vieillesse CNPS » introuvable ou valeur 0) → ligne BLOQUÉE jusqu\'à correction, pas exclue');
       if(!(sl.brut>0))p.push('❌ brut non lu');
       if(!sl.mi)p.push('⚠ matricule non lu sur le bulletin');
       if(digits(r.cnps).length!==11)p.push(refOk?'❌ N° CNPS introuvable dans le référentiel CNPS — à fournir / compléter':'❌ référentiel CNPS non chargé : N° CNPS non renseigné');
@@ -604,7 +604,7 @@ T.mount=function(ctx){
       else T.banner();},()=>{}));};
   /* --- validation obligatoire avant de générer le DIPE --- */
   const dlb=g('d_dl');
-  const reason={cnps:'N° CNPS absent (introuvable dans le référentiel) ou invalide',brut:'brut manquant',jours:'jours invalides',cot:'pas de Pension vieillesse CNPS (cotisable 0)'};
+  const reason={cnps:'N° CNPS absent (introuvable dans le référentiel) ou invalide',brut:'brut manquant',jours:'jours invalides',cot:'cotisable non lu sur le bulletin (bloqué jusqu\'à correction)'};
   function recap(){
     const inc=[],exc=[];
     R.forEach((r,i)=>{if(!incl(r,i))return;const m=[...new Set(miss(r,i))];(m.length?exc:inc).push({r,i,m});});
