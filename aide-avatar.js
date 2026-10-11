@@ -135,6 +135,19 @@
     ecoute.bruit = 0; ecoute.seuil = 0; ecoute.voix = false; ecoute.suivi = null; ecoute.parole = 0;
   }
 
+  // Parmi les hypothèses reconnues, retient celle dont la confiance est la plus élevée
+  function meilleureHypothese(e) {
+    var premier = e && e.results && e.results[0];
+    if (!premier) return null;
+    var meilleure = null, score = -1;
+    for (var i = 0; i < premier.length; i++) {
+      var h = premier[i];
+      var c = (typeof h.confidence === 'number' && h.confidence > 0) ? h.confidence : 0.5;
+      if (c > score) { score = c; meilleure = h; }
+    }
+    return meilleure;
+  }
+
   function etatParler(texte) { if (st.btnParler) st.btnParler.textContent = texte; }
   function majBoutonConv() { if (st.btnConv) st.btnConv.textContent = conv.on ? '🎧 Conversation : oui' : '🎧 Conversation : non'; }
 
@@ -169,14 +182,14 @@
     try { r = new SR(); } catch (e) { dire(messageErreur('')); return; }
     r.lang = 'fr-FR';
     r.interimResults = false;
-    r.maxAlternatives = 1;
+    r.maxAlternatives = 3;   // trois hypothèses : on retient la plus sûre
     r.continuous = false;
     var recu = false;
     r.onresult = function (e) {
       recu = true;
       conv.rec = null;
       etatParler('🎤 Parler');
-      var res = e.results && e.results[0] ? e.results[0][0] : null;
+      var res = meilleureHypothese(e);
       var texte = res ? res.transcript : '';
       var confiance = res ? res.confidence : undefined;
       // Si l'analyse n'est pas disponible, on se fie à la reconnaissance seule

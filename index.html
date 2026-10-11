@@ -3297,7 +3297,7 @@ db.auth.onAuthStateChange((event,session)=>{
 
 /* ============ ASSISTANT IA ============ */
 $('aib').onclick=()=>{const m=$('am');const isH=!m.classList.contains('on');m.classList.toggle('on');if(isH&&!aiHistory.length){const en=document.documentElement.lang==='en',nm=userFirst()?' '+userFirst():'';const fr=TERH_hello(false)+nm+' ! Je suis votre assistant RH. Comment puis-je vous aider ?',eng=TERH_hello(true)+nm+'! I am your HR assistant. How can I help you?';window.__greet=1;const _gd=addMsg('assistant',en?eng:fr);window.__greet=0;_gd.dataset.fr=fr;_gd.dataset.en=eng;}if(isH&&!aiReady&&!cloudReady()&&LOCAL_AI_OK())initAI();};
-function addMsg(role,text){const box=$('amg');const div=document.createElement('div');div.style.cssText=role==='user'?'align-self:flex-end;background:var(--ac);color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5':'align-self:flex-start;background:color-mix(in srgb,var(--ac) 8%,var(--card));padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5';div.textContent=text;box.appendChild(div);box.scrollTop=box.scrollHeight;return div;}
+function addMsg(role,text){if(role!=='user'){text=(window.AssistantTexte?AssistantTexte.nettoyer(text):String(text||'')).replace(/\*+/g,'').replace(/`+/g,'');}const box=$('amg');const div=document.createElement('div');div.style.cssText=role==='user'?'align-self:flex-end;background:var(--ac);color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5':'align-self:flex-start;background:color-mix(in srgb,var(--ac) 8%,var(--card));padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5';div.textContent=text;box.appendChild(div);box.scrollTop=box.scrollHeight;return div;}
 const ROLE_LBL=r=>r==='super_owner'?'Super Owner':r==='admin'?'Administrateur':r==='editeur'?'Éditeur':'Lecteur';
 function aiProfileKey(){return 'terh_ai_profile_'+(MY_USER?.id||'anon');}
 function aiProfile(){try{return localStorage.getItem(aiProfileKey())||'';}catch(e){return '';}}
@@ -6021,6 +6021,7 @@ function stopDict(silent){const was=dict;dict=false;try{drec&&drec.stop();}catch
 function stopVoice(){convo=false;busy=false;dict&&stopDict(true);relWake();voiceTurn=false;try{rec&&rec.stop();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}try{TTS&&TTS.cancel();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}window._sid=(window._sid||0)+1;clearTimeout(window._swd);speaking=false;listening=false;micUI();}
 function speak(t){
   if(!TTS)return;
+  t=(window.AssistantTexte?AssistantTexte.texteParlable(t):String(t||'').replace(/[*_#`•]+/g,' '));
   try{TTS.cancel();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   t=String(t).replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').replace(/[•*_#`→]/g,' ').replace(/\s+/g,' ').trim().slice(0,1600);
   if(!t)return;
