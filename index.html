@@ -5191,6 +5191,118 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     </div>`;
     document.body.appendChild(ov);
     ov.querySelectorAll('[data-mod-close]').forEach(b=>b.onclick=()=>ov.remove());
+    if(k==='evaluations') evalAssist(ov);
+  }
+
+  // ---- Évaluations : modèle modifiable et brouillon IA (le modèle n'écrase jamais une zone déjà remplie)
+  const EVAL_MODELE={
+    objectifs:"Objectifs fixés pour la période :\n- \n- ",
+    resultats:"Résultats constatés (faits, chiffres, dates) :\n- ",
+    points_forts:"Points forts :\n- ",
+    axes_amelioration:"Axes d'amélioration :\n- ",
+    plan_action:"Action | Responsable | Échéance\n- | | "
+  };
+  function evalLire(ov){
+    const v={}; ov.querySelectorAll('[data-k]').forEach(el=>{v[el.dataset.k]=(el.value||'').trim();}); return v;
+  }
+  function evalAssist(ov){
+    const barre=document.createElement('div');
+    barre.style.cssText='margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #d6dbe3;padding-top:12px';
+    barre.innerHTML='<button class="s" type="button" data-ev-modele>📄 Insérer le modèle</button>'+
+      '<button class="s" type="button" data-ev-ia>🤖 Rédiger avec l\'IA</button>'+
+      '<button class="s" type="button" data-ev-imp>🖨️ Imprimer la fiche</button>'+
+      '<span class="muted" style="font-size:12px">Le modèle ne remplace que les zones vides. Le nom du salarié est retiré avant l\'envoi à l\'IA. Le brouillon est à relire.</span>';
+    const cadre=ov.querySelector('.mx'); if(!cadre) return;
+    cadre.appendChild(barre);
+    barre.querySelector('[data-ev-modele]').onclick=()=>{
+      let n=0;
+      Object.keys(EVAL_MODELE).forEach(k=>{
+        const el=ov.querySelector(`[data-k="${k}"]`);
+        if(el && !el.value.trim()){ el.value=EVAL_MODELE[k]; n++; }
+      });
+      toast(n? '📄 Modèle inséré dans les zones vides. Modifiez-le librement.' : 'Toutes les zones sont déjà remplies.');
+    };
+    barre.querySelector('[data-ev-ia]').onclick=(ev)=>evalIA(ov,ev.currentTarget);
+    barre.querySelector('[data-ev-imp]').onclick=()=>evalImprimer(ov);
+  }
+  // Retire le nom du salarié choisi du texte envoyé à l'IA (nom complet puis chaque mot de 3 lettres ou plus)
+  function evalMasquerNom(texte, nom){
+    let t=String(texte||'');
+    if(!nom) return t;
+    const sans=(x)=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const echap=(x)=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const complet=new RegExp(echap(sans(nom)),'gi');
+    t=t.replace(complet,'le salarié');
+    nom.split(/\s+/).filter(m=>m.length>=3).forEach(m=>{
+      t=t.replace(new RegExp('\\b'+echap(sans(m))+'\\b','gi'),'le salarié');
+    });
+    return t;
+  }
+  // Découpe le brouillon IA en trois champs selon les titres demandés
+  function evalDecouper(texte){
+    const sans=(x)=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const out={points_forts:'',axes_amelioration:'',plan_action:''};
+    let cle=null, trouve=false;
+    String(texte||'').split('\n').forEach(ligne=>{
+      const titre=sans(ligne).replace(/[#*:\s]+$/,'').replace(/^[#*\s]+/,'');
+      if(/^points forts/.test(titre)){cle='points_forts';trouve=true;return;}
+      if(/^axes d/.test(titre)){cle='axes_amelioration';trouve=true;return;}
+      if(/^plan d/.test(titre)){cle='plan_action';trouve=true;return;}
+      if(/brouillon a relire/.test(sans(ligne))) return;
+      if(cle) out[cle]+=(out[cle]?'\n':'')+ligne;
+    });
+    if(!trouve) out.points_forts=String(texte||'').trim();
+    Object.keys(out).forEach(k=>out[k]=out[k].trim());
+    return out;
+  }
+  async function evalIA(ov,btn){
+    const v=evalLire(ov);
+    if(!v.objectifs && !v.resultats){ toast('Renseignez au moins les objectifs ou les résultats.'); return; }
+    const sel=ov.querySelector('[data-k="employe_id"]');
+    const nomSalarie=sel && sel.selectedIndex>0 ? sel.options[sel.selectedIndex].text : '';
+    const masquer=(t)=> evalMasquerNom(((window.IAContexte && IAContexte.redacter) ? IAContexte.redacter(t||'') : (t||'')), nomSalarie);
+    const ctx='Type d\'évaluation : '+(v.type||'non précisé')+'. Note globale : '+(v.note_globale||'non renseignée')+' /5.\n'+
+      'Objectifs fixés :\n'+masquer(v.objectifs)+'\n\nRésultats constatés :\n'+masquer(v.resultats);
+    const ancien=btn.textContent; btn.disabled=true; btn.textContent='⏳ Rédaction…';
+    try{
+      const corps={messages:[
+        {role:'system',content:"Tu rédiges un brouillon d'évaluation professionnelle en français, pour un responsable RH. Tu te bases UNIQUEMENT sur les éléments fournis : tu n'inventes ni faits, ni chiffres, ni noms. Structure ta réponse EXACTEMENT avec ces trois titres, chacun sur sa ligne : « Points forts : », « Axes d'amélioration : », « Plan d'action : ». Sous « Plan d'action », une ligne par action au format : action | responsable | échéance. Formulation neutre et factuelle, sans jugement sur la personne."},
+        {role:'user',content:ctx}],
+        max_tokens:1200, lang:'fr'};
+      const r=await window.TERH_callAI(corps,26000);
+      if(r.error||!r.data||!r.data.text) throw new Error(r.error? r.error.message : 'IA indisponible');
+      const parts=evalDecouper(r.data.text);
+      Object.keys(parts).forEach(k=>{ const el=ov.querySelector(`[data-k="${k}"]`); if(el && parts[k]) el.value=parts[k]; });
+      toast('✅ Brouillon réparti entre points forts, axes et plan d\'action. Relisez-le avant d\'enregistrer.');
+    }catch(e){
+      toast('IA : '+(e&&e.message?e.message:'indisponible'));
+    }finally{
+      btn.disabled=false; btn.textContent=ancien;
+    }
+  }
+  // Fiche imprimable : affichée dans la page, puis impression ; aucune fenêtre pop-up
+  function evalImprimer(ov){
+    const v=evalLire(ov);
+    const sel=ov.querySelector('[data-k="employe_id"]');
+    const salarie=sel && sel.selectedIndex>0 ? sel.options[sel.selectedIndex].text : '';
+    const ligne=(l,val)=>`<tr><th style="text-align:left;width:30%;padding:6px;border:1px solid #999;vertical-align:top">${esc(l)}</th><td style="padding:6px;border:1px solid #999;white-space:pre-wrap">${esc(val||'—')}</td></tr>`;
+    let st=document.getElementById('ev_print_style');
+    if(!st){ st=document.createElement('style'); st.id='ev_print_style';
+      st.textContent='#ev_print{display:none}@media print{body>*:not(#ev_print){display:none!important}#ev_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:12pt}}';
+      document.head.appendChild(st); }
+    const d=document.createElement('div'); d.id='ev_print';
+    d.innerHTML=`<h1 style="font-size:16pt;margin:0 0 10px">Fiche d'évaluation professionnelle</h1>
+      <table style="width:100%;border-collapse:collapse;font-size:11pt">
+        ${ligne('Salarié',salarie)}${ligne('Date',v.date)}${ligne('Type',v.type)}${ligne('Évaluateur',v.evaluateur)}
+        ${ligne('Note globale /5',v.note_globale)}${ligne('Objectifs',v.objectifs)}${ligne('Résultats',v.resultats)}
+        ${ligne('Points forts',v.points_forts)}${ligne("Axes d'amélioration",v.axes_amelioration)}${ligne("Plan d'action",v.plan_action)}
+        ${ligne('Statut',v.statut)}
+      </table>
+      <p style="margin-top:28px">Signature du salarié : ____________________ &nbsp;&nbsp; Signature de l'évaluateur : ____________________</p>`;
+    document.body.appendChild(d);
+    const nettoyer=()=>{ d.remove(); window.removeEventListener('afterprint',nettoyer); };
+    window.addEventListener('afterprint',nettoyer);
+    window.print();
   }
 
   async function saveForm(k,ov){

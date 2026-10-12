@@ -291,10 +291,93 @@
 
   // ---------- Conversation ----------
   // Nettoie le texte affiché : pas d'étoiles ni de dièses de markdown
+  // ---------- Mise en forme d'une réponse (titres, gras, listes, tableaux) — échappée, sans HTML venant de l'IA ----------
+  function echapper(t) {
+    return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function enLigne(t) {
+    return echapper(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/__(.+?)__/g, '<b>$1</b>')
+      .replace(/`([^`]+)`/g, '$1').replace(/\*(?!\s)(.+?)\*/g, '<i>$1</i>');
+  }
+  function rendu(t) {
+    var lignes = String(t || '').replace(/\r/g, '').split('\n'), html = '', liste = null, i = 0;
+    function fermer() { if (liste) { html += '</' + liste + '>'; liste = null; } }
+    while (i < lignes.length) {
+      var l = lignes[i], m;
+      if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lignes.length && /^\s*\|?\s*:?-{2,}/.test(lignes[i + 1])) {
+        fermer();
+        var cellules = function (x) { return x.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); }); };
+        html += '<div style="overflow-x:auto"><table style="border-collapse:collapse;margin:6px 0;font-size:13px"><thead><tr>' +
+          cellules(l).map(function (c) { return '<th style="border:1px solid #bbb;padding:4px 6px;background:rgba(127,127,127,.15);text-align:left">' + enLigne(c) + '</th>'; }).join('') +
+          '</tr></thead><tbody>';
+        i += 2;
+        while (i < lignes.length && /^\s*\|.*\|\s*$/.test(lignes[i])) {
+          html += '<tr>' + cellules(lignes[i]).map(function (c) { return '<td style="border:1px solid #bbb;padding:4px 6px">' + enLigne(c) + '</td>'; }).join('') + '</tr>';
+          i++;
+        }
+        html += '</tbody></table></div>';
+        continue;
+      }
+      if ((m = /^\s*(#{1,4})\s+(.*)$/.exec(l))) { fermer(); html += '<div style="font-weight:700;margin:8px 0 3px;font-size:' + (m[1].length <= 2 ? '15px' : '14px') + '">' + enLigne(m[2]) + '</div>'; }
+      else if ((m = /^\s*[-*•]\s+(.*)$/.exec(l))) { if (liste !== 'ul') { fermer(); html += '<ul style="margin:4px 0 4px 18px;padding:0">'; liste = 'ul'; } html += '<li style="margin:2px 0">' + enLigne(m[1]) + '</li>'; }
+      else if ((m = /^\s*(\d+)[.)]\s+(.*)$/.exec(l))) { if (liste !== 'ol') { fermer(); html += '<ol style="margin:4px 0 4px 18px;padding:0">'; liste = 'ol'; } html += '<li style="margin:2px 0">' + enLigne(m[2]) + '</li>'; }
+      else if (/^\s*$/.test(l)) { fermer(); }
+      else { fermer(); html += '<div style="margin:3px 0">' + enLigne(l) + '</div>'; }
+      i++;
+    }
+    fermer();
+    return html;
+  }
+  // Texte brut d'une réponse (pour l'export) : mêmes règles, sans balises
+  function texteBrut(t) {
+    return String(t || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/^#{1,6}\s*/gm, '').replace(/`+/g, '');
+  }
+  function telecharger(nom, contenu, type) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([contenu], { type: type }));
+    a.download = nom;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+  function exporterWord(t) {
+    var doc = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt} table{border-collapse:collapse} td,th{border:1px solid #888;padding:4px 6px}</style></head><body>' +
+      rendu(t) + '</body></html>';
+    telecharger('reponse-RH.doc', '\ufeff' + doc, 'application/msword');
+  }
+  function exporterTexte(t) { telecharger('reponse-RH.txt', texteBrut(t), 'text/plain;charset=utf-8'); }
+  function exporterPdf(t) {
+    var id = 'ia_print', d = document.getElementById(id);
+    if (!d) {
+      var css = document.createElement('style');
+      css.textContent = '#ia_print{display:none}@media print{body>*:not(#ia_print){display:none!important}#ia_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:11pt}}';
+      document.head.appendChild(css);
+      d = document.createElement('div'); d.id = id; document.body.appendChild(d);
+    }
+    d.innerHTML = rendu(t);
+    var fin = function () { d.innerHTML = ''; window.removeEventListener('afterprint', fin); };
+    window.addEventListener('afterprint', fin);
+    window.print();
+  }
+  function barreExport(t) {
+    var barre = el('div', 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px solid rgba(127,127,127,.25)');
+    var boutons = [['📄 Word', exporterWord], ['📑 PDF (imprimer)', exporterPdf], ['📝 Texte', exporterTexte]];
+    boutons.forEach(function (b) {
+      var x = el('button', 'font-size:12px;padding:3px 8px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;cursor:pointer', b[0]);
+      x.type = 'button';
+      x.onclick = function () { b[1](t); };
+      barre.appendChild(x);
+    });
+    return barre;
+  }
   function ajouter(qui, texte) {
-    texte = qui === 'av' ? nettoyer(texte) : texte;
     var d = el('div', 'margin:6px 0;padding:8px 10px;border-radius:10px;max-width:90%;' +
-      (qui === 'moi' ? 'margin-left:auto;background:#dbe9ff;color:#1a1a1a' : (st.theme === 'sombre' ? 'background:#2a303c;color:#f1f3f6' : 'background:#f1f3f6;color:#1a1a1a')), texte);
+      (qui === 'moi' ? 'margin-left:auto;background:#dbe9ff;color:#1a1a1a' : (st.theme === 'sombre' ? 'background:#2a303c;color:#f1f3f6' : 'background:#f1f3f6;color:#1a1a1a')));
+    if (qui === 'av') {
+      d.innerHTML = rendu(texte);
+      if (String(texte || '').length >= 60) d.appendChild(barreExport(texte));
+    } else {
+      d.textContent = texte;
+    }
     st.msgs.appendChild(d);
     st.msgs.scrollTop = st.msgs.scrollHeight;
   }
