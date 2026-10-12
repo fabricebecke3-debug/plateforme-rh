@@ -273,6 +273,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   <h1 id="dh1">Tableau de bord</h1>
   <div class="sub" id="dt"></div>
   <div id="bn"></div>
+  <div id="gr_tdb"></div>
   <div class="f" id="dtools"><button class="p" id="pgr">🖨️ Rapport global RH</button><button class="s" id="dced">✏️ Personnaliser le tableau de bord</button><span id="dcx" style="display:none;gap:8px;align-items:center;flex-wrap:wrap"><input type="color" id="dcol" title="Couleur principale"><input id="dtit" placeholder="Titre du tableau de bord" style="min-width:220px"><button class="p" id="dcsv">💾 Enregistrer</button><button class="s" id="dcrs">↺ Défaut</button><button class="s" id="dcq">✖ Annuler</button><small style="color:var(--mu)">▲▼ ordre · ↔ largeur · 👁 masquer · cliquez un indicateur pour le masquer</small></span></div>
   <div class="kp" id="kp"></div>
   <div class="dg" id="dgrid">
@@ -1317,6 +1318,18 @@ function dash(){
   const avecDossier=A.filter(r=>r.hasDoc).length;
 ('dt').textContent='Statuts calculés au '+T.toLocaleDateString('fr-FR');
   $('bn').innerHTML=!E.length?'<div class="ban">Aucune donnée. Cliquez sur ⬆ Importer ou ajoutez un employé.</div>':(al||cnpsR)?`<div class="ban">⚠ ${(()=>{const L=alerts(90),ex=L.filter(r=>r.jr<0).length,pr=L.length-ex,t=[];if(ex)t.push(ex+' contrat'+(ex>1?'s':'')+' expiré'+(ex>1?'s':''));if(pr)t.push(pr+' contrat'+(pr>1?'s':'')+' expirant sous 90 jours');if(cnpsR)t.push(cnpsR+' CNPS en retard');return t.join(' · ');})()}. <a href="#" id="ga" style="color:var(--er);font-weight:700">Voir →</a></div>`:'';
+  window.refreshGraphiques=()=>{ try{ const g=$('gr_tdb'); if(g && typeof GraphiquesTdb!=='undefined') g.innerHTML=GraphiquesTdb.panneau(EN()); }catch(e){ console.warn('graphiques',e); } };
+  window.refreshGraphiques();
+  // Contrôle : toutes les fiches du serveur sont-elles bien chargées dans les graphiques ?
+  try{
+    if(typeof GraphiquesTdb!=='undefined' && MY_ROLE!=='lecteur'){
+      Promise.resolve(scq(db.from('employes').select('id',{count:'exact',head:true}))).then(r=>{
+        const c=GraphiquesTdb.controleBase(EN().length, r&&r.count);
+        const g=$('gr_tdb');
+        if(g && c.ok===false) g.insertAdjacentHTML('afterbegin','<div class="ban">\u26a0 '+esc(c.message)+'</div>');
+      }).catch(()=>{});
+    }
+  }catch(e){ console.warn('contrôle graphiques',e); }
   if($('ga'))$('ga').onclick=e=>{e.preventDefault();go('a');};
   if($('gdisc'))$('gdisc').onclick=e=>{e.preventDefault();go('dsp');};
   const kpi=[
@@ -3061,7 +3074,7 @@ async function chargerProgression(){
     const nom=(MY_USER&&MY_USER.user_metadata&&MY_USER.user_metadata.nom)||(MY_USER&&MY_USER.email)||'';
     let st=document.getElementById('att_print_style');
     if(!st){ st=document.createElement('style'); st.id='att_print_style';
-      st.textContent='#att_print{display:none}@media print{body>*:not(#att_print){display:none!important}#att_print{display:block!important;position:static;background:#fff;padding:18mm;font-size:11pt}}';
+      st.textContent='#att_print{display:none}@media print{body>*:not(#att_print){display:none!important}html body>#att_print{display:block!important;position:static;background:#fff;padding:18mm;font-size:11pt}}';
       document.head.appendChild(st); }
     const d=document.createElement('div'); d.id='att_print';
     d.innerHTML=ExportOutils.attestationHTML({nom:nom, date:new Date().toLocaleDateString('fr-FR'), lignes:lignes, libelle:(window.ApprentissageOutils&&ApprentissageOutils.libelleModule)||null});
@@ -5345,7 +5358,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     const ligne=(l,val)=>`<tr><th style="text-align:left;width:30%;padding:6px;border:1px solid #999;vertical-align:top">${esc(l)}</th><td style="padding:6px;border:1px solid #999;white-space:pre-wrap">${esc(val||'—')}</td></tr>`;
     let st=document.getElementById('ev_print_style');
     if(!st){ st=document.createElement('style'); st.id='ev_print_style';
-      st.textContent='#ev_print{display:none}@media print{body>*:not(#ev_print){display:none!important}#ev_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:12pt}}';
+      st.textContent='#ev_print{display:none}@media print{body>*:not(#ev_print){display:none!important}html body>#ev_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:12pt}}';
       document.head.appendChild(st); }
     const d=document.createElement('div'); d.id='ev_print';
     d.innerHTML=`<h1 style="font-size:16pt;margin:0 0 10px">Fiche d'évaluation professionnelle</h1>
@@ -9267,6 +9280,7 @@ hook();setInterval(hook,1500);
 <script src="formation/assistant-formation.js"></script>
 <script src="formation/apprentissage-outils.js"></script>
 <script src="formation/export-outils.js"></script>
+<script src="graphiques.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>
 <script src="assistant/requete-ia.js"></script>

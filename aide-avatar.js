@@ -356,7 +356,7 @@
     var id = 'ia_print', d = document.getElementById(id);
     if (!d) {
       var css = document.createElement('style');
-      css.textContent = '#ia_print{display:none}@media print{body>*:not(#ia_print){display:none!important}#ia_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:11pt}}';
+      css.textContent = '#ia_print{display:none}@media print{body>*:not(#ia_print){display:none!important}html body>#ia_print{display:block!important;position:static;color:#000;background:#fff;padding:18mm;font-family:Arial,sans-serif;font-size:11pt}}';
       document.head.appendChild(css);
       d = document.createElement('div'); d.id = id; document.body.appendChild(d);
     }
