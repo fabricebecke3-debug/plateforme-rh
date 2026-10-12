@@ -338,10 +338,11 @@
       return;
     }
     // 1) base de formation (module Apprentissage) ; 2) questions juridiques vers l'IA, sans les règles de la plateforme
-    var fa = global.FormationAssistant && typeof global.FormationAssistant.localPour === 'function' ? global.FormationAssistant.localPour(q) : null;
+    var calcul = /\d|combien|montant|calcul|indemnit|maternit|accouch|grossesse/i.test(q);
+    var fa = !calcul && global.FormationAssistant && typeof global.FormationAssistant.localPour === 'function' ? global.FormationAssistant.localPour(q) : null;
     if (fa) { memoriser(q, fa); dire(fa); return; }
     var juridique = /code du travail|convention|d[ée]cret|article|\bloi\b|droit du travail|c.est quoi|qu.est.ce qu|d[ée]finition|expliqu/i.test(q);
-    var a = juridique && st.onAI ? null : answerLocal(q);
+    var a = (juridique || calcul) && st.onAI ? null : answerLocal(q);
     if (a) { memoriser(q, a); dire(a); return; }
     if (st.onAI) {
       setEtat('pense');
