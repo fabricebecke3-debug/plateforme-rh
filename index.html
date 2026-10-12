@@ -3040,7 +3040,36 @@ async function chargerProgression(){
     +'<table style="width:100%;font-size:13px;border-collapse:collapse"><caption class="muted" style="text-align:left;padding-bottom:6px">Détail</caption><thead><tr><th align="left" scope="col">Activité</th><th align="left" scope="col">Score</th><th align="left" scope="col">Statut</th><th align="left" scope="col">Date</th></tr></thead><tbody>'
     +data.map(x=>'<tr style="border-top:1px solid #e3e6ec"><td style="padding:6px 0">'+esc(ApprentissageOutils.libelleModule(x.module))+'</td><td>'+(x.score==null?'—':x.score+' %')+'</td><td>'+(x.termine?'Terminé':'En cours')+'</td><td>'+esc(String(x.mis_a_jour||'').slice(0,10))+'</td></tr>').join('')
     +'</tbody></table>';
+  ajouterAttestation(el,data);
 }
+
+  // Attestation : affichée seulement si le seuil de réussite et tous les cours sont atteints
+  function ajouterAttestation(el,lignes){
+    const att=ExportOutils.attestationEligible(lignes);
+    const bloc=document.createElement('div');
+    bloc.style.cssText='margin-top:14px;padding:12px;border:1px solid #d6dbe3;border-radius:10px';
+    if(att.ok){
+      bloc.innerHTML='<b>🎓 Attestation de suivi disponible</b><div class="muted" style="font-size:12px;margin:4px 0 8px">Formation de sensibilisation, non diplômante.</div><button class="p" id="fo_att">🖨️ Imprimer l\'attestation</button>';
+      el.appendChild(bloc);
+      document.getElementById('fo_att').onclick=()=>imprimerAttestation(lignes);
+    } else {
+      bloc.innerHTML='<b>Attestation</b> — pour l\'obtenir, il reste à : '+att.manque.map(esc).join(' ; ')+'.';
+      el.appendChild(bloc);
+    }
+  }
+  function imprimerAttestation(lignes){
+    const nom=(MY_USER&&MY_USER.user_metadata&&MY_USER.user_metadata.nom)||(MY_USER&&MY_USER.email)||'';
+    let st=document.getElementById('att_print_style');
+    if(!st){ st=document.createElement('style'); st.id='att_print_style';
+      st.textContent='#att_print{display:none}@media print{body>*:not(#att_print){display:none!important}#att_print{display:block!important;position:static;background:#fff;padding:18mm;font-size:11pt}}';
+      document.head.appendChild(st); }
+    const d=document.createElement('div'); d.id='att_print';
+    d.innerHTML=ExportOutils.attestationHTML({nom:nom, date:new Date().toLocaleDateString('fr-FR'), lignes:lignes, libelle:(window.ApprentissageOutils&&ApprentissageOutils.libelleModule)||null});
+    document.body.appendChild(d);
+    const fin=()=>{ d.remove(); window.removeEventListener('afterprint',fin); };
+    window.addEventListener('afterprint',fin);
+    window.print();
+  }
 
 async function inviterApprenant(){
   const email=($('fo_mail').value||'').trim(), nom=($('fo_nom').value||'').trim();
@@ -5126,6 +5155,9 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       return JSON.stringify(r).toLowerCase().includes(st.q.toLowerCase());
     });
     const cols = M.list.map(c=>M.cols.find(x=>x.k===c)).filter(Boolean);
+    const PAGE_TAILLE=50;
+    const pages=Math.max(1,Math.ceil(rows.length/PAGE_TAILLE));
+    st.page=Math.min(Math.max(0,st.page||0),pages-1);
     document.getElementById('th_'+k).innerHTML = '<tr>'+cols.map(c=>`<th data-mod-sort="${k}" data-key="${c.k}" style="cursor:pointer">${esc(c.l)}${st.sk===c.k?(st.sd>0?' ▲':' ▼'):''}</th>`).join('')+'<th></th></tr>';
     if(!rows.length){
       document.getElementById('tb_'+k).innerHTML = `<tr><td colspan="${cols.length+1}" style="text-align:center;padding:24px;color:var(--mu)">Aucun enregistrement. Cliquez sur ➕ Nouveau pour créer le premier.</td></tr>`;
@@ -5135,7 +5167,8 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
         const x=a[st.sk]??'',y=b[st.sk]??'';
         return (x>y?1:x<y?-1:0)*st.sd;
       }); }
-      document.getElementById('tb_'+k).innerHTML = sorted.map(r=>`
+      const tranche = sorted.slice(st.page*PAGE_TAILLE, st.page*PAGE_TAILLE+PAGE_TAILLE);
+      document.getElementById('tb_'+k).innerHTML = tranche.map(r=>`
         <tr>${cols.map(c=>`<td>${fmtCell(c,r)}</td>`).join('')}
         <td>
           <button class="s" data-mod-edit="${k}" data-id="${esc(r.id)}">✏️</button>
@@ -5143,10 +5176,34 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
         </td></tr>`).join('');
     }
     const ct = document.getElementById('ct_'+k);
-    if(ct) ct.textContent = `${rows.length} enregistrement(s)${st.q?' (filtré)':''}`;
+    if(ct) ct.textContent = `${rows.length} enregistrement(s)${st.q?' (filtré)':''}${pages>1?' — page '+(st.page+1)+' / '+pages:''}`;
+    if(ct){
+      let nav=document.getElementById('nv_'+k);
+      if(!nav){ nav=document.createElement('span'); nav.id='nv_'+k; nav.style.cssText='display:inline-flex;gap:6px;align-items:center;margin-left:8px;flex-wrap:wrap'; ct.insertAdjacentElement('afterend',nav); }
+      nav.innerHTML = (pages>1 ? `<button class="s" data-mod-page="${k}" data-d="-1" ${st.page<=0?'disabled':''}>\u25c0</button><button class="s" data-mod-page="${k}" data-d="1" ${st.page>=pages-1?'disabled':''}>\u25b6</button>` : '')+
+        `<button class="s" data-mod-csv="${k}" title="Fichier CSV : s'ouvre dans Excel et se charge dans Power BI">\U0001f4ca CSV (Excel / Power BI)</button>`;
+    }
     const qEl = document.getElementById('q_'+k);
     if(qEl) qEl.value = st.q;
   }
+
+  // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
+  document.addEventListener('click', function(e){
+    const pg=e.target.closest && e.target.closest('[data-mod-page]');
+    if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
+    const cv=e.target.closest && e.target.closest('[data-mod-csv]');
+    if(cv){
+      const k=cv.dataset.modCsv, M=MODULES[k], st=MSTATE[k];
+      const lignes=(MDATA[k]||[]).filter(r=> !st.q || JSON.stringify(r).toLowerCase().includes(st.q.toLowerCase()));
+      const contenu=ExportOutils.csvDeModule(M.cols, lignes);
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([contenu],{type:'text/csv;charset=utf-8'}));
+      a.download=(M.titre||k).replace(/[^a-zA-Z0-9\u00C0-\u017F_-]+/g,'-')+'.csv';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+      toast('📊 Fichier CSV téléchargé ('+lignes.length+' ligne(s)).');
+    }
+  });
 
   function openForm(k,rec){
     if(typeof CAN!=='undefined'&&CAN.edit&&!CAN.edit()){toast('Permission refusée');return;}
@@ -9209,6 +9266,7 @@ hook();setInterval(hook,1500);
 </script>
 <script src="formation/assistant-formation.js"></script>
 <script src="formation/apprentissage-outils.js"></script>
+<script src="formation/export-outils.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>
 <script src="assistant/requete-ia.js"></script>

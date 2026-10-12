@@ -344,6 +344,13 @@
       rendu(t) + '</body></html>';
     telecharger('reponse-RH.doc', '\ufeff' + doc, 'application/msword');
   }
+  // Excel : le tableau et le texte de la réponse, ouverts par Excel comme classeur
+  function exporterExcel(t) {
+    var doc = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">' +
+      '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Reponse RH</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->' +
+      '<style>table{border-collapse:collapse} td,th{border:1px solid #888;padding:4px 6px}</style></head><body>' + rendu(t) + '</body></html>';
+    telecharger('reponse-RH.xls', '\ufeff' + doc, 'application/vnd.ms-excel');
+  }
   function exporterTexte(t) { telecharger('reponse-RH.txt', texteBrut(t), 'text/plain;charset=utf-8'); }
   function exporterPdf(t) {
     var id = 'ia_print', d = document.getElementById(id);
@@ -361,6 +368,7 @@
   function barreExport(t) {
     var barre = el('div', 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px solid rgba(127,127,127,.25)');
     var boutons = [['📄 Word', exporterWord], ['📑 PDF (imprimer)', exporterPdf], ['📝 Texte', exporterTexte]];
+    if (/^\s*\|.*\|\s*$/m.test(t)) boutons.splice(1, 0, ['📊 Excel', exporterExcel]);
     boutons.forEach(function (b) {
       var x = el('button', 'font-size:12px;padding:3px 8px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;cursor:pointer', b[0]);
       x.type = 'button';
