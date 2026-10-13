@@ -225,9 +225,7 @@
       return '<div class="c" data-gr-rows="' + rows + '" style="padding:12px"><div class="gr-entete" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:13px">' + echapper(t.titre) + '</b>' +
         '<span class="gr-btns" style="display:flex;gap:4px;flex-wrap:wrap">' + btn('png', '🖼️ PNG') + btn('svg', '🧩 SVG') + btn('pdf', '📄 PDF') + btn('csv', '📊 CSV') + '</span></div>' + figures[t.id]() + '</div>';
     }).join('');
-    var csvBouton = '<div style="margin-top:12px"><button class="s" type="button" data-gr-indic="1">📊 Indicateurs mensuels (CSV pour Power BI)</button> <span class="muted" style="font-size:11px">Un tableau, une ligne par mois : effectif, absentéisme, masse salariale.</span></div>';
-    return csvBouton + '<details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px">⚙️ Choisir les graphiques affichés</summary><div style="margin:8px 0">' + cases + '</div></details>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">' + (cartes || '<div class="muted">Aucun graphique sélectionné.</div>') + '</div>';
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">' + (cartes || '<div class="muted">Aucun graphique sélectionné.</div>') + '</div>';
   }
   // Export PNG d'un graphique : SVG → image → fichier (hors ligne, aucune bibliothèque)
   function exporterPng(carte, nom) {
@@ -307,12 +305,6 @@
       if (typeof root.refreshGraphiques === 'function') root.refreshGraphiques();
     });
     document.addEventListener('click', function (e) {
-      var ind = e.target && e.target.closest && e.target.closest('[data-gr-indic]');
-      if (ind) {
-        var lignes = indicateursCsvRows(DONNEES.employes || [], DONNEES.absences || [], DONNEES.paie || [], new Date());
-        telechargerTexte('indicateurs-rh-mensuels.csv', csvGraphique(lignes), 'text/csv;charset=utf-8');
-        return;
-      }
       var b = e.target && e.target.closest && e.target.closest('[data-gr-png],[data-gr-svg],[data-gr-pdf],[data-gr-csv]');
       if (!b) return;
       var carte = b.closest('.c');
@@ -327,7 +319,16 @@
       }
     });
   }
-  var API = { absenteismeMensuel: absenteismeMensuel, coutsMensuels: coutsMensuels, indicateursCsvRows: indicateursCsvRows, effectifFinMois: effectifFinMois, repartition: repartition, tranchesAge: tranchesAge, evolution: evolution, barres: barres, anneau: anneau, groupes: groupes, donneesGraphique: donneesGraphique, csvGraphique: csvGraphique,
+  // Liste des graphiques affichés : utilisée dans Paramètres > Graphiques
+  function choixHTML(){
+    var choisis = prefsLire();
+    var cases = TOUS.map(function (t) {
+      return '<label style="display:block;font-size:13px;margin:6px 0"><input type="checkbox" data-gr-pref="' + t.id + '"' + (choisis.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + echapper(t.titre) + '</label>';
+    }).join('');
+    return '<div class="c" style="padding:14px;max-width:640px"><h2 style="margin-top:0">📊 Graphiques du tableau de bord</h2>' +
+      '<p class="muted" style="font-size:12px;margin:0 0 8px">Cochez les graphiques à afficher sur le tableau de bord. Ce choix est mémorisé dans ce navigateur.</p>' + cases + '</div>';
+  }
+  var API = { choixHTML: choixHTML, absenteismeMensuel: absenteismeMensuel, coutsMensuels: coutsMensuels, indicateursCsvRows: indicateursCsvRows, effectifFinMois: effectifFinMois, repartition: repartition, tranchesAge: tranchesAge, evolution: evolution, barres: barres, anneau: anneau, groupes: groupes, donneesGraphique: donneesGraphique, csvGraphique: csvGraphique,
     panneau: panneau, controleBase: controleBase, prefsLire: prefsLire, prefsEcrire: prefsEcrire, TOUS: TOUS, echapper: echapper };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.GraphiquesTdb = API;
