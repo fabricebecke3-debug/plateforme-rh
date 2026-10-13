@@ -354,7 +354,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     <label>Poste<input id="f_p" list="pl"></label><datalist id="pl"></datalist>
     <label>Genre<select id="f_g"><option value="M">Masculin</option><option value="F">Féminin</option></select></label>
     <label>Date de naissance<input type="date" id="f_dn"></label>
-    <label>Type de contrat<select id="f_t"><option value="TEMPORAIRE">CTT (1 mois renouvelable, 12 max)</option><option value="CDI">CDI</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option></select></label>
+    <label>Type de contrat<select id="f_t"><option value="TEMPORAIRE">CTT 1 mois (renouvelable, 12 max)</option><option value="TEMPORAIRE3">CTT 3 mois (renouvelable, 12 max)</option><option value="CDI">CDI</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option></select></label>
     <label>Début<input type="date" id="f_deb"></label>
     <label>Fin (auto)<input type="date" id="f_fin"></label>
     <label>Téléphone<input id="f_tel"></label>
@@ -1133,7 +1133,7 @@ const toApp=r=>({id:String(r.id),n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.d
 const toDb=o=>({nom:(o.n||'').trim(),poste:(o.p||'').trim(),genre:o.g==='F'?'F':'M',date_naissance:o.dn||null,type_contrat:['CDI','CDD','TEMPORAIRE','OCCASIONNEL'].includes(o.t)?o.t:'TEMPORAIRE',debut:o.deb||null,fin:o.fin||null,telephone:(o.tel||'').trim(),cnps:(o.cnps||'').trim(),date_visite:o.dv||null,date_arret:o.darret||null,motif_arret:(o.marret||'').trim()||null,commentaire_arret:(o.comarret||'').trim()||null,contrat_url:o.contrat_url||null,contrat_nom:o.contrat_nom||null,...(MULTI&&CO?{entreprise_id:CO}:{})});
 function statC(d){if(!d)return 'INCONNU';const dt=d instanceof Date?d:P(d);if(!dt)return 'INCONNU';if(dt<T)return 'EXPIRÉ';return dt<=new Date(+T+90*day)?'BIENTÔT':'VALIDE';}
 function statV(d){if(!d)return 'INCONNUE';const p=P(d);if(!p)return 'INCONNUE';if(p>T)return 'PLANIFIÉE';const s=statC(addM(p,12));return s==='EXPIRÉ'?'EXPIRÉE':s;}
-function en(r){const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':r.t==='TEMPORAIRE'?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
+function en(r){const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
 const cnt=(a,k)=>a.reduce((o,r)=>(o[r[k]]=(o[r[k]]||0)+1,o),{});
 const bd=s=>{const safe=esc(String(s??''));return `<span class="b ${safe.replace(/\s/g,'')}">${safe}</span>`;};
 function bars(id,o,limit){let e=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(limit)e=e.slice(0,limit);if(!e.length){$(id).textContent='—';return;}const m=e[0][1];$(id).innerHTML=e.map(([k,v],i)=>`<div class="br"><span>${esc(k)}</span><i style="width:${v/m*100}%"></i><em>${v}</em></div>`).join('');}
@@ -1318,7 +1318,7 @@ function dash(){
   const avecDossier=A.filter(r=>r.hasDoc).length;
 ('dt').textContent='Statuts calculés au '+T.toLocaleDateString('fr-FR');
   $('bn').innerHTML=!E.length?'<div class="ban">Aucune donnée. Cliquez sur ⬆ Importer ou ajoutez un employé.</div>':(al||cnpsR)?`<div class="ban">⚠ ${(()=>{const L=alerts(90),ex=L.filter(r=>r.jr<0).length,pr=L.length-ex,t=[];if(ex)t.push(ex+' contrat'+(ex>1?'s':'')+' expiré'+(ex>1?'s':''));if(pr)t.push(pr+' contrat'+(pr>1?'s':'')+' expirant sous 90 jours');if(cnpsR)t.push(cnpsR+' CNPS en retard');return t.join(' · ');})()}. <a href="#" id="ga" style="color:var(--er);font-weight:700">Voir →</a></div>`:'';
-  window.refreshGraphiques=()=>{ try{ const g=$('gr_tdb'); if(g && typeof GraphiquesTdb!=='undefined') g.innerHTML=GraphiquesTdb.panneau(EN()); }catch(e){ console.warn('graphiques',e); } };
+  window.refreshGraphiques=()=>{ try{ const g=$('gr_tdb'); if(g && typeof GraphiquesTdb!=='undefined') g.innerHTML=GraphiquesTdb.panneau(EN(),null,{employes:EN(),absences:(MDATA.absences||[]),paie:(MDATA.paie||[])}); }catch(e){ console.warn('graphiques',e); } };
   window.refreshGraphiques();
   // Contrôle : toutes les fiches du serveur sont-elles bien chargées dans les graphiques ?
   try{
@@ -1341,7 +1341,7 @@ function dash(){
     ['Masculin',A.length-fem,'g-blue'],['Féminin',fem,'g-pink'],
     ['% féminité',A.length?(fem/A.length*100).toFixed(1)+'%':'—','g-purple'],
     ['CDI',sc.CDI||0,'g-green'],['CDD',A.filter(r=>r.t==='CDD').length,'g-blue'],
-    ['CTT',A.filter(r=>r.t==='TEMPORAIRE').length,'g-teal'],['Occasionnels',occ,'g-pink'],
+    ['CTT',A.filter(r=>r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3').length,'g-teal'],['Occasionnels',occ,'g-pink'],
     ['Arrêts',arrets,'g-red'],['Contrats expirés',sc['EXPIRÉ']||0,'g-red'],
     ['Visites expirées',sv['EXPIRÉE']||0,'g-red'],['CNPS à jour',scn['À jour']||0,'g-green'],['Suivis disciplinaires',dc.total,dc.pending?'g-red':'g-purple']
   ];
@@ -1449,7 +1449,7 @@ function filt(){
   opt('fc','Statut',[...new Set(A.map(r=>r.sc))].sort());
   opt('fv','Visite',[...new Set(A.map(r=>r.sv))].sort());
   opt('fcn','CNPS',['À jour','En cours']);
-  if(!$('fty').innerHTML)$('fty').innerHTML='<option value="">Type</option><option value="CDI">CDI</option><option value="TEMPORAIRE">CTT</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option>';
+  if(!$('fty').innerHTML)$('fty').innerHTML='<option value="">Type</option><option value="CDI">CDI</option><option value="TEMPORAIRE">CTT 1 mois</option><option value="TEMPORAIRE3">CTT 3 mois</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option>';
   opt('fan','Année contrat',[...new Set(A.map(r=>r.annee))].filter(Boolean).sort());
   if(!$('fg').innerHTML)$('fg').innerHTML='<option value="">Genre</option><option value="M">Masculin</option><option value="F">Féminin</option>';
   $('pl').innerHTML=[...new Set(A.map(r=>r.p))].filter(Boolean).sort().map(p=>`<option value="${esc(p)}">`).join('');
@@ -2372,9 +2372,10 @@ function xAlertsCard(g){
 const TYPES_DEFAUT=[
   {code:'CDI',libelle:'CDI',dureeMois:null,renouv:null,mois:null,tacite:false},
   {code:'CDD',libelle:'CDD',dureeMois:null,renouv:1,mois:48,tacite:false},
-  {code:'TEMPORAIRE',libelle:'CTT',dureeMois:1,renouv:12,mois:null,tacite:true},
+  {code:'TEMPORAIRE',libelle:'CTT 1 mois',dureeMois:1,renouv:12,mois:null,tacite:true},
+  {code:'TEMPORAIRE3',libelle:'CTT 3 mois',dureeMois:3,renouv:12,mois:null,tacite:true},
   {code:'OCCASIONNEL',libelle:'Occasionnel',dureeMois:null,renouv:null,mois:null,tacite:false}];
-function typesRules(){try{const a=JSON.parse(PARAMS.types_contrat||'null');return Array.isArray(a)&&a.length?a:TYPES_DEFAUT;}catch(e){return TYPES_DEFAUT;}}
+function typesRules(){let a=null;try{a=JSON.parse(PARAMS.types_contrat||'null');}catch(e){a=null;}if(!Array.isArray(a)||!a.length)return TYPES_DEFAUT;const codes=a.map(t=>t.code);return a.concat(TYPES_DEFAUT.filter(d=>!codes.includes(d.code)));}
 function typeRule(code){return typesRules().find(t=>t.code===code)||null;}
 function syncTypeSelect(){
   const sel=$('f_t');if(!sel)return;const cur=sel.value;
