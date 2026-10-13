@@ -764,12 +764,12 @@ async function needLibs(ex){
 function printHTML(title,body,css=''){
   try{body=sigInject(title,body);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   try{const _u=coverUrl();if(_u&&!/^(Rapport|Alertes|Lettres de fin|Certificats de travail)/.test(title))body='<div style="text-align:center;margin:-6mm 0 8mm"><img src="'+esc(_u)+'" style="max-width:100%;max-height:32mm;object-fit:contain"></div>'+body;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
-  const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:210mm;height:297mm;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;left:0;top:0;width:100%;height:100%;border:0;background:#fff;z-index:2147483600;';document.body.appendChild(f);
   const d=f.contentWindow.document;d.open();
   const H=('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;font-size:12px;color:#000}h2{color:#1f5fbf;margin:0 0 4px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:5px;text-align:left}th{background:#1f5fbf;color:#fff}tr{page-break-inside:avoid}thead{display:table-header-group}'+css+'</style></head><body>'+body+'</body></html>');
   if(/iphone|ipad|ipod/i.test(navigator.userAgent)){f.remove();openPrintTab(H);return;}
   d.write(H);d.close();
-  let done=false;const go=()=>{if(done)return;done=true;try{f.contentWindow.focus();f.contentWindow.print();}catch(e){openPrintTab(H);}setTimeout(()=>f.remove(),120000);};
+  let done=false;const go=()=>{if(done)return;done=true;try{f.contentWindow.focus();f.contentWindow.onafterprint=()=>f.remove();f.contentWindow.print();}catch(e){openPrintTab(H);}setTimeout(()=>f.remove(),60000);};
   const im=[...d.images].filter(i=>!i.complete);
   if(!im.length)setTimeout(go,250);else{let n=im.length;im.forEach(i=>{i.onload=i.onerror=()=>{if(--n<=0)setTimeout(go,100);};});setTimeout(go,4000);}
 }
