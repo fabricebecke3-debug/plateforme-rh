@@ -5229,7 +5229,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       let nav=document.getElementById('nv_'+k);
       if(!nav){ nav=document.createElement('span'); nav.id='nv_'+k; nav.style.cssText='display:inline-flex;gap:6px;align-items:center;margin-left:8px;flex-wrap:wrap'; ct.insertAdjacentElement('afterend',nav); }
       nav.innerHTML = (pages>1 ? `<button class="s" data-mod-page="${k}" data-d="-1" ${st.page<=0?'disabled':''}>\u25c0</button><button class="s" data-mod-page="${k}" data-d="1" ${st.page>=pages-1?'disabled':''}>\u25b6</button>` : '')+
-        `<button class="s" data-mod-csv="${k}" title="Fichier CSV : s'ouvre dans Excel et se charge dans Power BI">\U0001f4ca CSV (Excel / Power BI)</button>`;
+        `<button class="s" data-mod-csv="${k}" title="Fichier CSV : s'ouvre dans Excel et se charge dans Power BI">\U0001f4ca CSV (Excel / Power BI)</button>`+(k==='paie'?'<button class="s" data-paie-detail="1">\U0001f9fe Bulletin détaillé (Sage)</button>':'');
     }
     const qEl = document.getElementById('q_'+k);
     if(qEl) qEl.value = st.q;
@@ -5237,6 +5237,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -9316,6 +9317,8 @@ hook();setInterval(hook,1500);
 <script src="formation/apprentissage-outils.js"></script>
 <script src="formation/export-outils.js"></script>
 <script src="graphiques.js"></script>
+<script src="paie-moteur.js"></script>
+<script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>
 <script src="assistant/requete-ia.js"></script>
