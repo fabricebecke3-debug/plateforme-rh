@@ -51,20 +51,22 @@
     if (salB === null) { var l1000 = (lignes || []).filter(function (l) { return String(l.code) === '1000'; })[0]; if (l1000) salB = gainLigne(l1000); }
     var entrees = (lignes || []).map(function (l) {
       var c = String(l.code || ''), x = Object.assign({}, l);
-      if (HS_TAUX[c] !== undefined) {
-        if ((x.taux == null || x.taux === '')) x.taux = HS_TAUX[c];
+      var hsCode = HS_TAUX[c] !== undefined || !!x.heures_sup;
+      if (hsCode) {
+        if (HS_TAUX[c] === undefined && (x.taux == null || x.taux === '')) x.taux = 100;
+        if ((x.taux == null || x.taux === '') && HS_TAUX[c] !== undefined) x.taux = HS_TAUX[c];
         if ((x.base == null || x.base === '') && salB != null && x.nombre != null && x.nombre !== '') x.base = salB / HORAIRE_MENSUEL;
       }
       return x;
     });
-    var tous = entrees.map(function (l) { return { code: String(l.code || ''), lib: l.lib, gain: gainLigne(l), irpp: l.irpp !== false, retenue: !!l.retenue }; });
+    var tous = entrees.map(function (l) { return { code: String(l.code || ''), lib: l.lib, gain: gainLigne(l), irpp: l.irpp !== false, retenue: !!l.retenue, transport: !!l.transport, logement: !!l.logement }; });
     // Retenues (avance sur salaire, cantine, etc.) : déduites du net, hors brut et hors bases de cotisation
     var retenuesDiv = tous.filter(function (r) { return r.retenue; }).reduce(function (t, r) { return t + r.gain; }, 0);
     var rub = tous.filter(function (r) { return !r.retenue; });
     var brut = rub.reduce(function (t, r) { return t + r.gain; }, 0);
     var netimpo = rub.filter(function (r) { return r.irpp; }).reduce(function (t, r) { return t + r.gain; }, 0);
-    var transport = rub.filter(function (r) { return r.code === TRANSPORT; }).reduce(function (t, r) { return t + r.gain; }, 0);
-    var logement = rub.filter(function (r) { return r.code === LOGEMENT; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    var transport = tous.filter(function (r) { return r.code === TRANSPORT || r.transport; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    var logement = tous.filter(function (r) { return r.code === LOGEMENT || r.logement; }).reduce(function (t, r) { return t + r.gain; }, 0);
     // Chaîne Sage : NETIMPOL → logement final (IL) → électricité (ELEF) → véhicule/eau (VEAU) → NETTAX → SALTAXF
     var elec = Number(s.elec) || 0, veeu = Number(s.veeu) || 0, veau = Number(s.veau) || 0;
     var netimpol = netimpo - logement - elec - veeu;

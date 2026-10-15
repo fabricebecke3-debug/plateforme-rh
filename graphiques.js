@@ -116,7 +116,7 @@
   function configurer(c) { CFG = c; }
   // Objet de préférences : {ordre:[ids dans l'ordre], actifs:[ids affichés], position:'avant'|'apres'}
   function prefsObjet() {
-    var defaut = { ordre: TOUS.map(function (t) { return t.id; }), actifs: TOUS.map(function (t) { return t.id; }), position: 'avant' };
+    var defaut = { ordre: TOUS.map(function (t) { return t.id; }), actifs: [], position: 'avant' };   // par défaut : aucun graphique sur le tableau de bord
     var lu = null;
     try { lu = CFG ? CFG.lire() : JSON.parse(root.localStorage ? root.localStorage.getItem(CLE_PREFS) : 'null'); } catch (e) { lu = null; }
     if (!lu || typeof lu !== 'object') return defaut;
@@ -241,7 +241,7 @@
       return '<div class="c" data-gr-rows="' + rows + '" style="padding:12px"><div class="gr-entete" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:13px">' + echapper(t.titre) + '</b>' +
         '<span class="gr-btns" style="display:flex;gap:4px;flex-wrap:wrap">' + btn('png', '🖼️ PNG') + btn('svg', '🧩 SVG') + btn('pdf', '📄 PDF') + btn('csv', '📊 CSV') + '</span></div>' + figures[t.id]() + '</div>';
     }).join('');
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">' + (cartes || '<div class="muted">Aucun graphique sélectionné.</div>') + '</div>';
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">' + (cartes || '') + '</div>';
   }
   // Export PNG d'un graphique : SVG → image → fichier (hors ligne, aucune bibliothèque)
   function exporterPng(carte, nom) {

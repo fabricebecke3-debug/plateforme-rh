@@ -5250,7 +5250,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({taux: PAIE_TAUX_CACHE}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({taux: PAIE_TAUX_CACHE, rubriques: PAIE_RUB_CACHE}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -5268,7 +5268,8 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
   });
 
   // ---------- Paramètres de paie : taux et rubriques (historique par date d'effet) ----------
-  var PAIE_TAUX_CACHE = {};   // code -> valeur en vigueur aujourd'hui (rempli au chargement)
+  var PAIE_TAUX_CACHE = {};
+  var PAIE_RUB_CACHE = [];   // rubriques en vigueur (catalogue du bulletin détaillé)   // code -> valeur en vigueur aujourd'hui (rempli au chargement)
   function tauxEnVigueur(lignes, jour) { return PaieMoteur.tauxEnVigueur(lignes, jour); }
   async function chargerParamsPaie() {
     try {
@@ -5297,24 +5298,66 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       '<label style="font-size:12px">Valeur<input id="pp_val" type="number" step="any" style="width:90px"></label>' +
       '<label style="font-size:12px">Date d\'effet<input id="pp_date" type="date" value="' + jour + '"></label>' +
       '<button class="p" id="pp_ok">Enregistrer la version</button></div>' +
-      '<p class="muted" style="font-size:11px;margin-top:8px">Valeurs en vigueur : ' + enVigueur.length + ' · Les rubriques de paie seront gérées sur le même modèle.</p>' +
+      '<p class="muted" style="font-size:11px;margin-top:8px">Valeurs en vigueur : ' + enVigueur.length + '</p>' +
+      '<div id="pp_rubriques"></div>' +
       '</div>';
     $('pp_ok').onclick = enregistrerVersionPaie;
+    rendreRubriques();
   }
   async function enregistrerVersionPaie() {
     const code = ($('pp_code').value || '').trim(), lib = ($('pp_lib').value || '').trim();
     const val = Number($('pp_val').value), date = $('pp_date').value;
     if (!code || !lib || !date || !isFinite(val)) { toast('Code, libellé, valeur et date d\'effet sont obligatoires.'); return; }
     try {
-      // 1) on clôt la version en vigueur à la date d'effet ; 2) on crée la nouvelle version
-      const enc = {entreprise_id: (MULTI && CO) ? CO : null};
-      const {error: e1} = await scq(db.from('paie_taux').update({date_fin: date}).eq('code', code).is('date_fin', null).lt('date_effet', date));
-      if (e1) throw e1;
-      const {error: e2} = await db.from('paie_taux').insert({...enc, code, libelle: lib, valeur: val, date_effet: date});
-      if (e2) throw e2;
+      const {error} = await db.rpc('paie_nouvelle_version_taux', {p_entreprise: (MULTI && CO) ? CO : null, p_code: code, p_libelle: lib, p_valeur: val, p_date: date});
+      if (error) throw error;
       toast('✅ Version enregistrée : ' + code + ' = ' + val + ' à partir du ' + date);
       rendreParamsPaie();
     } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
+  }
+  async function enregistrerVersionRubrique() {
+    const v = (id) => ($(id).value || '').trim();
+    const code = v('pr_code'), lib = v('pr_lib'), type = v('pr_type'), date = $('pr_date').value;
+    const taux = v('pr_taux') === '' ? null : Number(v('pr_taux'));
+    if (!code || !lib || !type || !date) { toast('Code, libellé, type et date d\'effet sont obligatoires.'); return; }
+    try {
+      const {error} = await db.rpc('paie_nouvelle_version_rubrique', {
+        p_entreprise: (MULTI && CO) ? CO : null, p_code: code, p_libelle: lib, p_type: type, p_taux_defaut: taux,
+        p_imposable: $('pr_imp').checked, p_transport: $('pr_tra').checked, p_logement: $('pr_log').checked,
+        p_heures_sup: $('pr_hs').checked, p_date: date});
+      if (error) throw error;
+      toast('✅ Rubrique enregistrée : ' + code + ' à partir du ' + date);
+      rendreParamsPaie();
+    } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
+  }
+  async function rendreRubriques() {
+    const box = $('pp_rubriques'); if (!box) return;
+    try {
+      const {data, error} = await scq(db.from('paie_rubriques').select('*')).order('code', {ascending: true});
+      if (error) throw error;
+      const jour = new Date().toISOString().slice(0, 10);
+      const enVigueur = (data || []).filter(r => r.date_effet <= jour && (!r.date_fin || r.date_fin > jour));
+      PAIE_RUB_CACHE = enVigueur;
+      box.innerHTML = '<h3 style="margin:14px 0 6px">Rubriques de paie (en vigueur)</h3>' +
+        '<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th align="left">Code</th><th align="left">Libellé</th><th align="left">Type</th><th align="right">Taux déf.</th><th>Imp.</th><th>Trans.</th><th>Log.</th><th>HS</th><th align="left">Effet</th></tr></thead><tbody>' +
+        (enVigueur.length ? enVigueur.map(r => '<tr><td>' + esc(r.code) + '</td><td>' + esc(r.libelle) + '</td><td>' + esc(r.type) + '</td><td align="right">' + esc(r.taux_defaut ?? '') +
+          '</td><td align="center">' + (r.imposable ? '✓' : '') + '</td><td align="center">' + (r.transport ? '✓' : '') + '</td><td align="center">' + (r.logement ? '✓' : '') +
+          '</td><td align="center">' + (r.heures_sup ? '✓' : '') + '</td><td>' + esc(r.date_effet) + '</td></tr>').join('') : '<tr><td colspan="9" class="muted">Aucune rubrique enregistrée. Les rubriques de base restent celles du moteur de calcul.</td></tr>') +
+        '</tbody></table>' +
+        '<h3 style="margin:14px 0 6px">Nouvelle version de rubrique</h3>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px">' +
+        '<label>Code<input id="pr_code" placeholder="ex. 9015" style="width:80px"></label>' +
+        '<label>Libellé<input id="pr_lib" style="width:180px"></label>' +
+        '<label>Type<select id="pr_type"><option value="gain">Gain</option><option value="retenue">Retenue</option></select></label>' +
+        '<label>Taux défaut %<input id="pr_taux" type="number" step="any" style="width:80px"></label>' +
+        '<label><input id="pr_imp" type="checkbox" checked> Imposable</label>' +
+        '<label><input id="pr_tra" type="checkbox"> Transport</label>' +
+        '<label><input id="pr_log" type="checkbox"> Logement</label>' +
+        '<label><input id="pr_hs" type="checkbox"> Heures sup.</label>' +
+        '<label>Date d\'effet<input id="pr_date" type="date" value="' + jour + '"></label>' +
+        '<button class="p" id="pr_ok">Enregistrer la rubrique</button></div>';
+      $('pr_ok').onclick = enregistrerVersionRubrique;
+    } catch (e) { box.innerHTML = '<p class="ban">Rubriques indisponibles : ' + esc(e && e.message || e) + '</p>'; }
   }
   function openForm(k,rec){
     if(typeof CAN!=='undefined'&&CAN.edit&&!CAN.edit()){toast('Permission refusée');return;}
