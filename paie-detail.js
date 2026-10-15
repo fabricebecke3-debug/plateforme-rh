@@ -51,8 +51,19 @@
       '<tr><td>Crédit foncier patronal</td><td class="n">' + fmt(R.baseCFC) + '</td><td class="n">1.5 %</td><td class="n">' + fmt(pat.cfc) + '</td></tr>' +
       '<tr><td>Fonds national de l\'emploi</td><td class="n">' + fmt(R.baseCNPS) + '</td><td class="n">1 %</td><td class="n">' + fmt(pat.fne) + '</td></tr>' +
       '<tr><td><b>Total charges patronales</b></td><td></td><td></td><td class="n"><b>' + fmt(R.totalPatronales) + '</b></td></tr></tbody></table>' +
+      '<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:11px"><tr><td>Net imposable</td><td class="n">' + fmt(R.netImposable) + '</td><td>Base CNPS (plafonnée à 750 000)</td><td class="n">' + fmt(R.baseCNPS) + '</td></tr>' +
+      '<tr><td>Base taxable (IRPP, crédit foncier)</td><td class="n">' + fmt(R.saltaxf) + '</td><td>Total des retenues</td><td class="n">' + fmt(R.totalRetenues) + '</td></tr>' +
+      '<tr><td>Brut</td><td class="n">' + fmt(R.brut) + '</td><td>Net en % du brut</td><td class="n">' + (R.brut ? Math.round(R.net / R.brut * 1000) / 10 : 0) + ' %</td></tr></table>' +
       '<p style="font-size:22px;font-weight:700;margin:14px 0 4px">NET À PAYER : ' + fmt(R.net) + ' FCFA</p>' +
       '<p>Coût total employeur : ' + fmt(R.coutEmployeur) + '</p>' +
+      '<div style="font-size:10px;color:#444;margin-top:12px;border-top:1px solid #ccc;padding-top:6px"><b>Pour lire ce bulletin :</b> ' +
+      'CNPS pension : 4,2 % de la base, plafonnée à 750 000 (31 500 maximum). ' +
+      'IRPP : impôt progressif retenu à la source par l\'employeur. ' +
+      'CAC : 10 % de l\'IRPP, reversé aux communes. ' +
+      'Crédit foncier : 1 % de la base taxable. ' +
+      'Redevance audiovisuelle : forfaitaire selon la tranche de brut. ' +
+      'Le coût employeur inclut les charges patronales (CNPS, FNE, crédit foncier).' +
+      '</div>' +
       '</div>';
   }
   // Interface de saisie : rubriques éditables, totaux qui se recalculent
@@ -60,7 +71,7 @@
     var tauxSage = (opts && opts.taux) || null;
     var catalogue = (opts && opts.rubriques) || [];
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
-      saisies: { irpp: 0, baseCFC: null, redevance: 0, taxeCommunale: 0 }, nom: (opts && opts.nom) || '', periode: (opts && opts.periode) || '', employeur: (opts && opts.employeur) || '' };
+      saisies: {}, nom: (opts && opts.nom) || '', periode: (opts && opts.periode) || '', employeur: (opts && opts.employeur) || '' };
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483400;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
     var cadre = document.createElement('div');
@@ -73,18 +84,12 @@
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px" data-tbl></table></div>' +
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<select data-cat style="font-size:12px"><option value="">+ Choisir dans le catalogue…</option></select></div>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;font-size:12px">' +
-      '<label>IRPP (barème, saisi)<input data-s="irpp" type="number" step="any" value="0" style="width:110px"></label>' +
-      '<label>Base crédit foncier (vide = somme des rubriques)<input data-s="baseCFC" type="number" step="any" style="width:150px"></label>' +
-      '<label>Plafond crédit foncier patronal (vide = BRUT)<input data-s="plafondCFPat" type="number" step="any" style="width:130px"></label>' +
-      '<label>Redevance audiovisuelle<input data-s="redevance" type="number" step="any" value="0" style="width:110px"></label>' +
-      '<label>Taxe communale<input data-s="taxeCommunale" type="number" step="any" value="0" style="width:110px"></label></div>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
       '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
     function calcul() {
       var s = etat.saisies;
-      var saisies = { irpp: +s.irpp || 0, redevance: +s.redevance || 0, taxeCommunale: +s.taxeCommunale || 0 };
+      var saisies = {};   // tout est calculé automatiquement par le moteur (aucune correction manuelle)
       if (s.plafondCFPat !== undefined && s.plafondCFPat !== '' && !isNaN(+s.plafondCFPat)) saisies.plafondCFPat = +s.plafondCFPat;
       if (s.baseCFC !== null && s.baseCFC !== '' && !isNaN(+s.baseCFC)) saisies.baseCFC = +s.baseCFC;
       if (tauxSage && Object.keys(tauxSage).length) saisies.taux = tauxSage;
@@ -92,7 +97,7 @@
     }
     function rendre() {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
-      var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Cotisable CNPS">CNPS</th><th title="Cotisable crédit foncier">CFC</th><th title="Imposable">IRPP</th><th title="Retenue : avance sur salaire, cantine, etc.">Retenue</th><th></th></tr>';
+      var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Imposable">Imposable</th><th title="Retenue : avance sur salaire, cantine, etc.">Retenue</th><th></th></tr>';
       var corps = etat.lignes.map(function (l, i) {
         var g = PaieMoteur.gainLigne(l);
         var c = function (k, v) { return '<td style="text-align:center"><input type="checkbox" data-l="' + i + '" data-k="' + k + '"' + (v ? ' checked' : '') + '></td>'; };
@@ -101,12 +106,13 @@
           '<td><input data-l="' + i + '" data-k="lib" value="' + echapper(l.lib) + '" style="width:200px"></td>' +
           n('nombre', l.nombre, 70) + n('base', l.base, 90) + n('taux', l.taux, 60) +
           '<td><input data-l="' + i + '" data-k="gain" type="number" step="any" value="' + (l.gain == null ? '' : l.gain) + '" style="width:100px" title="Saisir le gain, ou laisser vide pour nombre × base × taux"></td>' +
-          c('cnps', l.cnps) + c('cfc', l.cfc) + c('irpp', l.irpp) + c('retenue', l.retenue) +
+          c('irpp', l.irpp) + c('retenue', l.retenue) +
           '<td><button type="button" class="s" data-x="del" data-l="' + i + '">✕</button></td>' +
           '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
       }).join('');
       tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
-      cadre.querySelector('[data-res]').innerHTML = '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
+      var alertes = controles(R, etat.lignes).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
+      cadre.querySelector('[data-res]').innerHTML = alertes + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(R.baseCNPS) + '</b></span><span>Retenues : <b>' + fmt(R.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(R.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(R.net) + '</b></span></div>';
     }
@@ -128,7 +134,7 @@
       else if (x === 'add') { etat.lignes.push({ code: '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: false, cfc: false, irpp: true, retenue: false }); rendre(); }
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
       else if (x === 'cat') { }
-      else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); etat.saisies.irpp = 3365; etat.saisies.baseCFC = 112081.3; etat.saisies.redevance = 1950; etat.saisies.taxeCommunale = 770; etat.saisies.plafondCFPat = 112081.3; cadre.querySelector('[data-s="plafondCFPat"]').value = 112081.3; cadre.querySelector('[data-s="irpp"]').value = 3365; cadre.querySelector('[data-s="baseCFC"]').value = 112081.3; cadre.querySelector('[data-s="redevance"]').value = 1950; cadre.querySelector('[data-s="taxeCommunale"]').value = 770; rendre(); }
+      else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'print') {
         var R = calcul();
         var html = bulletinHTML({ nom: etat.nom, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: etat.saisies, resultat: R });
@@ -149,7 +155,19 @@
     });
     rendre();
   }
-  var API = { EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt };
+  // Contrôles affichés avant impression : plafond CNPS, net négatif, brut nul, retenues supérieures au brut
+  function controles(R, lignes) {
+    var msg = [];
+    if (!R) return msg;
+    if (R.brut <= 0) msg.push('Brut nul : aucune rubrique de gain n\'est saisie.');
+    if (R.net < 0) msg.push('Net négatif : les retenues dépassent le brut. Vérifiez les avances et les retenues.');
+    if (R.totalRetenues > R.brut && R.brut > 0) msg.push('Retenues supérieures au brut.');
+    if (R.netImposable > R.brut) msg.push('Net imposable supérieur au brut : vérifiez les cases « imposable ».');
+    var base = R.netImposable - (lignes || []).filter(function (l) { return String(l.code) === '1430'; }).reduce(function (t, l) { return t + (typeof l.gain === 'number' ? l.gain : 0); }, 0);
+    if (base > 750000) msg.push('Base CNPS au-delà de 750 000 : cotisation plafonnée à 31 500 (4,2 %).');
+    return msg;
+  }
+  var API = { controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;
 })(typeof window !== 'undefined' ? window : globalThis);

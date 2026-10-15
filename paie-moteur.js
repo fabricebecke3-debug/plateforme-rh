@@ -8,7 +8,7 @@
 (function (root) {
   'use strict';
   var TAUX_DEFAUT = { cnps_sal: 4.2, cnps_pat: 4.2, at_pat: 2.5, pf_pat: 7, fne_pat: 1, cfc_sal: 1, cfc_pat: 1.5, cac: 10 };
-  var PLAFOND_CNPS = 750000, SEUIL_PLAFOND = 300000;
+  var PLAFOND_CNPS = 750000;
   var TRANSPORT = '1430', LOGEMENT = '1435';
   // Tables lues dans sage-data.json (condition sur SALTAXF)
   var TAXCOM = [[15000,0],[25000,83],[50000,170],[52000,270],[75000,270],[100000,520],[125000,770],[150000,1020],[200000,1270],[330000,1520],[400000,2020],[500000,2270],[Infinity,2520]];
@@ -77,7 +77,11 @@
     var saltaxf = (typeof s.baseCFC === 'number') ? s.baseCFC : saltaxfCalc;
     // Base CNPS : BASECOT = NETIMPO − TRANSC, plafonnée (NETIMPOPL)
     var basecot = netimpo - transport;
-    var netimpopl = basecot < SEUIL_PLAFOND ? basecot : PLAFOND_CNPS;
+    // Plafond CNPS : la base ne dépasse jamais 750 000 (paramétrable par le taux plafond_cnps).
+    // Note : la formule Sage lue dans sage-data.json donne 750 000 dès que la base atteint 300 000 ;
+    // le plafonnement légal est retenu ici (min). À confirmer dans le paramétrage Sage.
+    var plafond = (typeof s.taux === 'object' && s.taux && typeof s.taux.plafond_cnps === 'number') ? s.taux.plafond_cnps : PLAFOND_CNPS;
+    var netimpopl = Math.min(basecot, plafond);
     var irpp = arr(typeof s.irpp === 'number' ? s.irpp : irppSage(saltaxf));
     var cac = arr(irpp * T.cac / 100);
     var cnpsSal = arr(netimpopl * T.cnps_sal / 100), cfcSal = arr(saltaxf * T.cfc_sal / 100);
@@ -87,7 +91,9 @@
     var taxeProp = s.taxeProp ? arr(netimpo * 4.8 / 100) : 0;             // 9060 : non présente sur le bulletin de référence
     var retenues = cnpsSal + cfcSal + irpp + cac + redevance + taxeCom + taxeDev + taxeProp + arr(retenuesDiv);
     // Crédit foncier patronal (constante CCF) : BRUT × 1,5 %, plafonné par le plafond du salarié si la saisie est fournie
-    var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(brut, s.plafondCFPat) : brut;
+    // Crédit foncier patronal : 1,5 % de la BASE TAXABLE (SALTAXF). Vérifié sur 3 bulletins réels
+    // (CIMPOR 1 681 ; juin 2026 3 855 ; août 2026 3 158). Le plafond saisi reste possible (cas particulier).
+    var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(saltaxf, s.plafondCFPat) : saltaxf;
     var patronales = {
       cnps: arr(netimpopl * T.cnps_pat / 100), at: arr(netimpopl * T.at_pat / 100),
       pf: arr(netimpopl * T.pf_pat / 100), fne: arr(netimpopl * T.fne_pat / 100), cfc: arr(baseCFPat * T.cfc_pat / 100)

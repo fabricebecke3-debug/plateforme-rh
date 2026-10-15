@@ -7427,7 +7427,7 @@ function ui(){const w=win(`<h2 style="margin:0 0 8px">🧮 Moteur de paie</h2>
   q('#s_sv').onclick=async()=>{if(!last){T('Calculez d\'abord');return;}try{const h=(await rd('paie_calculs_json'))||[];h.push({le:new Date().toISOString(),par:(q('.ub')||{}).textContent||'',...last});await wr('paie_calculs_json',h.slice(-100));T('Calcul archivé avec les paramètres utilisés');}catch(e){T('Erreur : '+e.message)}};};
  w.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>b.dataset.t==='p'?tabP():tabS());tabP();}
 function mk(){const nav=q('nav'),pb=q('#npaie');if(!nav||!pb)return;let b=q('#tx_paie');
- if(!b){b=document.createElement('button');b.id='tx_paie';b.type='button';b.textContent='🧮 Moteur de paie';b.title='Moteur de paie';b.style.display='none';b.onclick=async()=>{try{if(!P)await load();ui();}catch(e){T('Erreur : '+e.message)}};pb.after(b);}
+ if(!b){b=document.createElement('button');b.id='tx_paie';b.type='button';b.textContent='🧮 Moteur de paie';b.title='Moteur de paie';b.style.display='none';b.onclick=async()=>{try{ if(window.PaieDetail){ PaieDetail.ouvrir({taux:PAIE_TAUX_CACHE, rubriques:PAIE_RUB_CACHE}); return; } if(!P)await load();ui();}catch(e){T('Erreur : '+e.message)}};pb.after(b);}
  b.style.display=pb.style.display;}
 setInterval(mk,1500);window.TERH_calcPaie=calc;window.TERH_DEF=DEF;
 })();
