@@ -101,7 +101,15 @@
       rubriques: tous.map(function (r) { return { code: r.code, lib: r.lib, gain: r.gain, retenue: r.retenue }; })
     };
   }
-  var API = { calculer: calculer, gainLigne: gainLigne, TAUX_DEFAUT: TAUX_DEFAUT, irppTranche1: irppTranche1, irppSage: irppSage,
+  // Taux en vigueur à une date : une version est en vigueur si date_effet ≤ jour < date_fin (ou date_fin vide)
+  function tauxEnVigueur(versions, jour) {
+    var j = jour || new Date().toISOString().slice(0, 10), out = {};
+    (versions || []).forEach(function (v) {
+      if (v.date_effet <= j && (!v.date_fin || v.date_fin > j)) out[v.code] = Number(v.valeur);
+    });
+    return out;
+  }
+  var API = { tauxEnVigueur: tauxEnVigueur, calculer: calculer, gainLigne: gainLigne, TAUX_DEFAUT: TAUX_DEFAUT, irppTranche1: irppTranche1, irppSage: irppSage,
     redevanceSage: redevanceSage, taxeCommunaleSage: taxeCommunaleSage, taxeDevLocalSage: taxeDevLocalSage };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieMoteur = API;

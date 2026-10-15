@@ -5,6 +5,7 @@
 (function (root) {
   'use strict';
   var CLE_PREFS = 'terh_graph_prefs';
+  var CFG = null;   // configuration fournie par l'application : {lire(), ecrire(obj)} — stockage par entreprise
   var TOUS = [
     { id: 'genre', titre: 'Répartition par genre' },
     { id: 'contrats', titre: 'Effectif par type de contrat' },
@@ -112,12 +113,27 @@
       '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" role="img" aria-label="' + echapper(titre) + '">' + rendu + '</svg>';
   }
   var DONNEES = {};
-  function prefsLire() {
-    try { var p = JSON.parse(root.localStorage ? root.localStorage.getItem(CLE_PREFS) : 'null'); if (Array.isArray(p)) return p; } catch (e) {}
-    return TOUS.map(function (t) { return t.id; });
+  function configurer(c) { CFG = c; }
+  // Objet de préférences : {ordre:[ids dans l'ordre], actifs:[ids affichés], position:'avant'|'apres'}
+  function prefsObjet() {
+    var defaut = { ordre: TOUS.map(function (t) { return t.id; }), actifs: TOUS.map(function (t) { return t.id; }), position: 'avant' };
+    var lu = null;
+    try { lu = CFG ? CFG.lire() : JSON.parse(root.localStorage ? root.localStorage.getItem(CLE_PREFS) : 'null'); } catch (e) { lu = null; }
+    if (!lu || typeof lu !== 'object') return defaut;
+    var ids = TOUS.map(function (t) { return t.id; });
+    var ordre = (Array.isArray(lu.ordre) ? lu.ordre : []).filter(function (x) { return ids.indexOf(x) >= 0; });
+    ids.forEach(function (x) { if (ordre.indexOf(x) < 0) ordre.push(x); });
+    var actifs = Array.isArray(lu.actifs) ? lu.actifs.filter(function (x) { return ids.indexOf(x) >= 0; }) : ids;
+    return { ordre: ordre, actifs: actifs, position: lu.position === 'apres' ? 'apres' : 'avant' };
   }
-  function prefsEcrire(liste) {
-    try { if (root.localStorage) root.localStorage.setItem(CLE_PREFS, JSON.stringify(liste)); } catch (e) {}
+  function prefsEcrire(obj, persister) {
+    try { if (CFG) { return CFG.ecrire(obj, !!persister); } else if (root.localStorage) root.localStorage.setItem(CLE_PREFS, JSON.stringify(obj)); } catch (e) {}
+    return null;
+  }
+  // Liste des graphiques à afficher, dans l'ordre choisi
+  function prefsLire() {
+    var o = prefsObjet();
+    return o.ordre.filter(function (x) { return o.actifs.indexOf(x) >= 0; });
   }
   // Mois glissants : 'AAAA-MM' et libellé court
   function moisGlissants(n, aujourdhui) {
@@ -198,7 +214,7 @@
   function panneau(employes, prefs, donnees) {
     var E = employes || [];
     DONNEES = donnees || DONNEES || {};
-    var choisis = prefs || prefsLire();
+    var choisis = prefs || prefsLire();   // ordre et sélection
     var cases = TOUS.map(function (t) {
       return '<label style="font-size:12px;margin-right:12px"><input type="checkbox" data-gr-pref="' + t.id + '"' + (choisis.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + echapper(t.titre) + '</label>';
     }).join('');
@@ -219,7 +235,7 @@
         return colonnes(co.map(function (x) { return { label: x.mois, v: x.masseBrute }; }), 'Masse salariale brute par mois', 'Salaire de base + primes + heures supplémentaires, bulletins hors brouillons.');
       }
     };
-    var cartes = TOUS.filter(function (t) { return choisis.indexOf(t.id) >= 0; }).map(function (t) {
+    var cartes = choisis.map(function (id) { return TOUS.filter(function (t) { return t.id === id; })[0]; }).filter(Boolean).map(function (t) {
       var rows = encodeURIComponent(JSON.stringify(donneesGraphique(t.id, E, new Date())));
       var btn = function (cls, label) { return '<button class="s" type="button" data-gr-' + cls + '="' + t.id + '" style="font-size:11px;padding:2px 7px">' + label + '</button>'; };
       return '<div class="c" data-gr-rows="' + rows + '" style="padding:12px"><div class="gr-entete" style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:13px">' + echapper(t.titre) + '</b>' +
@@ -296,15 +312,33 @@
   }
   // Branchement des cases à cocher et des boutons PNG (une seule fois, côté navigateur)
   if (typeof document !== 'undefined' && document.addEventListener) {
-    document.addEventListener('change', function (e) {
-      var c = e.target && e.target.closest && e.target.closest('[data-gr-pref]');
-      if (!c) return;
-      var choisis = prefsLire().filter(function (x) { return x !== c.dataset.grPref; });
-      if (c.checked) choisis.push(c.dataset.grPref);
-      prefsEcrire(choisis);
+    var rafraichir = function () {
       if (typeof root.refreshGraphiques === 'function') root.refreshGraphiques();
+      var pane = document.getElementById('pane-gra');
+      if (pane) pane.innerHTML = choixHTML();
+    };
+    document.addEventListener('change', function (e) {
+      var c = e.target && e.target.closest && e.target.closest('[data-gr-actif]');
+      var pos = e.target && e.target.closest && e.target.closest('[data-gr-pos]');
+      if (!c && !pos) return;
+      var o = prefsObjet();
+      if (c) { var id = c.dataset.grActif; o.actifs = c.checked ? o.actifs.concat([id]).filter(function (x, i, a) { return a.indexOf(x) === i; }) : o.actifs.filter(function (x) { return x !== id; }); }
+      if (pos) o.position = pos.dataset.grPos;
+      prefsEcrire(o); rafraichir();
     });
     document.addEventListener('click', function (e) {
+      var mv = e.target && e.target.closest && e.target.closest('[data-gr-up],[data-gr-down]');
+      if (mv) {
+        var o = prefsObjet(), id2 = mv.dataset.grUp || mv.dataset.grDown, i = o.ordre.indexOf(id2), j = mv.dataset.grUp ? i - 1 : i + 1;
+        if (j >= 0 && j < o.ordre.length) { var t = o.ordre[j]; o.ordre[j] = id2; o.ordre[i] = t; prefsEcrire(o); rafraichir(); }
+        return;
+      }
+      var sv = e.target && e.target.closest && e.target.closest('[data-gr-save]');
+      if (sv) {
+        var r = prefsEcrire(prefsObjet(), true);
+        if (CFG && r && typeof r.then === 'function') r.then(function () { if (typeof root.toast === 'function') root.toast('Graphiques enregistrés pour l\'entreprise.'); });
+        return;
+      }
       var b = e.target && e.target.closest && e.target.closest('[data-gr-png],[data-gr-svg],[data-gr-pdf],[data-gr-csv]');
       if (!b) return;
       var carte = b.closest('.c');
@@ -321,14 +355,23 @@
   }
   // Liste des graphiques affichés : utilisée dans Paramètres > Graphiques
   function choixHTML(){
-    var choisis = prefsLire();
-    var cases = TOUS.map(function (t) {
-      return '<label style="display:block;font-size:13px;margin:6px 0"><input type="checkbox" data-gr-pref="' + t.id + '"' + (choisis.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + echapper(t.titre) + '</label>';
+    var o = prefsObjet();
+    var lignes = o.ordre.map(function (id, i) {
+      var t = TOUS.filter(function (x) { return x.id === id; })[0];
+      return '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px">' +
+        '<button class="s" type="button" data-gr-up="' + id + '" style="padding:2px 7px"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button class="s" type="button" data-gr-down="' + id + '" style="padding:2px 7px"' + (i === o.ordre.length - 1 ? ' disabled' : '') + '>▼</button>' +
+        '<label style="flex:1"><input type="checkbox" data-gr-actif="' + id + '"' + (o.actifs.indexOf(id) >= 0 ? ' checked' : '') + '> ' + echapper(t.titre) + '</label></div>';
     }).join('');
-    return '<div class="c" style="padding:14px;max-width:640px"><h2 style="margin-top:0">📊 Graphiques du tableau de bord</h2>' +
-      '<p class="muted" style="font-size:12px;margin:0 0 8px">Cochez les graphiques à afficher sur le tableau de bord. Ce choix est mémorisé dans ce navigateur.</p>' + cases + '</div>';
+    return '<div class="c" style="padding:14px;max-width:700px"><h2 style="margin-top:0">📊 Graphiques du tableau de bord</h2>' +
+      '<p class="muted" style="font-size:12px;margin:0 0 8px">Cochez les graphiques à afficher et ordonnez-les avec ▲ ▼. Le réglage est enregistré pour toute l\'entreprise.</p>' +
+      lignes +
+      '<div style="margin:10px 0;font-size:13px">Position sur le tableau de bord : ' +
+      '<label style="margin-right:12px"><input type="radio" name="gr_pos" data-gr-pos="avant"' + (o.position === 'avant' ? ' checked' : '') + '> au-dessus des widgets</label>' +
+      '<label><input type="radio" name="gr_pos" data-gr-pos="apres"' + (o.position === 'apres' ? ' checked' : '') + '> en dessous des widgets</label></div>' +
+      '<button class="p" type="button" data-gr-save="1">Enregistrer</button></div>';
   }
-  var API = { choixHTML: choixHTML, absenteismeMensuel: absenteismeMensuel, coutsMensuels: coutsMensuels, indicateursCsvRows: indicateursCsvRows, effectifFinMois: effectifFinMois, repartition: repartition, tranchesAge: tranchesAge, evolution: evolution, barres: barres, anneau: anneau, groupes: groupes, donneesGraphique: donneesGraphique, csvGraphique: csvGraphique,
+  var API = { configurer: configurer, prefsObjet: prefsObjet, choixHTML: choixHTML, absenteismeMensuel: absenteismeMensuel, coutsMensuels: coutsMensuels, indicateursCsvRows: indicateursCsvRows, effectifFinMois: effectifFinMois, repartition: repartition, tranchesAge: tranchesAge, evolution: evolution, barres: barres, anneau: anneau, groupes: groupes, donneesGraphique: donneesGraphique, csvGraphique: csvGraphique,
     panneau: panneau, controleBase: controleBase, prefsLire: prefsLire, prefsEcrire: prefsEcrire, TOUS: TOUS, echapper: echapper };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.GraphiquesTdb = API;

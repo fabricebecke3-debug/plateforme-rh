@@ -57,6 +57,7 @@
   }
   // Interface de saisie : rubriques éditables, totaux qui se recalculent
   function ouvrir(opts) {
+    var tauxSage = (opts && opts.taux) || null;
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
       saisies: { irpp: 0, baseCFC: null, redevance: 0, taxeCommunale: 0 }, nom: (opts && opts.nom) || '', periode: (opts && opts.periode) || '', employeur: (opts && opts.employeur) || '' };
     var ov = document.createElement('div');
@@ -84,11 +85,12 @@
       var saisies = { irpp: +s.irpp || 0, redevance: +s.redevance || 0, taxeCommunale: +s.taxeCommunale || 0 };
       if (s.plafondCFPat !== undefined && s.plafondCFPat !== '' && !isNaN(+s.plafondCFPat)) saisies.plafondCFPat = +s.plafondCFPat;
       if (s.baseCFC !== null && s.baseCFC !== '' && !isNaN(+s.baseCFC)) saisies.baseCFC = +s.baseCFC;
+      if (tauxSage && Object.keys(tauxSage).length) saisies.taux = tauxSage;
       return PaieMoteur.calculer(etat.lignes, saisies);
     }
     function rendre() {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
-      var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Cotisable CNPS">CNPS</th><th title="Cotisable crédit foncier">CFC</th><th title="Imposable">IRPP</th><th></th></tr>';
+      var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Cotisable CNPS">CNPS</th><th title="Cotisable crédit foncier">CFC</th><th title="Imposable">IRPP</th><th title="Retenue : avance sur salaire, cantine, etc.">Retenue</th><th></th></tr>';
       var corps = etat.lignes.map(function (l, i) {
         var g = PaieMoteur.gainLigne(l);
         var c = function (k, v) { return '<td style="text-align:center"><input type="checkbox" data-l="' + i + '" data-k="' + k + '"' + (v ? ' checked' : '') + '></td>'; };
@@ -97,7 +99,7 @@
           '<td><input data-l="' + i + '" data-k="lib" value="' + echapper(l.lib) + '" style="width:200px"></td>' +
           n('nombre', l.nombre, 70) + n('base', l.base, 90) + n('taux', l.taux, 60) +
           '<td><input data-l="' + i + '" data-k="gain" type="number" step="any" value="' + (l.gain == null ? '' : l.gain) + '" style="width:100px" title="Saisir le gain, ou laisser vide pour nombre × base × taux"></td>' +
-          c('cnps', l.cnps) + c('cfc', l.cfc) + c('irpp', l.irpp) +
+          c('cnps', l.cnps) + c('cfc', l.cfc) + c('irpp', l.irpp) + c('retenue', l.retenue) +
           '<td><button type="button" class="s" data-x="del" data-l="' + i + '">✕</button></td>' +
           '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
       }).join('');
@@ -110,7 +112,7 @@
       var t = e.target;
       if (t.dataset.l != null && t.dataset.k) {
         var i = +t.dataset.l, k = t.dataset.k, l = etat.lignes[i];
-        if (k === 'cnps' || k === 'cfc' || k === 'irpp') l[k] = t.checked; else if (k === 'code' || k === 'lib') l[k] = t.value;
+        if (k === 'cnps' || k === 'cfc' || k === 'irpp' || k === 'retenue') l[k] = t.checked; else if (k === 'code' || k === 'lib') l[k] = t.value;
         else l[k] = t.value === '' ? null : +t.value;
       } else if (t.dataset.s) etat.saisies[t.dataset.s] = t.value;
       else if (t.dataset.f) etat[t.dataset.f] = t.value;
@@ -121,7 +123,7 @@
       var b = e.target.closest('[data-x]'); if (!b) return;
       var x = b.dataset.x;
       if (x === 'close') ov.remove();
-      else if (x === 'add') { etat.lignes.push({ code: '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: false, cfc: false, irpp: true }); rendre(); }
+      else if (x === 'add') { etat.lignes.push({ code: '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: false, cfc: false, irpp: true, retenue: false }); rendre(); }
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); etat.saisies.irpp = 3365; etat.saisies.baseCFC = 112081.3; etat.saisies.redevance = 1950; etat.saisies.taxeCommunale = 770; etat.saisies.plafondCFPat = 112081.3; cadre.querySelector('[data-s="plafondCFPat"]').value = 112081.3; cadre.querySelector('[data-s="irpp"]').value = 3365; cadre.querySelector('[data-s="baseCFC"]').value = 112081.3; cadre.querySelector('[data-s="redevance"]').value = 1950; cadre.querySelector('[data-s="taxeCommunale"]').value = 770; rendre(); }
       else if (x === 'print') {
