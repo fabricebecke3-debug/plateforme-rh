@@ -13,6 +13,13 @@
     { code: '1435', lib: 'Indemnité de logement', nombre: null, base: null, taux: null, gain: 24693, cnps: true, cfc: false, irpp: true },
     { code: '1442', lib: 'Indemnité de salissure', nombre: null, base: null, taux: null, gain: 10000, cnps: false, cfc: false, irpp: false }
   ];
+  // Période du mois courant au format de la grille : 01/MM/AA au JJ/MM/AA
+  function periodeMoisCourant(d) {
+    var x = d || new Date(), y = x.getFullYear(), m = x.getMonth();
+    var dernier = new Date(y, m + 1, 0).getDate();
+    var f = function (n) { return String(n).padStart(2, '0'); }, aa = String(y).slice(2);
+    return '01/' + f(m + 1) + '/' + aa + ' au ' + f(dernier) + '/' + f(m + 1) + '/' + aa;
+  }
   function echapper(t) {
     return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -33,7 +40,7 @@
     return '<div style="font-family:Arial,sans-serif;font-size:11px">' +
       '<table style="width:100%;border-collapse:collapse"><tr><td style="width:60%;font-size:17px;font-weight:700">BULLETIN DE PAIE</td>' +
       '<td style="text-align:right">Période : ' + echapper(o.periode || '') + '<br>Paiement : ' + echapper(o.paiement || '') + '</td></tr></table>' +
-      '<p style="margin:6px 0"><b>' + echapper(o.nom || '') + '</b> · ' + echapper(o.employeur || '') + ' · ' + echapper(o.conv || 'CCN CC') + '</p>' +
+      '<p style="margin:6px 0"><b>' + echapper(o.nom || '') + '</b> · N° CNPS : ' + echapper(o.cnps || '—') + (o.lieu ? ' · Lieu de travail : ' + echapper(o.lieu) : '') + (o.anciennete ? ' · Ancienneté : ' + echapper(o.anciennete) : '') + ' · ' + echapper(o.employeur || '') + ' · ' + echapper(o.conv || 'CCN CC') + '</p>' +
       '<table class="sg" style="width:100%;border-collapse:collapse;margin-bottom:8px"><thead><tr><th>N°</th><th>Désignation</th><th>Nombre</th><th>Base</th><th>Taux</th><th>Gain</th></tr></thead><tbody>' + rub +
       '<tr><td></td><td><b>Total brut</b></td><td></td><td></td><td></td><td class="n"><b>' + fmt(R.brut) + '</b></td></tr></tbody></table>' +
       '<table style="width:100%;border-collapse:collapse;margin-bottom:8px"><thead><tr><th>Retenues salariales</th><th>Base</th><th>Taux</th><th>Montant</th></tr></thead><tbody>' +
@@ -71,14 +78,17 @@
     var tauxSage = (opts && opts.taux) || null;
     var catalogue = (opts && opts.rubriques) || [];
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
-      saisies: {}, nom: (opts && opts.nom) || '', periode: (opts && opts.periode) || '', employeur: (opts && opts.employeur) || '' };
+      saisies: {}, nom: (opts && opts.nom) || '', cnps: (opts && opts.cnps) || '', lieu: (opts && opts.lieu) || '', periode: (opts && opts.periode) || periodeMoisCourant(), employeur: (opts && opts.employeur) || '' };
+    var employes = (opts && opts.employes) || [];
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483400;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
     var cadre = document.createElement('div');
     cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:1000px;width:100%;border-radius:12px;padding:16px;box-sizing:border-box';
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
       '<button type="button" class="s" data-x="exemple">Charger l\'exemple Sage</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:220px"></label>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
+      '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
+      '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
       '<label style="font-size:12px">Période<input data-f="periode" value="' + echapper(etat.periode) + '" placeholder="ex. 01/07/26 au 31/07/26"></label>' +
       '<label style="font-size:12px">Employeur<input data-f="employeur" value="' + echapper(etat.employeur) + '"></label></div>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px" data-tbl></table></div>' +
@@ -111,7 +121,7 @@
           '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
       }).join('');
       tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
-      var alertes = controles(R, etat.lignes).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
+      var alertes = controles(R, etat.lignes, etat.cnps).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
       cadre.querySelector('[data-res]').innerHTML = alertes + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(R.baseCNPS) + '</b></span><span>Retenues : <b>' + fmt(R.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(R.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(R.net) + '</b></span></div>';
@@ -126,7 +136,18 @@
       else if (t.dataset.f) etat[t.dataset.f] = t.value;
       rendre();
     });
-    cadre.addEventListener('change', function (e) { if (e.target.dataset.k && (e.target.type === 'checkbox')) rendre(); });
+    cadre.addEventListener('change', function (e) {
+      if (e.target.dataset.k && (e.target.type === 'checkbox')) rendre();
+      if (e.target.dataset.emp !== undefined) {
+        var fiche = employes[+e.target.value];
+        if (fiche) {
+          etat.nom = fiche.nom; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || ''; var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
+          cadre.querySelector('[data-f="nom"]').value = etat.nom;
+          cadre.querySelector('[data-f="cnps"]').value = etat.cnps;
+          rendre();
+        }
+      }
+    });
     cadre.addEventListener('click', function (e) {
       var b = e.target.closest('[data-x]'); if (!b) return;
       var x = b.dataset.x;
@@ -137,8 +158,8 @@
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'print') {
         var R = calcul();
-        var html = bulletinHTML({ nom: etat.nom, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: etat.saisies, resultat: R });
-        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, 'table.sg th,table td,table th{border:1px solid #999;padding:3px 5px}table th{background:#e9eef7}', { apercu: true });
+        var html = bulletinHTML({ nom: etat.nom, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: etat.saisies, resultat: R });
+        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, 'table.sg th,table td,table th{border:1px solid #999;padding:3px 5px;color:#000}table th{background:#e9eef7;color:#000}', { apercu: true });
       }
     });
     var sel = cadre.querySelector('[data-cat]');
@@ -156,9 +177,10 @@
     rendre();
   }
   // Contrôles affichés avant impression : plafond CNPS, net négatif, brut nul, retenues supérieures au brut
-  function controles(R, lignes) {
+  function controles(R, lignes, cnps) {
     var msg = [];
     if (!R) return msg;
+    if (!String(cnps || '').trim()) msg.push('N° CNPS manquant : il est lu sur la fiche du salarié.');
     if (R.brut <= 0) msg.push('Brut nul : aucune rubrique de gain n\'est saisie.');
     if (R.net < 0) msg.push('Net négatif : les retenues dépassent le brut. Vérifiez les avances et les retenues.');
     if (R.totalRetenues > R.brut && R.brut > 0) msg.push('Retenues supérieures au brut.');
@@ -167,7 +189,7 @@
     if (base > 750000) msg.push('Base CNPS au-delà de 750 000 : cotisation plafonnée à 31 500 (4,2 %).');
     return msg;
   }
-  var API = { controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt };
+  var API = { periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;
 })(typeof window !== 'undefined' ? window : globalThis);

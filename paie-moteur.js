@@ -81,7 +81,11 @@
     // Note : la formule Sage lue dans sage-data.json donne 750 000 dès que la base atteint 300 000 ;
     // le plafonnement légal est retenu ici (min). À confirmer dans le paramétrage Sage.
     var plafond = (typeof s.taux === 'object' && s.taux && typeof s.taux.plafond_cnps === 'number') ? s.taux.plafond_cnps : PLAFOND_CNPS;
-    var netimpopl = Math.min(basecot, plafond);
+    // Mode « sage » (défaut) : formule NETIMPOPL de Sage = base si < 300 000, sinon le plafond (750 000).
+    // Vérifié sur le bulletin d'août 2026 (base 750 000 pour une base réelle de 362 294 ; pension 31 500).
+    // Mode « legal » : plafonnement min(base, 750 000). À choisir par l'administrateur (taux.cnps_plafond_mode).
+    var mode = (s.cnpsPlafondMode) || (s.taux && s.taux.cnps_plafond_mode) || 'sage';
+    var netimpopl = (mode === 'legal') ? Math.min(basecot, plafond) : (basecot < 300000 ? basecot : plafond);
     var irpp = arr(typeof s.irpp === 'number' ? s.irpp : irppSage(saltaxf));
     var cac = arr(irpp * T.cac / 100);
     var cnpsSal = arr(netimpopl * T.cnps_sal / 100), cfcSal = arr(saltaxf * T.cfc_sal / 100);
@@ -117,7 +121,17 @@
     });
     return out;
   }
-  var API = { tauxEnVigueur: tauxEnVigueur, calculer: calculer, gainLigne: gainLigne, TAUX_DEFAUT: TAUX_DEFAUT, irppTranche1: irppTranche1, irppSage: irppSage,
+  // Ancienneté à partir de la date d'entrée (AAAA-MM-JJ), au mois près, à la date de référence
+  function ancienneteDepuis(dateEntree, ref) {
+    if (!dateEntree) return null;
+    var d = new Date(String(dateEntree).slice(0, 10) + 'T00:00:00'), r = ref || new Date();
+    if (isNaN(d.getTime())) return null;
+    var m = (r.getFullYear() - d.getFullYear()) * 12 + (r.getMonth() - d.getMonth());
+    if (m < 0) return null;
+    var ans = Math.floor(m / 12), mois = m % 12;
+    return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois' };
+  }
+  var API = { ancienneteDepuis: ancienneteDepuis, tauxEnVigueur: tauxEnVigueur, calculer: calculer, gainLigne: gainLigne, TAUX_DEFAUT: TAUX_DEFAUT, irppTranche1: irppTranche1, irppSage: irppSage,
     redevanceSage: redevanceSage, taxeCommunaleSage: taxeCommunaleSage, taxeDevLocalSage: taxeDevLocalSage };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieMoteur = API;
