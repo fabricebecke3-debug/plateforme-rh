@@ -1,119 +1,186 @@
-/* paie-moteur.js — Calcul du bulletin selon les formules Sage (constantes et rubriques vérifiées dans sage-data.json).
- * Entrées : lignes de rubriques {code, lib, nombre, base, taux, gain, irpp}. Codes utilisés comme Sage :
- *   1430 = indemnité de transport (TRANSC), 1435 = indemnité de logement (IL2 « LOG CONS »).
- *   irpp = imposable (NETIMPO). Les paniers et salissures ne sont pas imposables dans le cas CIMPOR.
- * Saisies facultatives (cas particuliers) : irpp, baseCFC, redevance, taxeCommunale, elec, veeu, veau, taxeProp, taxeDevLocal.
- * Fonctions pures. Testées par scripts/test-paie-moteur.js (bulletin Sage CIMPOR : brut 142 155, net 130 000).
+/* paie-moteur.js — version PRO, alignée sur les formules Sage. Calcul pur, sans affichage.
+ * Cas de contrôle :
+ *  - bulletin Sage avril 2026 (NTSOH, matricule 2033) : brut 197 815, net 175 000, IRPP 8 995, CAC 900,
+ *    crédit foncier salarial 1 959, pension 7 741, redevance 1 950, taxe communale 1 270,
+ *    total patronales 30 032 (AT 4 608, PF 12 902, FNE 1 843, CF patronal 2 938) ;
+ *  - bulletin CIMPOR (brut 142 155, net 130 000).
+ * Entrées : lignes {code, lib, gain | nombre + base + taux, irpp, cnps, retenue, transport, logement}
+ *   et saisies {salaireBase, taux, cnpsPlafondMode, irpp, baseCFC, redevance, taxeCommunale,
+ *   taxeDevLocal, taxeProp, elec, veeu, veau, plafondCFPat}.
+ * Modifications par rapport aux versions précédentes :
+ *  1. Le net est calculé à partir des montants NON arrondis, comme Sage (avril 2026 : 175 000 et non 174 999).
+ *  2. Indicateur cnps par rubrique (optionnel). S'il est présent, la base CNPS = somme des rubriques cnps=true.
+ *     Sinon, règle Sage d'origine : imposable − transport (1430).
+ *  3. Totaux cohérents : total retenues = brut − net ; les lignes affichées s'additionnent au total arrondi.
+ *  4. Sortie « detail » (montants exacts) pour le contrôle, code mort supprimé.
+ * Décision en attente : mode « sage » (base CNPS = plafond dès 300 000) ou « legal » (min(base, plafond)).
+ * Le mode « sage » reproduit le bulletin d'août 2026 ; à confirmer avant d'appliquer à toutes les sociétés.
  */
 (function (root) {
   'use strict';
-  var TAUX_DEFAUT = { cnps_sal: 4.2, cnps_pat: 4.2, at_pat: 2.5, pf_pat: 7, fne_pat: 1, cfc_sal: 1, cfc_pat: 1.5, cac: 10 };
+
+  var TAUX_DEFAUT = {
+    cnps_sal: 4.2, cnps_pat: 4.2, at_pat: 2.5, pf_pat: 7, fne_pat: 1,
+    cfc_sal: 1, cfc_pat: 1.5, cac: 10, plafond_cnps: 750000, cnps_plafond_mode: 'sage'
+  };
   var PLAFOND_CNPS = 750000;
   var TRANSPORT = '1430', LOGEMENT = '1435';
-  // Tables lues dans sage-data.json (condition sur SALTAXF)
+  var HORAIRE_MENSUEL = 173.33;
+  var HS_TAUX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 100, '1444': 100 };
+
+  // Tables Sage (condition sur SALTAXF) : borne haute incluse ; la dernière borne est l'infini
   var TAXCOM = [[15000,0],[25000,83],[50000,170],[52000,270],[75000,270],[100000,520],[125000,770],[150000,1020],[200000,1270],[330000,1520],[400000,2020],[500000,2270],[Infinity,2520]];
   var TAXDEVLO = [[61999,0],[75000,250],[100000,500],[125000,750],[150000,1000],[200000,1250],[250000,1500],[300000,2000],[500000,2250],[Infinity,2500]];
   var TAXAUDIO = [[50000,0],[100000,750],[200000,1950],[300000,3250],[400000,4550],[500000,5850],[600000,7150],[700000,8450],[800000,9750],[900000,11050],[1000000,12350],[Infinity,13000]];
-  // Lecture d'une table : s ≤ borne1 → valeur1 ; borne_i < s ≤ borne_i+1 → valeur_i+1 ; dernière borne = infini
+
   function tranche(table, s) {
-    var prec = -Infinity;
-    for (var i = 0; i < table.length; i++) { if (s <= table[i][0]) return table[i][1]; prec = table[i][0]; }
+    for (var i = 0; i < table.length; i++) { if (s <= table[i][0]) return table[i][1]; }
     return table[table.length - 1][1];
   }
   function arr(x) { return Math.round(Number(x) || 0); }
+  function nb(x) { var n = Number(x); return isFinite(n) ? n : 0; }
+
   function gainLigne(l) {
     if (typeof l.gain === 'number' && isFinite(l.gain)) return l.gain;
     var n = Number(l.nombre), b = Number(l.base), t = (l.taux == null || l.taux === '') ? 100 : Number(l.taux);
     if (!isFinite(n) || !isFinite(b)) return 0;
     return n * b * t / 100;
   }
-  // IRPP par tranches (formules Sage IRPPT1 à IRPPT4), à partir de SALTAXF
-  function irppSage(s) {
-    s = Number(s) || 0;
-    if (s <= 62000) return 0;
-    if (s <= 310000) { var tra = s * 70 / 100 - s * 2.8 / 100 - 41667; return tra * 10 / 100; }
-    if (s <= 429000) { var b12 = (s - 310000) * 70 / 100 * 15 / 100; return b12 + 16693; }
-    if (s <= 667000) { var c12 = (s - 429000) * 70 / 100 * 25 / 100; return c12 + 29188; }
-    var d12 = (s - 667000) * 70 / 100 * 35 / 100; return d12 + 70830;
-  }
-  function irppTranche1(s) { return (Number(s) || 0) <= 310000 ? irppSage(s) : null; }
-  function redevanceSage(s) { return tranche(TAXAUDIO, Number(s) || 0); }
-  function taxeCommunaleSage(s) { return tranche(TAXCOM, Number(s) || 0); }
-  function taxeDevLocalSage(s) { return tranche(TAXDEVLO, Number(s) || 0); }
 
-  // Heures supplémentaires (rubriques Sage 1110 à 1160, 1444) : base horaire = salaire de base ÷ 173,33 (constante SALHOR1)
-  var HS_TAUX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 100, '1444': 100 };
-  var HORAIRE_MENSUEL = 173.33;
+  // IRPP par tranches (formules Sage IRPPT1 à IRPPT4), à partir de SALTAXF (montant non arrondi)
+  function irppSage(s) {
+    s = nb(s);
+    if (s <= 62000) return 0;
+    if (s <= 310000) return (s * 70 / 100 - s * 2.8 / 100 - 41667) * 10 / 100;
+    if (s <= 429000) return (s - 310000) * 70 / 100 * 15 / 100 + 16693;
+    if (s <= 667000) return (s - 429000) * 70 / 100 * 25 / 100 + 29188;
+    return (s - 667000) * 70 / 100 * 35 / 100 + 70830;
+  }
+  function irppTranche1(s) { return nb(s) <= 310000 ? irppSage(s) : null; }
+  function redevanceSage(s) { return tranche(TAXAUDIO, nb(s)); }
+  function taxeCommunaleSage(s) { return tranche(TAXCOM, nb(s)); }
+  function taxeDevLocalSage(s) { return tranche(TAXDEVLO, nb(s)); }
+
   function calculer(lignes, saisies) {
     var s = saisies || {};
     var T = Object.assign({}, TAUX_DEFAUT, s.taux || {});
+
+    // Salaire de base (base horaire des heures supplémentaires = salaire ÷ 173,33)
     var salB = (typeof s.salaireBase === 'number') ? s.salaireBase : null;
-    if (salB === null) { var l1000 = (lignes || []).filter(function (l) { return String(l.code) === '1000'; })[0]; if (l1000) salB = gainLigne(l1000); }
+    if (salB === null) {
+      var l1000 = (lignes || []).filter(function (l) { return String(l.code) === '1000'; })[0];
+      if (l1000) salB = gainLigne(l1000);
+    }
+
     var entrees = (lignes || []).map(function (l) {
       var c = String(l.code || ''), x = Object.assign({}, l);
       var hsCode = HS_TAUX[c] !== undefined || !!x.heures_sup;
       if (hsCode) {
-        if (HS_TAUX[c] === undefined && (x.taux == null || x.taux === '')) x.taux = 100;
         if ((x.taux == null || x.taux === '') && HS_TAUX[c] !== undefined) x.taux = HS_TAUX[c];
+        if ((x.taux == null || x.taux === '')) x.taux = 100;
         if ((x.base == null || x.base === '') && salB != null && x.nombre != null && x.nombre !== '') x.base = salB / HORAIRE_MENSUEL;
       }
       return x;
     });
-    var tous = entrees.map(function (l) { return { code: String(l.code || ''), lib: l.lib, gain: gainLigne(l), irpp: l.irpp !== false, retenue: !!l.retenue, transport: !!l.transport, logement: !!l.logement }; });
-    // Retenues (avance sur salaire, cantine, etc.) : déduites du net, hors brut et hors bases de cotisation
-    var retenuesDiv = tous.filter(function (r) { return r.retenue; }).reduce(function (t, r) { return t + r.gain; }, 0);
+
+    var tous = entrees.map(function (l) {
+      return {
+        code: String(l.code || ''), lib: l.lib, gain: gainLigne(l),
+        irpp: l.irpp !== false,
+        cnps: (typeof l.cnps === 'boolean') ? l.cnps : undefined,
+        retenue: !!l.retenue,
+        transport: !!l.transport || String(l.code) === TRANSPORT,
+        logement: !!l.logement || String(l.code) === LOGEMENT
+      };
+    });
+
+    // Retenues (avance, cantine…) : déduites du net, hors brut et hors bases
     var rub = tous.filter(function (r) { return !r.retenue; });
+    var retenuesDiv = tous.filter(function (r) { return r.retenue; }).reduce(function (t, r) { return t + r.gain; }, 0);
     var brut = rub.reduce(function (t, r) { return t + r.gain; }, 0);
     var netimpo = rub.filter(function (r) { return r.irpp; }).reduce(function (t, r) { return t + r.gain; }, 0);
-    var transport = tous.filter(function (r) { return r.code === TRANSPORT || r.transport; }).reduce(function (t, r) { return t + r.gain; }, 0);
-    var logement = tous.filter(function (r) { return r.code === LOGEMENT || r.logement; }).reduce(function (t, r) { return t + r.gain; }, 0);
-    // Chaîne Sage : NETIMPOL → logement final (IL) → électricité (ELEF) → véhicule/eau (VEAU) → NETTAX → SALTAXF
-    var elec = Number(s.elec) || 0, veeu = Number(s.veeu) || 0, veau = Number(s.veau) || 0;
+    var transport = tous.filter(function (r) { return r.transport; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    var logement = tous.filter(function (r) { return r.logement; }).reduce(function (t, r) { return t + r.gain; }, 0);
+
+    // Chaîne Sage : NETIMPOL → logement final (IL) → électricité (ELEF) → véhicule/eau → NETTAX → SALTAXF
+    var elec = nb(s.elec), veeu = nb(s.veeu), veau = nb(s.veau);
     var netimpol = netimpo - logement - elec - veeu;
     var il = Math.min(netimpol * 15 / 100, logement);
     var elecn = netimpol * 4 / 100, elef = elec < elecn ? elec : elecn;
     var nettax = netimpol + il + elef + veau;
     var saltaxfCalc = nettax < 52000 ? 0 : nettax;
     var saltaxf = (typeof s.baseCFC === 'number') ? s.baseCFC : saltaxfCalc;
-    // Base CNPS : BASECOT = NETIMPO − TRANSC, plafonnée (NETIMPOPL)
-    var basecot = netimpo - transport;
-    // Plafond CNPS : la base ne dépasse jamais 750 000 (paramétrable par le taux plafond_cnps).
-    // Note : la formule Sage lue dans sage-data.json donne 750 000 dès que la base atteint 300 000 ;
-    // le plafonnement légal est retenu ici (min). À confirmer dans le paramétrage Sage.
+
+    // Base CNPS (NETIMPOPL)
+    var basecot;
+    var indicateurCnps = rub.some(function (r) { return r.cnps !== undefined; });
+    if (indicateurCnps) {
+      basecot = rub.filter(function (r) { return r.cnps === true; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    } else {
+      basecot = netimpo - transport;
+    }
     var plafond = (typeof s.taux === 'object' && s.taux && typeof s.taux.plafond_cnps === 'number') ? s.taux.plafond_cnps : PLAFOND_CNPS;
-    // Mode « sage » (défaut) : formule NETIMPOPL de Sage = base si < 300 000, sinon le plafond (750 000).
-    // Vérifié sur le bulletin d'août 2026 (base 750 000 pour une base réelle de 362 294 ; pension 31 500).
-    // Mode « legal » : plafonnement min(base, 750 000). À choisir par l'administrateur (taux.cnps_plafond_mode).
-    var mode = (s.cnpsPlafondMode) || (s.taux && s.taux.cnps_plafond_mode) || 'sage';
+    var mode = s.cnpsPlafondMode || (s.taux && s.taux.cnps_plafond_mode) || TAUX_DEFAUT.cnps_plafond_mode;
     var netimpopl = (mode === 'legal') ? Math.min(basecot, plafond) : (basecot < 300000 ? basecot : plafond);
-    var irpp = arr(typeof s.irpp === 'number' ? s.irpp : irppSage(saltaxf));
-    var cac = arr(irpp * T.cac / 100);
-    var cnpsSal = arr(netimpopl * T.cnps_sal / 100), cfcSal = arr(saltaxf * T.cfc_sal / 100);
-    var redevance = arr(typeof s.redevance === 'number' ? s.redevance : redevanceSage(saltaxf));
-    var taxeCom = arr(typeof s.taxeCommunale === 'number' ? s.taxeCommunale : taxeCommunaleSage(saltaxf));
-    var taxeDev = s.taxeDevLocal ? arr(taxeDevLocalSage(saltaxf)) : 0;     // 9071 : non présente sur le bulletin de référence
-    var taxeProp = s.taxeProp ? arr(netimpo * 4.8 / 100) : 0;             // 9060 : non présente sur le bulletin de référence
-    var retenues = cnpsSal + cfcSal + irpp + cac + redevance + taxeCom + taxeDev + taxeProp + arr(retenuesDiv);
-    // Crédit foncier patronal (constante CCF) : BRUT × 1,5 %, plafonné par le plafond du salarié si la saisie est fournie
-    // Crédit foncier patronal : 1,5 % de la BASE TAXABLE (SALTAXF). Vérifié sur 3 bulletins réels
-    // (CIMPOR 1 681 ; juin 2026 3 855 ; août 2026 3 158). Le plafond saisi reste possible (cas particulier).
+
+    // Retenues salariales (montants exacts)
+    var irppRaw = (typeof s.irpp === 'number') ? s.irpp : irppSage(saltaxf);
+    var cacRaw = irppRaw * T.cac / 100;
+    var cnpsSalRaw = netimpopl * T.cnps_sal / 100;
+    var cfcSalRaw = saltaxf * T.cfc_sal / 100;
+    var redevanceRaw = (typeof s.redevance === 'number') ? s.redevance : redevanceSage(saltaxf);
+    var taxeComRaw = (typeof s.taxeCommunale === 'number') ? s.taxeCommunale : taxeCommunaleSage(saltaxf);
+    var taxeDevRaw = s.taxeDevLocal ? taxeDevLocalSage(saltaxf) : 0;
+    var taxePropRaw = s.taxeProp ? netimpo * 4.8 / 100 : 0;
+    var retenuesRaw = cnpsSalRaw + cfcSalRaw + irppRaw + cacRaw + redevanceRaw + taxeComRaw + taxeDevRaw + taxePropRaw + retenuesDiv;
+
+    // Charges patronales (montants exacts)
     var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(saltaxf, s.plafondCFPat) : saltaxf;
-    var patronales = {
-      cnps: arr(netimpopl * T.cnps_pat / 100), at: arr(netimpopl * T.at_pat / 100),
-      pf: arr(netimpopl * T.pf_pat / 100), fne: arr(netimpopl * T.fne_pat / 100), cfc: arr(baseCFPat * T.cfc_pat / 100)
+    var patRaw = {
+      cnps: netimpopl * T.cnps_pat / 100,
+      at: netimpopl * T.at_pat / 100,
+      pf: netimpopl * T.pf_pat / 100,
+      fne: netimpopl * T.fne_pat / 100,
+      cfc: baseCFPat * T.cfc_pat / 100
     };
-    var totPat = patronales.cnps + patronales.at + patronales.pf + patronales.fne + patronales.cfc;
+    var totPatRaw = patRaw.cnps + patRaw.at + patRaw.pf + patRaw.fne + patRaw.cfc;
+
+    // Net : calculé sur les montants exacts, puis arrondi (règle Sage)
+    var net = Math.round(brut - retenuesRaw);
+    var brutArr = Math.round(brut);
+    var totalRetenues = brutArr - net;           // cohérent : brut − retenues = net
+
     return {
-      brut: arr(brut), netImposable: arr(netimpo), baseCNPS: arr(netimpopl), baseCFC: arr(saltaxf), saltaxf: arr(saltaxf),
-      salariales: { cnps: cnpsSal, cfc: cfcSal, irpp: irpp, cac: cac, redevance: redevance, taxeCommunale: taxeCom, taxeDevLocal: taxeDev, taxeProp: taxeProp },
-      patronales: patronales,
-      totalRetenues: retenues, totalPatronales: totPat,
-      net: arr(brut) - retenues, coutEmployeur: arr(brut) + totPat,
+      brut: brutArr,
+      netImposable: arr(netimpo),
+      baseCNPS: arr(netimpopl),
+      baseCFC: arr(saltaxf),
+      saltaxf: arr(saltaxf),
+      salariales: {
+        cnps: arr(cnpsSalRaw), cfc: arr(cfcSalRaw), irpp: arr(irppRaw), cac: arr(cacRaw),
+        redevance: arr(redevanceRaw), taxeCommunale: arr(taxeComRaw),
+        taxeDevLocal: arr(taxeDevRaw), taxeProp: arr(taxePropRaw)
+      },
+      patronales: {
+        cnps: arr(patRaw.cnps), at: arr(patRaw.at), pf: arr(patRaw.pf), fne: arr(patRaw.fne), cfc: arr(patRaw.cfc)
+      },
+      totalRetenues: totalRetenues,
+      totalPatronales: Math.round(totPatRaw),
+      net: net,
+      coutEmployeur: Math.round(brut + totPatRaw),
       retenuesDiverses: arr(retenuesDiv),
-      rubriques: tous.map(function (r) { return { code: r.code, lib: r.lib, gain: r.gain, retenue: r.retenue }; })
+      rubriques: tous.map(function (r) { return { code: r.code, lib: r.lib, gain: r.gain, retenue: r.retenue }; }),
+      detail: {
+        brut: brut, netImposable: netimpo, transport: transport, logement: logement,
+        basecot: basecot, netimpopl: netimpopl, saltaxf: saltaxf,
+        irpp: irppRaw, cac: cacRaw, cnpsSal: cnpsSalRaw, cfcSal: cfcSalRaw,
+        retenues: retenuesRaw, patronales: totPatRaw, netExact: brut - retenuesRaw,
+        modeCnps: mode, baseCnpsParIndicateur: indicateurCnps
+      }
     };
   }
-  // Taux en vigueur à une date : une version est en vigueur si date_effet ≤ jour < date_fin (ou date_fin vide)
+
+  // Taux en vigueur à une date : version active si date_effet ≤ jour < date_fin (ou date_fin vide)
   function tauxEnVigueur(versions, jour) {
     var j = jour || new Date().toISOString().slice(0, 10), out = {};
     (versions || []).forEach(function (v) {
@@ -121,7 +188,8 @@
     });
     return out;
   }
-  // Ancienneté à partir de la date d'entrée (AAAA-MM-JJ), au mois près, à la date de référence
+
+  // Ancienneté à partir de la date d'entrée (AAAA-MM-JJ), au mois près
   function ancienneteDepuis(dateEntree, ref) {
     if (!dateEntree) return null;
     var d = new Date(String(dateEntree).slice(0, 10) + 'T00:00:00'), r = ref || new Date();
@@ -131,8 +199,20 @@
     var ans = Math.floor(m / 12), mois = m % 12;
     return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois' };
   }
-  var API = { ancienneteDepuis: ancienneteDepuis, tauxEnVigueur: tauxEnVigueur, calculer: calculer, gainLigne: gainLigne, TAUX_DEFAUT: TAUX_DEFAUT, irppTranche1: irppTranche1, irppSage: irppSage,
-    redevanceSage: redevanceSage, taxeCommunaleSage: taxeCommunaleSage, taxeDevLocalSage: taxeDevLocalSage };
+
+  var API = {
+    calculer: calculer,
+    gainLigne: gainLigne,
+    ancienneteDepuis: ancienneteDepuis,
+    tauxEnVigueur: tauxEnVigueur,
+    irppSage: irppSage,
+    irppTranche1: irppTranche1,
+    redevanceSage: redevanceSage,
+    taxeCommunaleSage: taxeCommunaleSage,
+    taxeDevLocalSage: taxeDevLocalSage,
+    TAUX_DEFAUT: TAUX_DEFAUT,
+    TABLES: { TAXCOM: TAXCOM, TAXDEVLO: TAXDEVLO, TAXAUDIO: TAXAUDIO }
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieMoteur = API;
 })(typeof window !== 'undefined' ? window : globalThis);
