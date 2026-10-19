@@ -358,6 +358,19 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     <label>Début<input type="date" id="f_deb"></label>
     <label>Date d'entrée<input type="date" id="f_entree"></label>
     <label>Lieu de travail (ville)<input id="f_lieu" placeholder="ex. Douala, Yaoundé"></label>
+    <label>Salaire de base<input type="number" step="any" id="f_sb"></label>
+    <label>Horaire (h/mois)<input type="number" step="any" id="f_hor" placeholder="173.33"></label>
+    <label>Périodicité<select id="f_per"><option value="mois">Mois</option><option value="quinzaine">Quinzaine</option><option value="semaine">Semaine</option></select></label>
+    <label>Modèle de bulletin<input id="f_mod" placeholder="vide = modèle de la société"></label>
+    <label>Convention collective<input id="f_conv"></label>
+    <label>Catégorie<input id="f_cat"></label>
+    <label>Niveau<input id="f_niv"></label>
+    <label>Indice<input id="f_ind"></label>
+    <label>Coefficient<input id="f_coef"></label>
+    <label>Date d'ancienneté<input type="date" id="f_dane"></label>
+    <label>Date d'entrée dans la profession<input type="date" id="f_dep"></label>
+    <label>Type d'entrée<input id="f_tent" placeholder="ex. EM (embauche)"></label>
+    <label>Établissement<input id="f_etab"></label>
     <label>Fin (auto)<input type="date" id="f_fin"></label>
     <label>Téléphone<input id="f_tel"></label>
     <label>N° CNPS<input id="f_cnps"></label>
@@ -1165,8 +1178,13 @@ const CAN={
     return arr.includes('*')||arr.includes(k);
   }
 };
-const toApp=r=>({id:String(r.id),entree:r.date_entree||'',lieu:r.lieu_travail||'',n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.date_naissance||'',t:r.type_contrat||'TEMPORAIRE',deb:r.debut||'',fin:r.fin||'',tel:r.telephone||'',cnps:r.cnps||'',dv:r.date_visite||'',darret:r.date_arret||'',marret:r.motif_arret||'',comarret:r.commentaire_arret||'',contrat_url:r.contrat_url||'',contrat_nom:r.contrat_nom||'',scnpsSafe:cnpsStatut(r.cnps)});
-const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail:o.lieu}:{}),nom:(o.n||'').trim(),poste:(o.p||'').trim(),genre:o.g==='F'?'F':'M',date_naissance:o.dn||null,type_contrat:['CDI','CDD','TEMPORAIRE','OCCASIONNEL'].includes(o.t)?o.t:'TEMPORAIRE',debut:o.deb||null,fin:o.fin||null,telephone:(o.tel||'').trim(),cnps:(o.cnps||'').trim(),date_visite:o.dv||null,date_arret:o.darret||null,motif_arret:(o.marret||'').trim()||null,commentaire_arret:(o.comarret||'').trim()||null,contrat_url:o.contrat_url||null,contrat_nom:o.contrat_nom||null,...(MULTI&&CO?{entreprise_id:CO}:{})});
+const toApp=r=>({id:String(r.id),entree:r.date_entree||'',lieu:r.lieu_travail||'',sb:r.salaire_base??'',hor:r.horaire??'',per:r.periodicite||'mois',mod:r.modele_bulletin||'',conv:r.convention||'',cat:r.categorie||'',niv:r.niveau||'',ind:r.indice||'',coef:r.coefficient||'',dane:r.date_anciennete||'',dep:r.date_entree_profession||'',tent:r.type_entree||'',etab:r.etablissement||'',n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.date_naissance||'',t:r.type_contrat||'TEMPORAIRE',deb:r.debut||'',fin:r.fin||'',tel:r.telephone||'',cnps:r.cnps||'',dv:r.date_visite||'',darret:r.date_arret||'',marret:r.motif_arret||'',comarret:r.commentaire_arret||'',contrat_url:r.contrat_url||'',contrat_nom:r.contrat_nom||'',scnpsSafe:cnpsStatut(r.cnps)});
+const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail:o.lieu}:{}),
+  ...(o.sb?{salaire_base:Number(o.sb)}:{}),...(o.hor?{horaire:Number(o.hor)}:{}),...(o.per?{periodicite:o.per}:{}),
+  ...(o.mod?{modele_bulletin:o.mod}:{}),...(o.conv?{convention:o.conv}:{}),...(o.cat?{categorie:o.cat}:{}),
+  ...(o.niv?{niveau:o.niv}:{}),...(o.ind?{indice:o.ind}:{}),...(o.coef?{coefficient:o.coef}:{}),
+  ...(o.dane?{date_anciennete:o.dane}:{}),...(o.dep?{date_entree_profession:o.dep}:{}),
+  ...(o.tent?{type_entree:o.tent}:{}),...(o.etab?{etablissement:o.etab}:{}),nom:(o.n||'').trim(),poste:(o.p||'').trim(),genre:o.g==='F'?'F':'M',date_naissance:o.dn||null,type_contrat:['CDI','CDD','TEMPORAIRE','OCCASIONNEL'].includes(o.t)?o.t:'TEMPORAIRE',debut:o.deb||null,fin:o.fin||null,telephone:(o.tel||'').trim(),cnps:(o.cnps||'').trim(),date_visite:o.dv||null,date_arret:o.darret||null,motif_arret:(o.marret||'').trim()||null,commentaire_arret:(o.comarret||'').trim()||null,contrat_url:o.contrat_url||null,contrat_nom:o.contrat_nom||null,...(MULTI&&CO?{entreprise_id:CO}:{})});
 function statC(d){if(!d)return 'INCONNU';const dt=d instanceof Date?d:P(d);if(!dt)return 'INCONNU';if(dt<T)return 'EXPIRÉ';return dt<=new Date(+T+90*day)?'BIENTÔT':'VALIDE';}
 function statV(d){if(!d)return 'INCONNUE';const p=P(d);if(!p)return 'INCONNUE';if(p>T)return 'PLANIFIÉE';const s=statC(addM(p,12));return s==='EXPIRÉ'?'EXPIRÉE':s;}
 function en(r){const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
@@ -1722,8 +1740,8 @@ $('tmf').onsubmit=async e=>{
 };
 
 /* ============ FORMULAIRE ============ */
-const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu'];
-const FLK=['n','p','g','dn','t','deb','fin','tel','cnps','dv','entree','lieu'];
+const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu','f_sb','f_hor','f_per','f_mod','f_conv','f_cat','f_niv','f_ind','f_coef','f_dane','f_dep','f_tent','f_etab'];
+const FLK=['n','p','g','dn','t','deb','fin','tel','cnps','dv','entree','lieu','sb','hor','per','mod','conv','cat','niv','ind','coef','dane','dep','tent','etab'];
 function edit(r){
   go('n');clearScan();
   $('ft').textContent=r?'Modifier un employé':'Nouvel employé';
@@ -5252,7 +5270,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||''};})}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -5278,6 +5296,9 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       const {data, error} = await scq(db.from('paie_taux').select('*')).order('date_effet', {ascending: false});
       if (error) throw error;
       window.PAIE_TAUX_CACHE = tauxEnVigueur(data || []);
+      const jourC = new Date().toISOString().slice(0, 10);
+      window.PAIE_CST_CACHE = (data || []).filter(l => /^cst_/.test(l.code) && l.date_effet <= jourC && (!l.date_fin || l.date_fin > jourC))
+        .map(l => ({code: l.code, libelle: l.libelle, valeur: Number(l.valeur)}));
       return data || [];
     } catch (e) { logErr('paie_taux : ' + (e && e.message || e)); return []; }
   }
@@ -5300,11 +5321,23 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       '<label style="font-size:12px">Valeur<input id="pp_val" type="number" step="any" style="width:90px"></label>' +
       '<label style="font-size:12px">Date d\'effet<input id="pp_date" type="date" value="' + jour + '"></label>' +
       '<button class="p" id="pp_ok">Enregistrer la version</button></div>' +
-      '<p class="muted" style="font-size:11px;margin-top:8px">Valeurs en vigueur : ' + enVigueur.length + '</p>' +
+      '<p class="muted" style="font-size:11px;margin-top:8px">Valeurs en vigueur : ' + enVigueur.length + '. Pour une <b>constante</b> (prime fixe, montant réutilisable dans la grille), donnez un code commençant par <b>cst_</b>, ex. cst_prime_fixe.</p>' +
       '<div id="pp_rubriques"></div>' +
+      '<h3 style="margin:14px 0 6px">Identité du bulletin de paie</h3>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px">' +
+      '<label>Nom de la société<input id="pb_soc" style="width:200px"></label>' +
+      '<label>Adresse<input id="pb_adr" style="width:220px"></label>' +
+      '<label>N° SIRET<input id="pb_siret" style="width:130px"></label>' +
+      '<label>N° CNPS employeur<input id="pb_cnps" style="width:130px"></label>' +
+      '<label>Couleur<input id="pb_couleur" type="color" value="#1f5fbf"></label>' +
+      '<label>Logo (PNG, JPG, SVG — 300 Ko max)<input id="pb_logo" type="file" accept="image/png,image/jpeg,image/svg+xml"></label>' +
+      '<button class="p" id="pb_ok">Enregistrer l\'identité</button></div>' +
+      '<p class="muted" style="font-size:11px;margin-top:6px">Ces informations apparaissent en en-tête de chaque bulletin de la société.</p>' +
       '</div>';
     $('pp_ok').onclick = enregistrerVersionPaie;
     rendreRubriques();
+    remplirIdentiteBulletin();
+    $('pb_ok').onclick = enregistrerIdentiteBulletin;
   }
   async function enregistrerVersionPaie() {
     const code = ($('pp_code').value || '').trim(), lib = ($('pp_lib').value || '').trim();
@@ -5314,6 +5347,36 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       const {error} = await db.rpc('paie_nouvelle_version_taux', {p_entreprise: (MULTI && CO) ? CO : null, p_code: code, p_libelle: lib, p_valeur: val, p_date: date});
       if (error) throw error;
       toast('✅ Version enregistrée : ' + code + ' = ' + val + ' à partir du ' + date);
+      rendreParamsPaie();
+    } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
+  }
+  function identiteBulletinLue() {
+    try { return JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || null; } catch (e) { return null; }
+  }
+  function remplirIdentiteBulletin() {
+    const b = identiteBulletinLue() || {};
+    if ($('pb_soc')) $('pb_soc').value = b.societe || '';
+    if ($('pb_adr')) $('pb_adr').value = b.adresse || '';
+    if ($('pb_siret')) $('pb_siret').value = b.siret || '';
+    if ($('pb_cnps')) $('pb_cnps').value = b.cnps || '';
+    if ($('pb_couleur')) $('pb_couleur').value = b.couleur || '#1f5fbf';
+  }
+  async function enregistrerIdentiteBulletin() {
+    const ancien = identiteBulletinLue() || {};
+    const fichier = $('pb_logo').files && $('pb_logo').files[0];
+    const lire = () => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ko(new Error('lecture impossible')); r.readAsDataURL(fichier); });
+    try {
+      let logo = ancien.logo || '';
+      if (fichier) {
+        if (fichier.size > 300 * 1024) { toast('Logo trop lourd (300 Ko maximum).'); return; }
+        if (!/^image\/(png|jpeg|svg\+xml)$/.test(fichier.type)) { toast('Format de logo non accepté (PNG, JPG ou SVG).'); return; }
+        logo = await lire();
+      }
+      const b = { societe: $('pb_soc').value.trim(), adresse: $('pb_adr').value.trim(), siret: $('pb_siret').value.trim(),
+        cnps: $('pb_cnps').value.trim(), couleur: $('pb_couleur').value || '#1f5fbf', logo: logo };
+      PARAMS.bulletin = JSON.stringify(b);
+      await saveParam('bulletin', PARAMS.bulletin);
+      toast('✅ Identité du bulletin enregistrée.');
       rendreParamsPaie();
     } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
   }
