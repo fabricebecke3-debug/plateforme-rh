@@ -113,19 +113,34 @@
   }
   // Interface de saisie : rubriques éditables, totaux qui se recalculent
   // Couleurs du bulletin : en-têtes de la couleur de la société, texte blanc sur fond foncé, noir sur fond clair
+  // Style du bulletin : celui de PaieBulletinSage (densité Sage) ; repli sur un style minimal si le fichier n'est pas chargé
   function cssBulletin(b) {
     var c = (b && b.couleur) || '#1f5fbf';
-    return 'table td,table th{border:1px solid #999;padding:3px 5px;color:#000}table th{background:' + c + ';color:#fff}' +
+    if (root.PaieBulletinSage && root.PaieBulletinSage.css) return root.PaieBulletinSage.css(c);
+    return 'table td,table th{border:1px solid #999;padding:1px 4px;color:#000;line-height:1.2}table th{background:' + c + ';color:#fff}' +
       'table tr td:first-child{white-space:nowrap}';
+  }
+  // Rubrique du catalogue Sage (paie-rubriques-sage.js) au format du catalogue de la société
+  function rubriqueSage(s) {
+    return { code: String(s.code), libelle: s.libelle || '', type: 'gain', source: 'Sage',
+      imposable: s.imposable !== 'Jms', cnps: false, cfc: false, taux_defaut: null, heures_sup: false };
+  }
+  // Catalogue affiché = rubriques de la société, puis les rubriques Sage absentes (même code : la société prime)
+  function fusionCatalogue(liste) {
+    var perso = (liste || []).slice(), codes = {};
+    perso.forEach(function (r) { codes[String(r.code)] = true; });
+    var sage = ((root.PaieSageCatalogue && root.PaieSageCatalogue.rubriques) || []).map(rubriqueSage);
+    return perso.concat(sage.filter(function (s) { return !codes[s.code]; }));
   }
   function ouvrir(opts) {
     var bulletinSociete = (opts && opts.bulletin) || null;
     var tauxSage = (opts && opts.taux) || null;
-    var catalogue = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
+    var perso = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques.slice() : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
+    var catalogue = fusionCatalogue(perso);
     if (root.PaiePointage) root.PaiePointage.synchroniser();
     if (root.PaieModeles) root.PaieModeles.synchroniser();
     function appliquerPointage(h) {
-      var HS = ['1110', '1130', '1140', '1150', '1160'], TX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 100 };
+      var HS = ['1110', '1130', '1140', '1150', '1160'], TX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 200 };
       etat.lignes = etat.lignes.filter(function (l) { return HS.indexOf(String(l.code)) < 0; });
       HS.forEach(function (c) {
         var n = +h[c] || 0; if (n <= 0) return;
@@ -134,10 +149,38 @@
       });
       rendre();
     }
-    function refreshCat() { var s = cadre.querySelector('[data-cat]'); if (!s) return; s.innerHTML = '<option value="">+ Choisir dans le catalogue…</option>';
-      catalogue.forEach(function (r, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = r.code + ' — ' + r.libelle + (r.type === 'retenue' ? ' (retenue)' : ''); s.appendChild(o); }); }
+    function refreshCat() { var dl = cadre.querySelector('#pd-cat-list'); if (!dl) return; dl.innerHTML = '';
+      catalogue.forEach(function (r) { var o = document.createElement('option'); o.value = r.code + ' — ' + (r.libelle || ''); dl.appendChild(o); }); }
+    function reconstruireCatalogue() { catalogue.splice(0, catalogue.length); fusionCatalogue(perso).forEach(function (r) { catalogue.push(r); }); root.PAIE_RUB_CACHE = perso; refreshCat(); }
     function openRubriques() { if (!root.PaieRubriques) { alert('paie-rubriques.js n\'est pas chargé.'); return; }
-      root.PaieRubriques.ouvrir(catalogue, function (liste) { catalogue.splice(0, catalogue.length); liste.forEach(function (r) { catalogue.push(r); }); root.PAIE_RUB_CACHE = catalogue; refreshCat(); }); }
+      root.PaieRubriques.ouvrir(perso, function (liste) { perso = liste; reconstruireCatalogue(); }); }
+    function ajouterRubrique(r) {
+      etat.lignes.push({ code: r.code, lib: r.libelle, nombre: null, base: null, taux: (r.taux_defaut != null ? r.taux_defaut : null),
+        gain: null, cnps: !!r.cnps, cfc: !!r.cfc, irpp: r.imposable !== false, retenue: r.type === 'retenue',
+        transport: !!r.transport, logement: !!r.logement, heures_sup: !!r.heures_sup });
+      rendre();
+    }
+    // Prime d'ancienneté (rubrique 1202) : taux selon les années révolues, base = salaire catégoriel (rubrique 1000)
+    function ajouterAnciennete() {
+      var f = etat.fiche || {}, an = (root.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(f.entree, new Date()) : null;
+      if (!an) { alert('Date d\'entrée absente de la fiche : ancienneté impossible à calculer.'); return; }
+      var b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
+      if (!b1000) { alert('Pas de salaire de base (rubrique 1000).'); return; }
+      var salaire = PaieMoteur.gainLigne(b1000), taux = PaieMoteur.tauxAnciennete(an.ans);
+      var lig = etat.lignes.filter(function (l) { return String(l.code) === '1202'; })[0];
+      if (!lig) { lig = { code: '1202', lib: 'Prime d\'ancienneté', nombre: 1, base: 0, taux: 0, gain: null, cnps: true, cfc: true, irpp: true, retenue: false }; etat.lignes.push(lig); }
+      lig.nombre = 1; lig.base = salaire; lig.taux = taux; lig.gain = null;
+      rendre();
+      if (taux === 0) alert('Ancienneté : ' + an.texte + '. Seuil de 2 ans non atteint : prime à 0 %.');
+    }
+    // Fiche salarié transmise au bulletin Sage (en-tête : matricule, niveau, coefficient, indice, emploi, dates…)
+    function salarieSage() {
+      var f = etat.fiche || {};
+      return { matricule: etat.mat, niveau: f.niveau, coefficient: f.coef, indice: f.indice, anciennete: etat.anciennete,
+        secu: etat.cnps, categorie: f.categorie, emploi: f.poste, departement: f.dept, qualification: f.qualif,
+        horaire: f.hor || 173.33, convention: f.convention || (etat.bulletin && etat.bulletin.ccn) || '',
+        adresse: f.adresse, embauche: f.entree, lieu: etat.lieu, etablissement: f.etablissement, nom: etat.nom };
+    }
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
       saisies: {}, nom: (opts && opts.nom) || '', mat: (opts && opts.mat) || '', cnps: (opts && opts.cnps) || '', lieu: (opts && opts.lieu) || '', periode: (opts && opts.periode) || periodeMoisCourant(), employeur: (opts && opts.employeur) || '' };
     var employes = (opts && opts.employes && opts.employes.length) ? opts.employes : ((root.TERH_listeSalaries && root.TERH_listeSalaries()) || []);
@@ -151,11 +194,11 @@
     if (!document.getElementById('pd-style')) { var st = document.createElement('style'); st.id = 'pd-style';
       st.textContent = '.pd-cadre input,.pd-cadre select{background:#fff;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 6px;font-size:12px;min-width:0}' +
         '.pd-cadre input[type=checkbox]{width:16px;height:16px}.pd-cadre label{color:#1a1a1a}' +
-        '.pd-cadre table th{background:#1f5fbf;color:#fff;font-weight:600}.pd-cadre table td{border-bottom:1px solid #e3e8ef}' +
+        '.pd-cadre table th{background:#1f5fbf;color:#fff;font-weight:600}.pd-cadre table td{border-bottom:1px solid #e3e8ef;padding:2px 4px;height:22px;line-height:1.2}.pd-cadre table th{padding:4px;font-size:11px;white-space:nowrap}.pd-cadre table td input{height:20px;box-sizing:border-box}' +
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
         '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
-      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="pointage">⏱ Pointage</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Charger l\'exemple Sage</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
+      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="pointage">⏱ Pointage</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
       '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
       '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
@@ -164,8 +207,7 @@
       '<label style="font-size:12px">Employeur<input data-f="employeur" value="' + echapper(etat.employeur) + '"></label></div>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px" data-tbl></table></div>' +
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
-      '<select data-cat style="font-size:12px"><option value="">+ Choisir dans le catalogue…</option></select>' +
-      '<select data-cst style="font-size:12px"><option value="">+ Ajouter une constante…</option></select></div>' +
+      '<input data-catq list="pd-cat-list" placeholder="+ Rechercher une rubrique (code ou nom)…" style="width:340px"><datalist id="pd-cat-list"></datalist></div>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
       '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
@@ -213,7 +255,7 @@
       if (e.target.dataset.emp !== undefined) {
         var fiche = employes[+e.target.value];
         if (fiche) {
-          etat.nom = fiche.nom; etat.mat = fiche.mat || ''; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || '';
+          etat.nom = fiche.nom; etat.mat = fiche.mat || ''; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || ''; etat.fiche = fiche;
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
           if (fiche.sb) {
             var hor = Number(fiche.hor) || 173.33, b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
@@ -234,6 +276,8 @@
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
       else if (x === 'cat') { }
       else if (x === 'rub') { openRubriques(); }
+      else if (x === 'anc') { ajouterAnciennete(); }
+      else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
       else if (x === 'pointage') {
         if (!root.PaiePointage) { alert('paie-pointage-simulation.js n\'est pas chargé.'); }
         else { var fiche = employes.filter(function (f) { return f.nom === etat.nom; })[0];
@@ -244,39 +288,27 @@
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'print') {
         var R = calcul();
-        var html = bulletinHTML({ modele: (root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
-        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin(etat.bulletin), { apercu: true });
+        var modele = (root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null, html;
+        if (root.PaieBulletinSage) html = root.PaieBulletinSage.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage() });
+        else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
+        var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
+        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }), { apercu: true });
       }
     });
     if (root.PaieRubriques && root.PaieRubriques.synchroniser) {
       root.PaieRubriques.synchroniser().then(function (liste) {
         if (!liste) return;
-        catalogue.splice(0, catalogue.length); liste.forEach(function (x) { catalogue.push(x); });
-        root.PAIE_RUB_CACHE = catalogue; refreshCat();
+        perso = liste; reconstruireCatalogue();
       });
     }
-    var sel = cadre.querySelector('[data-cat]');
-    catalogue.forEach(function (r, i) {
-      var o = document.createElement('option'); o.value = String(i); o.textContent = r.code + ' — ' + r.libelle + (r.type === 'retenue' ? ' (retenue)' : '');
-      sel.appendChild(o);
-    });
-    var selCst = cadre.querySelector('[data-cst]');
-    (opts && opts.constantes || []).forEach(function (c, i) {
-      var o = document.createElement('option'); o.value = String(i); o.textContent = c.code + ' — ' + c.libelle + ' (' + c.valeur + ')';
-      selCst.appendChild(o);
-    });
-    selCst.addEventListener('change', function () {
-      var c = (opts && opts.constantes || [])[+selCst.value]; if (!c) return;
-      etat.lignes.push({ code: c.code.replace(/^cst_/, '').toUpperCase(), lib: c.libelle, nombre: 1, base: c.valeur, taux: 100,
-        gain: null, cnps: false, cfc: false, irpp: true, retenue: false });
-      selCst.value = ''; rendre();
-    });
-    sel.addEventListener('change', function () {
-      var r = catalogue[+sel.value]; if (!r) return;
-      etat.lignes.push({ code: r.code, lib: r.libelle, nombre: null, base: null, taux: r.taux_defaut,
-        gain: null, cnps: !!r.cnps, cfc: !!r.cfc, irpp: r.imposable !== false, retenue: r.type === 'retenue',
-        transport: !!r.transport, logement: !!r.logement, heures_sup: !!r.heures_sup });
-      sel.value = ''; rendre();
+    refreshCat();
+    cadre.querySelector('[data-catq]').addEventListener('change', function (e) {
+      var v = e.target.value.trim(), code = v.split(' — ')[0].trim();
+      e.target.value = '';
+      if (!v) return;
+      var r = catalogue.filter(function (x) { return String(x.code) === code; })[0];
+      if (!r) { alert('Rubrique introuvable : choisissez-la dans la liste proposée.'); return; }
+      ajouterRubrique(r);
     });
     rendre();
   }
@@ -293,7 +325,7 @@
     if (base > 750000) msg.push('Base CNPS au-delà de 750 000 : cotisation plafonnée à 31 500 (4,2 %).');
     return msg;
   }
-  var API = { periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt };
+  var API = { periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;
 })(typeof window !== 'undefined' ? window : globalThis);

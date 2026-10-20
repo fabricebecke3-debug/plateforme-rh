@@ -6056,7 +6056,7 @@ async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,v
 window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
-window.TERH_listeSalaries=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||''}));
+window.TERH_listeSalaries=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||''}));
 let loaded='';async function load(){if(!CO||loaded===CO)return;loaded=CO;CFG={...DEF,...(await rd('paie_json')||{})};WGT=await rd('widgets_json')||{};SAL=await rd('paie_sal_json')||{};MAT=await rd('matricules_json')||{};CUS=await rd('rubriques_json')||[];MCFG={...MCFG,...(await rd('matricule_cfg_json')||{})};MOD={...MOD,...(await rd('paie_mod_json')||{})};applyW();}
 function applyW(){const adm=['admin','super_owner'].includes(ER());document.querySelectorAll('nav button[data-v]').forEach(b=>{const k=b.dataset.v;if(['dsp','c','a'].includes(k)){const off=WGT[k]===false;if(off&&!adm)b.style.display='none';else if(off&&adm)b.style.opacity='.5';else{b.style.opacity='';if(b.id!=='nh'&&b.style.display==='none'&&k!=='dsp')b.style.display='';}}});const p=$('npaie');if(p)p.style.display=(['admin','super_owner','editeur'].includes(ER())&&WGT.paie!==false)?'':'none';}
 const TB=(v,T)=>{for(const [m,x] of T)if(v<=m)return x;return T[T.length-1][1];};
@@ -9526,9 +9526,12 @@ hook();setInterval(hook,1500);
 <script src="graphiques.js"></script>
 <script src="paie-moteur.js"></script>
 <script src="paie-conges.js"></script>
+<script src="paie-rubriques-sage.js"></script>
 <script src="paie-rubriques.js"></script>
 <script src="paie-modeles.js"></script>
 <script src="paie-pointage-simulation.js"></script>
+<script src="paie-bulletin-sage.js"></script>
+<script src="paie-constantes.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>

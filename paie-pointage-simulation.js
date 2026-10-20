@@ -1,7 +1,7 @@
-/* paie-pointage-simulation.js
- * PaiePointage.ouvrir({employes, periode, onApply})  : saisie des heures supplémentaires par salarié et par période.
+/* paie-pointage-simulation.js — Pointage des heures sup. et simulation de salaire (présentation Sage).
+ * PaiePointage.ouvrir({employes, periode, courant, onApply}) : saisie des heures sup. par salarié et par période.
  *   onApply(heures) reçoit {1110: n, 1130: n, 1140: n, 1150: n, 1160: n} (nombre d'heures) pour le bulletin.
- * PaieSimulation.ouvrir({lignes, saisies, nom})       : compare le bulletin actuel à un salaire simulé (% ou nouveau montant).
+ * PaieSimulation.ouvrir({lignes, saisies, nom})              : compare le bulletin actuel à un salaire simulé (% ou montant).
  * Pointage stocké : localStorage 'terh_paie_pointage' + table parametres (paie_pointage_json) via window.TERH_paiePoint.
  */
 (function (root) {
@@ -10,10 +10,35 @@
   var CLE = 'terh_paie_pointage';
   var COULEUR = '#1f5fbf';
   var CATS = [
-    ['1110', 'Heures sup. 20 %'], ['1130', 'Heures sup. 30 %'], ['1140', 'Heures sup. 40 %'],
-    ['1150', 'Heures sup. 50 % (fériés, repos)'], ['1160', 'Heures sup. 100 %']
+    ['1110', 'Heures sup. 1re tranche (120 %)'], ['1130', 'Heures sup. 2e tranche (130 %)'], ['1140', 'Heures sup. 3e tranche (140 %)'],
+    ['1150', 'Heures de nuit (150 %)'], ['1160', 'Jour férié (200 %)']
   ];
 
+  var STYLE =
+    '.pp-card{background:#fff;color:#1a1a1a;max-width:560px;width:100%;border-radius:6px;padding:12px 14px;box-sizing:border-box;font:12px/1.35 Arial,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.3)}' +
+    '.pp-head{display:flex;align-items:center;gap:8px;background:' + COULEUR + ';color:#fff;margin:-12px -14px 10px;padding:8px 14px;border-radius:6px 6px 0 0}' +
+    '.pp-head b{flex:1;font-size:14px}' +
+    '.pp-card button{padding:3px 10px;border:1px solid #9aa5b5;background:#eef2f8;color:#1a1a1a;border-radius:4px;cursor:pointer;font:12px Arial,sans-serif}' +
+    '.pp-card button.primary{background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '}' +
+    '.pp-card button.pp-x{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}' +
+    '.pp-card select,.pp-card input{background:#fff;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:4px;padding:3px 6px;font:12px Arial,sans-serif;box-sizing:border-box}' +
+    '.pp-lbl{display:flex;flex-direction:column;gap:2px;font-size:11px;color:#444}' +
+    '.pp-table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+    '.pp-table th{background:#eef2f8;color:#1a3a6b;text-align:left;padding:4px 8px;border-bottom:2px solid ' + COULEUR + ';font-size:11px}' +
+    '.pp-table td{padding:3px 8px;border-bottom:1px solid #e3e8ef;height:22px;vertical-align:middle}' +
+    '.pp-table .r{text-align:right;font-variant-numeric:tabular-nums}' +
+    '.pp-table input{width:90px;text-align:right}' +
+    '.pp-up{color:#1e8449}.pp-down{color:#c0392b}' +
+    '.pp-note{font-size:11px;color:#666;margin:8px 0 0}' +
+    '.pp-msg{margin-left:auto;font-size:12px}';
+
+  function injecterStyle() {
+    if (document.getElementById('pp-style')) return;
+    var st = document.createElement('style');
+    st.id = 'pp-style';
+    st.textContent = STYLE;
+    document.head.appendChild(st);
+  }
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -40,6 +65,7 @@
   function ouvrirPointage(opts) {
     var id = 'pp-overlay';
     if (document.getElementById(id)) return;
+    injecterStyle();
     opts = opts || {};
     var employes = (opts.employes || []).filter(function (e) { return e.nom; }).map(function (e) { return { key: e.mat || e.nom, nom: e.nom, mat: e.mat || '' }; });
     var courant = opts.courant || '';
@@ -47,9 +73,9 @@
 
     var ov = document.createElement('div');
     ov.id = id;
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;box-sizing:border-box';
     var cadre = document.createElement('div');
-    cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:720px;width:100%;border-radius:12px;padding:16px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box';
+    cadre.className = 'pp-card';
     ov.appendChild(cadre);
     document.body.appendChild(ov);
 
@@ -73,19 +99,22 @@
     }
 
     cadre.innerHTML =
-      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">⏱ Pointage des heures supplémentaires</b><button type="button" data-act="fermer">✕ Fermer</button></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">' +
-        '<label>Salarié<select data-sel style="min-width:260px"><option value="">— choisir —</option>' +
+      '<div class="pp-head"><b>⏱ Pointage des heures supplémentaires</b><button type="button" class="pp-x" data-act="fermer">Fermer</button></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">' +
+        '<label class="pp-lbl">Salarié<select data-sel style="min-width:240px"><option value="">— choisir —</option>' +
           employes.map(function (e) { return '<option value="' + esc(e.key) + '" data-nom="' + esc(e.nom) + '"' + (e.key === courant ? ' selected' : '') + '>' + esc(e.nom) + (e.mat ? ' (matricule ' + esc(e.mat) + ')' : '') + '</option>'; }).join('') + '</select></label>' +
-        '<label>Période<input data-per value="' + esc(periode) + '" style="width:200px"></label></div>' +
-      '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + COULEUR + ';color:#fff"><th style="padding:6px;text-align:left">Catégorie</th><th style="padding:6px;text-align:right">Heures</th></tr></thead><tbody>' +
-        CATS.map(function (c) { return '<tr><td style="padding:4px 6px;border-bottom:1px solid #e3e8ef">' + c[0] + ' — ' + esc(c[1]) + '</td><td style="padding:4px 6px;border-bottom:1px solid #e3e8ef;text-align:right"><input data-h="' + c[0] + '" inputmode="decimal" style="width:90px;text-align:right"></td></tr>'; }).join('') +
+        '<label class="pp-lbl">Période<input data-per value="' + esc(periode) + '" style="width:180px"></label>' +
+      '</div>' +
+      '<table class="pp-table"><colgroup><col><col style="width:130px"></colgroup>' +
+        '<thead><tr><th>Catégorie</th><th class="r">Heures</th></tr></thead><tbody>' +
+        CATS.map(function (c) { return '<tr><td>' + c[0] + ' — ' + esc(c[1]) + '</td><td class="r"><input data-h="' + c[0] + '" inputmode="decimal"></td></tr>'; }).join('') +
       '</tbody></table>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">' +
-        '<button type="button" data-act="enregistrer">💾 Enregistrer le pointage</button>' +
-        '<button type="button" data-act="appliquer" style="background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '">➜ Appliquer au bulletin</button>' +
-        '<span data-msg style="margin-left:auto"></span></div>' +
-      '<p style="font-size:11px;color:#777;margin:10px 0 0">Les heures sont multipliées par la base horaire (salaire de base ÷ 173,33) et par le taux de la catégorie lors du calcul du bulletin.</p>';
+        '<button type="button" data-act="enregistrer">💾 Enregistrer</button>' +
+        '<button type="button" class="primary" data-act="appliquer">➜ Appliquer au bulletin</button>' +
+        '<span class="pp-msg" data-msg></span>' +
+      '</div>' +
+      '<p class="pp-note">Les heures sont multipliées par la base horaire (salaire de base ÷ 173,33) et par le taux de la catégorie lors du calcul du bulletin.</p>';
 
     cadre.addEventListener('change', function (e) {
       var sel = cadre.querySelector('[data-sel]');
@@ -107,12 +136,15 @@
         ov.remove();
       }
     });
+    // Pré-remplissage du salarié courant
+    if (courant) { var s0 = cadre.querySelector('[data-sel]'); if (s0 && s0.value) remplir(s0.value, s0.selectedOptions[0] ? s0.selectedOptions[0].dataset.nom : ''); }
   }
 
   // ---------- Simulation ----------
   function ouvrirSimulation(opts) {
     var id = 'ps-overlay';
     if (document.getElementById(id)) return;
+    injecterStyle();
     opts = opts || {};
     var M = root.PaieMoteur;
     if (!M) { alert('paie-moteur.js n\'est pas chargé.'); return; }
@@ -123,9 +155,9 @@
 
     var ov = document.createElement('div');
     ov.id = id;
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;box-sizing:border-box';
     var cadre = document.createElement('div');
-    cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:720px;width:100%;border-radius:12px;padding:16px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box';
+    cadre.className = 'pp-card';
     ov.appendChild(cadre);
     document.body.appendChild(ov);
 
@@ -142,13 +174,13 @@
     function dessiner(res) {
       var ligne = function (lib, a, b) {
         var d = b - a;
-        return '<tr><td style="padding:5px 6px;border-bottom:1px solid #e3e8ef">' + lib + '</td>' +
-          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef">' + fmt(a) + '</td>' +
-          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef">' + fmt(b) + '</td>' +
-          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef;color:' + (d > 0 ? '#1e8449' : d < 0 ? '#c0392b' : '#444') + '">' + (d > 0 ? '+' : '') + fmt(d) + '</td></tr>';
+        return '<tr><td>' + lib + '</td>' +
+          '<td class="r">' + fmt(a) + '</td>' +
+          '<td class="r">' + fmt(b) + '</td>' +
+          '<td class="r ' + (d > 0 ? 'pp-up' : (d < 0 ? 'pp-down' : '')) + '">' + (d > 0 ? '+' : '') + fmt(d) + '</td></tr>';
       };
-      var out = res ? '<table style="width:100%;border-collapse:collapse;margin-top:12px">' +
-        '<thead><tr style="background:' + COULEUR + ';color:#fff"><th style="padding:6px;text-align:left">Élément</th><th style="padding:6px;text-align:right">Actuel</th><th style="padding:6px;text-align:right">Simulé</th><th style="padding:6px;text-align:right">Écart</th></tr></thead><tbody>' +
+      var out = res ? '<table class="pp-table" style="margin-top:12px"><colgroup><col><col style="width:110px"><col style="width:110px"><col style="width:100px"></colgroup>' +
+        '<thead><tr><th>Élément</th><th class="r">Actuel</th><th class="r">Simulé</th><th class="r">Écart</th></tr></thead><tbody>' +
         ligne('Salaire de base', salaireActuel, res.nouveau) +
         ligne('Brut', res.avant.brut, res.apres.brut) +
         ligne('Total retenues', res.avant.totalRetenues, res.apres.totalRetenues) +
@@ -157,12 +189,13 @@
         ligne('<b>Coût employeur</b>', res.avant.coutEmployeur, res.apres.coutEmployeur) +
         '</tbody></table>' : '';
       cadre.innerHTML =
-        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">🧮 Simulation de salaire' + (opts.nom ? ' — ' + esc(opts.nom) : '') + '</b><button type="button" data-act="fermer">✕ Fermer</button></div>' +
-        '<p style="color:#444;margin:0 0 10px">Salaire de base actuel : <b>' + fmt(salaireActuel) + '</b> FCFA. Le calcul reprend les rubriques, taux et constantes du bulletin en cours, sans rien enregistrer.</p>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">' +
-          '<label>Mode<select data-mode><option value="pct">Augmentation en %</option><option value="montant">Nouveau salaire de base</option></select></label>' +
-          '<label>Valeur<input data-val inputmode="decimal" value="10" style="width:120px"></label>' +
-          '<button type="button" data-act="calc" style="background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '">▶ Simuler</button></div>' + out;
+        '<div class="pp-head"><b>🧮 Simulation de salaire' + (opts.nom ? ' — ' + esc(opts.nom) : '') + '</b><button type="button" class="pp-x" data-act="fermer">Fermer</button></div>' +
+        '<p class="pp-note" style="margin:0 0 10px">Salaire de base actuel : <b>' + fmt(salaireActuel) + '</b> FCFA. Le calcul reprend les rubriques, taux et constantes du bulletin en cours, sans rien enregistrer.</p>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">' +
+          '<label class="pp-lbl">Mode<select data-mode><option value="pct">Augmentation en %</option><option value="montant">Nouveau salaire de base</option></select></label>' +
+          '<label class="pp-lbl">Valeur<input data-val inputmode="decimal" value="10" style="width:120px"></label>' +
+          '<button type="button" class="primary" data-act="calc">▶ Simuler</button>' +
+        '</div>' + out;
     }
 
     cadre.addEventListener('click', function (e) {

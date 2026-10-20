@@ -26,7 +26,8 @@
   var PLAFOND_CNPS = 750000;
   var TRANSPORT = '1430', LOGEMENT = '1435';
   var HORAIRE_MENSUEL = 173.33;
-  var HS_TAUX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 100, '1444': 100 };
+  // Majorations (cours de paie Cameroun, « Calcul de la paie ») : 120/130/140 %, nuit 150 %, férié 200 %
+  var HS_TAUX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 200, '1444': 200 };
 
   // Tables Sage (condition sur SALTAXF) : borne haute incluse ; la dernière borne est l'infini
   var TAXCOM = [[15000,0],[25000,83],[50000,170],[52000,270],[75000,270],[100000,520],[125000,770],[150000,1020],[200000,1270],[330000,1520],[400000,2020],[500000,2270],[Infinity,2520]];
@@ -165,7 +166,8 @@
         cnps: arr(patRaw.cnps), at: arr(patRaw.at), pf: arr(patRaw.pf), fne: arr(patRaw.fne), cfc: arr(patRaw.cfc)
       },
       totalRetenues: totalRetenues,
-      totalPatronales: Math.round(totPatRaw),
+      // Sage additionne les lignes patronales arrondies (et non le total brut arrondi)
+      totalPatronales: arr(patRaw.cnps) + arr(patRaw.at) + arr(patRaw.pf) + arr(patRaw.fne) + arr(patRaw.cfc),
       net: net,
       coutEmployeur: Math.round(brut + totPatRaw),
       retenuesDiverses: arr(retenuesDiv),
@@ -200,10 +202,22 @@
     return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois' };
   }
 
+  // Prime d'ancienneté (barème de référence du cours) : 0 % avant 2 ans révolus, 4 % à 2 ans, puis +2 % par année
+  function tauxAnciennete(ans) {
+    var n = Math.floor(Number(ans) || 0);
+    return n < 2 ? 0 : 4 + 2 * (n - 2);
+  }
+  // Prime = salaire catégoriel de base × taux ; les autres primes et indemnités ne sont pas dans l'assiette
+  function primeAnciennete(salaireCategoriel, ans) {
+    return Math.round(nb(salaireCategoriel) * tauxAnciennete(ans) / 100);
+  }
+
   var API = {
     calculer: calculer,
     gainLigne: gainLigne,
     ancienneteDepuis: ancienneteDepuis,
+    tauxAnciennete: tauxAnciennete,
+    primeAnciennete: primeAnciennete,
     tauxEnVigueur: tauxEnVigueur,
     irppSage: irppSage,
     irppTranche1: irppTranche1,

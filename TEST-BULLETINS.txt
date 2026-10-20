@@ -1,0 +1,28 @@
+TEST DE REPRODUCTION - BULLETINS AVRIL 2026 (2033) ET AOUT 2026 (2032)
+=====================================================================
+Resultats du moteur (paie-moteur.js V3.1 corrigee) compares aux bulletins Sage imprimes.
+
+Element                 Avril : app / bulletin     Aout : app / bulletin
+Salaire brut            197 815 / 197 815          227 793 / 227 793
+Cotisation CNPS sal.      7 741 /   7 741            8 517 /   8 517
+Credit foncier sal.       1 959 /   1 959            2 275 /   2 275
+IRPP                      8 995 /   8 995           11 119 /  11 119
+CAC sur IRPP                900 /     900            1 112 /   1 112
+Taxe communale            1 270 /   1 270            1 520 /   1 520
+Redevance audiovisuelle   1 950 /   1 950            3 250 /   3 250
+Total charges patronales 30 032 /  30 032           33 223 /  33 223   (corrige : somme des lignes arrondies)
+NET A PAYER             175 000 / 175 000          200 000 / 200 000
+
+ECARTS CONNUS (non resolus)
+1. Cumuls "Charges salariales" : bulletin 35 241 (avril) et 38 517 (aout) ; l'app affiche 22 815 et 27 793
+   (= cotisations salariales). L'ecart (12 426 et 10 724) n'est pas explique par les rubriques imprimees :
+   a verifier dans la definition des cumuls Sage.
+2. Cumuls annee : le bulletin d'aout affiche le cumul annuel 227 793 ; l'app n'a pas encore de cumuls (0).
+3. Mise en page : la structure des 4 blocs est reproduite, mais le gabarit Sage (lignes a hauteur fixe,
+   cadres de la zone salarie, encart "NET A PAYER") n'est pas identique. Voir TEST-bulletins-avril-aout.html.
+4. En-tete : Date d'embauche et Lieu de travail a completer depuis la fiche. Aucune prime d'anciennete
+   n'apparait sur ces bulletins (anciennete 1 an et 3 ans 11 mois) : le bouton "Prime d'anciennete" ne doit
+   pas etre utilise pour ces salaries sans verifier la regle de la societe.
+
+Donnees saisies pour le test : rubriques 1000 (173,33 h x base), 1040, 1430 (transport, hors CNPS et CFC),
+1435 (logement, hors CFC), taux CNPS 4,2 %, AT 2,5 %, PF 7 %, FNE 1 %, CFC 1 % / 1,5 %, CAC 10 %.

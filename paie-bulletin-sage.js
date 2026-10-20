@@ -155,9 +155,9 @@
     return L.map(function (r) {
       var v = valeursLigne(r, sansPatr);
       var gras = r.total ? 'font-weight:700;' : '';
-      var td = function (x, al) { return '<td style="border:1px solid #bbb;padding:1px 4px;text-align:' + (al || 'right') + ';white-space:nowrap">' + x + '</td>'; };
+      var td = function (x, al, wrap) { return '<td' + (wrap ? ' class="bs-lib"' : '') + ' style="border:1px solid #bbb;padding:1px 4px;line-height:1.2;text-align:' + (al || 'right') + ';white-space:' + (wrap ? 'normal' : 'nowrap') + '">' + x + '</td>'; };
       return '<tr style="' + gras + '">' + td(r.total ? '' : esc(r.code || ''), 'left') +
-        td(r.total ? esc(r.total) : esc(r.lib || ''), 'left') +
+        td(r.total ? esc(r.total) : esc(r.lib || ''), 'left', true) +
         cols.map(function (c) { return td(v[c[0]] || ''); }).join('') + '</tr>';
     }).join('');
   }
@@ -215,9 +215,21 @@
       rubriques: function () { return tableau(o, R, couleur); },
       pied: function () { return pied(o, R, couleur); }
     };
-    return '<div style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
+    return '<div class="bs-bulletin" style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
-  root.PaieBulletinSage = { html: html, lignesTableau: lignesTableau, bornes: bornes };
+  // Feuille de style du bulletin : cellules serrées (9,5 px), désignation qui passe à la ligne, en-têtes lisibles
+  // sur la couleur choisie (texte blanc si la couleur est foncée, noir sinon)
+  function css(couleur) {
+    var c = teinte(couleur), r = parseInt(c.substr(1, 2), 16), g = parseInt(c.substr(3, 2), 16), b = parseInt(c.substr(5, 2), 16);
+    var txt = (r * 299 + g * 587 + b * 114) / 1000 < 150 ? '#fff' : '#000';
+    return '.bs-bulletin{font-family:Arial,sans-serif;font-size:9.5px;color:#000}' +
+      '.bs-bulletin table{border-collapse:collapse;width:100%}' +
+      '.bs-bulletin td,.bs-bulletin th{border:1px solid #888;padding:1px 4px;line-height:1.2}' +
+      '.bs-bulletin td.bs-lib{white-space:normal}' +
+      '.bs-bulletin th{color:' + txt + ' !important;font-size:9px}';
+  }
+
+  root.PaieBulletinSage = { html: html, css: css, lignesTableau: lignesTableau, bornes: bornes };
 })(typeof window !== 'undefined' ? window : globalThis);
