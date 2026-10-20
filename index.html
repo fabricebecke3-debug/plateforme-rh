@@ -711,7 +711,6 @@ let MULTI=false,CO=null,COS=[],PARAMS_DEF=null,MEMS=[];
 function roleBadgeSync(){try{const u=document.getElementById('ur');if(!u)return;const show=(typeof isOwnerUser==='function'&&isOwnerUser())||['admin','super_owner'].includes(typeof MY_ROLE!=='undefined'?MY_ROLE:'');u.style.display=show?'':'none';}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
 window.roleBadgeSync=roleBadgeSync;
 const curCo=()=>COS.find(c=>c.id===CO)||null;
-window.activeCoName=function(){try{return activeCoName();}catch(e){return '';}};
 const activeCoName=()=>{try{const c=curCo();return (c&&c.nom)||(typeof PARAMS!=='undefined'&&PARAMS&&PARAMS.soc)||'PLATEFORME RH';}catch(e){return 'PLATEFORME RH';}};
 const scq1=q=>MULTI?(CO?q.eq('entreprise_id',CO):(isOwnerUser()?q:q.eq('entreprise_id','00000000-0000-0000-0000-000000000000'))):q;
 let VMODE=(()=>{try{return localStorage.getItem('terh_vm')||'this';}catch(e){return 'this';}})();
@@ -1018,7 +1017,6 @@ let PARAMS={soc:'TOTAL EMPLOI RH',lieu:'Kribi',tel:'233 43 83 07 / 673 72 23 41 
 
 let _ENcache=null,_ENver=0,_ENlast=-1;
 function bumpEN(){_ENver++;}
-window.ENLIST=function(){return EN();};
 function EN(){
   if(_ENlast!==_ENver||!_ENcache){
     _ENcache=E.map(en);
@@ -1181,17 +1179,6 @@ const CAN={
   }
 };
 const toApp=r=>({id:String(r.id),entree:r.date_entree||'',lieu:r.lieu_travail||'',sb:r.salaire_base??'',hor:r.horaire??'',per:r.periodicite||'mois',mod:r.modele_bulletin||'',conv:r.convention||'',cat:r.categorie||'',niv:r.niveau||'',ind:r.indice||'',coef:r.coefficient||'',dane:r.date_anciennete||'',dep:r.date_entree_profession||'',tent:r.type_entree||'',etab:r.etablissement||'',n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.date_naissance||'',t:r.type_contrat||'TEMPORAIRE',deb:r.debut||'',fin:r.fin||'',tel:r.telephone||'',cnps:r.cnps||'',dv:r.date_visite||'',darret:r.date_arret||'',marret:r.motif_arret||'',comarret:r.commentaire_arret||'',contrat_url:r.contrat_url||'',contrat_nom:r.contrat_nom||'',scnpsSafe:cnpsStatut(r.cnps)});
-// Modèles de bulletin : enregistrés dans les paramètres de la société (base), par défaut un modèle Sage
-window.TERH_paieModeles={
-  load:function(){try{const o=JSON.parse((typeof PARAMS!=='undefined'&&PARAMS.paie_modeles)||'null');if(o&&Array.isArray(o.liste)&&o.liste.length)return o.liste;}catch(e){}
-    return [{id:'sage',nom:'Sage standard',couleur:'',afficherPatronales:true,afficherPied:true,pied:'',defaut:true,blocs:['entete','salarie','rubriques','pied'],colonnes:{nombre:true,base:true,taux:true,retenuePatronale:true}}];},
-  save:async function(liste){PARAMS.paie_modeles=JSON.stringify({liste:liste});await saveParam('paie_modeles',PARAMS.paie_modeles);}
-};
-window.chargerFichesPaie=async function(){
-  const r=await scq(db.from('employes').select('*')).order('nom',{ascending:true});
-  if(r.error) throw r.error;
-  return (r.data||[]).map(toApp).filter(function(x){return x.n;}).map(function(x){return {nom:x.n, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||'', poste:x.p||'', niv:x.niv||'', ind:x.ind||'', coef:x.coef||'', cat:x.cat||'', conv:x.conv||'', mod:x.mod||''};});
-};
 const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail:o.lieu}:{}),
   ...(o.sb?{salaire_base:Number(o.sb)}:{}),...(o.hor?{horaire:Number(o.hor)}:{}),...(o.per?{periodicite:o.per}:{}),
   ...(o.mod?{modele_bulletin:o.mod}:{}),...(o.conv?{convention:o.conv}:{}),...(o.cat?{categorie:o.cat}:{}),
@@ -5283,7 +5270,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({charger: window.chargerFichesPaie, employeur: (window.activeCoName?window.activeCoName():''), bulletin: identiteBulletinLue(), constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (window.ENLIST?window.ENLIST():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||'', poste:x.p||'', niv:x.niv||'', ind:x.ind||'', coef:x.coef||'', cat:x.cat||'', conv:x.conv||'', mod:x.mod||''};})}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), employeur: ((typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{}).societe||'', constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, mat:(typeof MAT!=='undefined'&&MAT[x.id])||'', cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -5335,6 +5322,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       '<label style="font-size:12px">Date d\'effet<input id="pp_date" type="date" value="' + jour + '"></label>' +
       '<button class="p" id="pp_ok">Enregistrer la version</button></div>' +
       '<p class="muted" style="font-size:11px;margin-top:8px">Valeurs en vigueur : ' + enVigueur.length + '. Pour une <b>constante</b> (prime fixe, montant réutilisable dans la grille), donnez un code commençant par <b>cst_</b>, ex. cst_prime_fixe.</p>' +
+      '<div class="muted" style="font-size:12px;margin:8px 0"><b>Codes reconnus par le calcul :</b> cnps_sal (4,2 %), cnps_pat (4,2 %), at_pat (2,5 %), pf_pat (7 %), fne_pat (1 %), cfc_sal (1 %), cfc_pat (1,5 %), cac (10 %), plafond_cnps (750 000). Une version à sa date d’effet remplace la précédente pour les bulletins postérieurs à cette date.</div>' +
       '<div id="pp_rubriques"></div>' +
       '<h3 style="margin:14px 0 6px">Identité du bulletin de paie</h3>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px">' +
@@ -6065,6 +6053,10 @@ const WG=[['paie','💰 Paie & droit du travail'],['dsp','⚖️ Disciplinaire']
 let CFG={...DEF},WGT={},SAL={},CUS=[],MAT={},MCFG={prefix:'',width:4,next:1,auto:false},MOD={m:'sage',color:'#1f5fbf',logo:true,sig:'La Direction',foot:'',mention:''};const fm=n=>Math.round(n).toLocaleString('fr-FR')+' F';
 async function rd(cle){try{const {data}=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle',cle).maybeSingle();return data?.valeur?JSON.parse(data.valeur):null;}catch(e){return null;}}
 async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,valeur:JSON.stringify(o),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});if(error)throw error;}
+window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
+window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
+window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
+window.TERH_listeSalaries=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||''}));
 let loaded='';async function load(){if(!CO||loaded===CO)return;loaded=CO;CFG={...DEF,...(await rd('paie_json')||{})};WGT=await rd('widgets_json')||{};SAL=await rd('paie_sal_json')||{};MAT=await rd('matricules_json')||{};CUS=await rd('rubriques_json')||[];MCFG={...MCFG,...(await rd('matricule_cfg_json')||{})};MOD={...MOD,...(await rd('paie_mod_json')||{})};applyW();}
 function applyW(){const adm=['admin','super_owner'].includes(ER());document.querySelectorAll('nav button[data-v]').forEach(b=>{const k=b.dataset.v;if(['dsp','c','a'].includes(k)){const off=WGT[k]===false;if(off&&!adm)b.style.display='none';else if(off&&adm)b.style.opacity='.5';else{b.style.opacity='';if(b.id!=='nh'&&b.style.display==='none'&&k!=='dsp')b.style.display='';}}});const p=$('npaie');if(p)p.style.display=(['admin','super_owner','editeur'].includes(ER())&&WGT.paie!==false)?'':'none';}
 const TB=(v,T)=>{for(const [m,x] of T)if(v<=m)return x;return T[T.length-1][1];};
@@ -6073,7 +6065,26 @@ const taxcom=v=>window.SAGE?SAGE.ev('TAXCOM',{SALTAXF:v}):TB(v,[[15000,0],[25000
 const taxdev=v=>window.SAGE?SAGE.ev('TAXDEVLO',{SALTAXF:v}):TB(v,[[61999,0],[75000,250],[100000,500],[125000,750],[150000,1000],[200000,1250],[250000,1500],[300000,2000],[500000,2250],[Infinity,2500]]);
 /* IRPP mensuel = formule Sage (IRPPT/TRA/TRB/TRC/TRD) sur le salaire taxable mensuel S */
 function irpp(S){if(window.SAGE)return SAGE.ev('IRPPT',{SALTAXF:S,SALTAX:S});if(S<=62000)return 0;if(S<=310000)return Math.max(0,S*0.672-41667)*0.10;if(S<=429000)return (S-310000)*0.105+16693;if(S<=667000)return (S-429000)*0.175+29188;return (S-667000)*0.245+70830;}
-function calc(b,aut,nc,tx,nt){nt=Math.min(Math.max(+nt||0,0),b);nc=Math.min(Math.max(+nc||0,0),b-nt);const R=Math.round,Sx=b-nt,c=Math.min(b-nc-nt,CFG.plafond),cn=R(c*CFG.cnps_sal/100),cf=R(Sx*CFG.cfc_sal/100),i0=irpp(Sx),ir=R(i0),ca=R(i0*CFG.cac/100),im=ir+ca,cr=CFG.crtv===0?0:crtv(Sx),tt=tx==='tc'?taxcom(Sx):tx==='tdl'?taxdev(Sx):0,au=(+aut||0)+cr+tt,net=b-cn-cf-im-au,pat=R(c*CFG.cnps_pat/100)+R(c*CFG.at/100)+R(c*CFG.af/100)+R(c*CFG.fne/100)+R(b*CFG.cfc_pat/100);return{b,c,nc,nt,cn,cf,bi:Sx,ir:ir*12,ca:ca*12,im,aut:au,crtv:cr,tx:tt,net,pat,cout:b+pat};}
+function calc(b,aut,nc,tx,nt){
+  /* Moteur unique : PaieMoteur (formules Sage, vérifié sur le bulletin d'avril 2026). Ne plus réécrire les calculs ici. */
+  nt=Math.min(Math.max(+nt||0,0),b);nc=Math.min(Math.max(+nc||0,0),b-nt);
+  const M=window.PaieMoteur;
+  if(!M||typeof M.calculer!=='function')throw new Error('paie-moteur.js non chargé');
+  const CF=CFG,aux=Math.max(0,+aut||0);
+  const lignes=[{code:'1000',gain:b-nt-nc,cnps:true,irpp:true}];
+  if(nt>0)lignes.push({code:'1430',gain:nt,cnps:false,irpp:true,transport:true});
+  if(nc>0)lignes.push({code:'9999',lib:'Élément non cotisable CNPS',gain:nc,cnps:false,irpp:true});
+  if(aux>0)lignes.push({code:'2000',lib:'Autres retenues',gain:aux,retenue:true});
+  const saisies={salaireBase:b,
+    taux:Object.assign({cnps_sal:CF.cnps_sal,cnps_pat:CF.cnps_pat,at_pat:CF.at,pf_pat:CF.af,fne_pat:CF.fne,cfc_sal:CF.cfc_sal,cfc_pat:CF.cfc_pat,cac:CF.cac,plafond_cnps:CF.plafond,cnps_plafond_mode:CF.cnps_plafond_mode||'sage'},window.PAIE_TAUX_CACHE||{}),
+    taxeCommunale:tx==='tc'?undefined:0,
+    taxeDevLocal:tx==='tdl',
+    redevance:CF.crtv===0?0:undefined};
+  const R=M.calculer(lignes,saisies),S=R.salariales;
+  const tt=tx==='tc'?S.taxeCommunale:tx==='tdl'?S.taxeDevLocal:0;
+  const im=S.irpp+S.cac;
+  const au=R.totalRetenues-S.cnps-S.cfc-im;
+  return{b:R.brut,c:R.baseCNPS,nc,nt,cn:S.cnps,cf:S.cfc,cfc_sal:S.cfc,bi:R.netImposable,ir:S.irpp*12,ca:S.cac*12,im,aut:au,crtv:S.redevance,tx:tt,net:R.net,pat:R.totalPatronales,cout:R.coutEmployeur};}
 function conge(d){const x=new Date(d);if(isNaN(x))return null;const n=new Date();let m=(n.getFullYear()-x.getFullYear())*12+n.getMonth()-x.getMonth();if(n.getDate()-x.getDate()>=15||n.getDate()>=x.getDate())m+=0;if(n.getDate()<x.getDate()&&(n.getDate()-x.getDate())>-15)m+=0;m=Math.max(0,m);const an=Math.floor(m/12);return{m,an,princ:1.5*m,anc:2*Math.floor(an/5),ouvert:m>=12};}
 
 const gross=id=>{const x=SAL[id]||{},b=+x.b||0,h=b/(CFG.hmois||173.33),hl=[['h1','1110'],['h2','1130'],['h3','1140'],['hd','1151'],['hn','1150']].map(([k,cd])=>{const n=+x[k]||0,t=CFG['hs'+(k==='hd'?'d':k==='hn'?'n':k[1])];return[cd,'Heures Supplémentaires '+(100+t)+'%',n,100+t,Math.round(h*n*(1+t/100))];}),hs=hl.reduce((a,l)=>a+l[4],0),pr=+x.p||0,cl=[];let cx=0,cr=0;CUS.forEach(c=>{const m=+(x.x||{})[c.id]||0;if(m){cl.push({n:c.n,t:c.t,m});if(c.t==='g')cx+=m;else cr+=m;}});const av=Math.min(+x.avm||0,(x.avs===undefined||x.avs===''||x.avs===null)?(+x.avm||0):(+x.avs||0)),rr=+x.r||0;return{b,hs,pr,cx,cl,av,rr,nc:+x.nc||0,nt:+x.nt||0,tx:x.tx||'',hl,p:pr+hs+cx,r:rr+av+cr};};
@@ -6135,19 +6146,32 @@ function withArc(o,f){const s=[CFG,SAL,MOD,MAT];CFG={...DEF,...o.cfg};SAL=o.sal|
 function close(){const m=$('pym');if(m)m.remove();}
 function open(tab){close();tab=tab||'sim';const m=document.createElement('div');m.id='pym';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:10px';
 const emp=(E||[]).filter(r=>r.sc!=='ARRÊT').map(r=>'<option value="'+esc(r.id)+'">'+esc(r.n)+'</option>').join('');
-const ADM=['admin','super_owner'].includes(ER());if(!ADM&&!['sim','liv','cg'].includes(tab))tab='liv';const tabs=[['sim','🧾 Bulletin'],['cg','🏖️ Congés légaux'],['liv','📒 Saisie & états'],['rub','➕ Rubriques'],['mat','🔢 Matricules'],['arc','🗄️ Archives'],['mod','🎨 Modèles'],['cfg','⚙️ Taux'],['wg','🧩 Widgets']].filter(([k])=>ADM||['sim','liv','cg'].includes(k)).map(([k,l])=>'<button class="s" data-pt="'+k+'" style="'+(k===tab?'font-weight:700;border-bottom:2px solid var(--pr,#1f5fbf)':'')+'">'+l+'</button>').join('');
+const ADM=['admin','super_owner'].includes(ER());if(!ADM&&!['sim','liv','cg','pt'].includes(tab))tab='liv';const tabs=[['sim','🧾 Bulletin'],['cg','🏖️ Congés légaux'],['liv','📒 Saisie & états'],['rub','➕ Gains & retenues perso.'],['mat','🔢 Matricules'],['arc','🗄️ Archives'],['cfg','⚙️ Taux'],['pt','⏱ Pointage'],['simu','🧮 Simulation'],['wg','🧩 Widgets']].filter(([k])=>ADM||['sim','liv','cg','pt'].includes(k)).map(([k,l])=>'<button class="s" data-pt="'+k+'" style="'+(k===tab?'font-weight:700;border-bottom:2px solid var(--pr,#1f5fbf)':'')+'">'+l+'</button>').join('');
 let body='';
 if(tab==='sim')body='<p class="muted" style="font-size:12px">Simulation indicative. Vérifiez les taux (onglet Taux).</p><select id="pye" style="width:100%">'+'<option value="">— Employé (facultatif) —</option>'+emp+'</select><input id="pyb" type="number" placeholder="Salaire brut mensuel (FCFA)" style="width:100%;margin-top:6px"><input id="pya" type="number" placeholder="Autres retenues mensuelles (avance, TDL, RAV…)" style="width:100%;margin-top:6px"><button class="p" id="pyc" style="width:100%;margin-top:8px">Calculer</button><div id="pyr" style="margin-top:10px"></div>';
 if(tab==='cg')body='<select id="pge" style="width:100%"><option value="">— Choisir un employé —</option>'+emp+'</select><div id="pgr" style="margin-top:10px;white-space:pre-wrap"></div><p class="muted" style="font-size:11px">Code du travail (Loi 92/007) : 1,5 jour ouvrable/mois (art. 89), +2 jours par période entière de 5 ans d\'ancienneté (art. 90), droit de jouissance après 12 mois (art. 92). Les conventions collectives peuvent être plus favorables.</p>';
 if(tab==='liv')body='<p class="muted" style="font-size:12px">Saisissez les données de l\'employé : le calcul (CNPS, impôt, heures sup, avances) est automatique.</p><input id="pyper" type="month" value="'+new Date().toISOString().slice(0,7)+'" style="width:100%;margin-bottom:6px"><select id="pse" style="width:100%"><option value="">— Choisir un employé —</option>'+active().map(r=>'<option value="'+esc(r.id)+'">'+esc((MAT[r.id]||'')+' '+r.n)+'</option>').join('')+'</select><div id="psf" style="margin-top:6px"></div><div id="psn" style="font-weight:700;margin:6px 0"></div><button class="p" id="pls" style="width:100%;display:none">💾 Enregistrer cet employé</button><div style="display:flex;gap:6px;margin-top:10px"><button class="s" id="plb" style="flex:1">🖨️ Livre de paie</button><button class="s" id="plt" style="flex:1">🖨️ Tous les bulletins</button></div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="s" id="plc">📊 Livre Excel</button><button class="s" id="pcn">🏛️ État CNPS</button><button class="s" id="pdipe">📄 DIPE magnétique</button><button class="s" id="pdipeb">📤 DIPE depuis bulletins</button><button class="s" id="pvr">💳 État virements</button><button class="s" id="par">📦 Archiver le mois</button></div>';
 if(tab==='rub')body='<p class="muted" style="font-size:12px">Créez vos propres rubriques (prime de transport, logement, mutuelle…). Les gains sont ajoutés au brut imposable et cotisable.</p>'+(CUS.length?CUS.map(c=>'<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">'+esc(c.n)+' <i>('+(c.t==='g'?'gain':'retenue')+')</i></span><button class="s" data-rd="'+esc(c.id)+'">🗑️</button></div>').join(''):'<p>Aucune rubrique.</p>')+'<input id="prn" placeholder="Nom de la rubrique" style="width:100%;margin-top:8px"><select id="prt" style="width:100%;margin:4px 0"><option value="g">Gain (s\'ajoute au brut)</option><option value="r">Retenue (se déduit du net)</option></select><button class="p" id="pra" style="width:100%">➕ Ajouter</button>';
+if(tab==='sim')body+='<button class="p" id="sim_det" style="width:100%;margin-top:10px">🧾 Bulletin détaillé (rubriques)</button>';
+if(tab==='rub')body+='<p class="muted" style="font-size:12px;margin-top:10px">Le <b>catalogue des rubriques de paie</b> (codes, types, indicateurs CNPS / CFC / imposable) se gère ici :</p><button class="s" id="rub_cat" style="width:100%;margin-top:4px">⚙️ Catalogue des rubriques de paie</button>';
 if(tab==='mat')body='<p class="muted" style="font-size:12px">Choisissez le premier employé et saisissez son matricule (ex. ACC-0001) : les autres reçoivent le suivant automatiquement, par ordre d\'embauche.</p><select id="pmf1" style="width:100%"><option value="">— Premier employé —</option>'+active().filter(e=>!MAT[e.id]).sort(byDeb).map(r=>'<option value="'+esc(r.id)+'">'+esc(r.n)+'</option>').join('')+'</select><input id="pmex" placeholder="Matricule du premier (ex. ACC-0001)" style="width:100%;margin:6px 0"><button class="p" id="pmg" style="width:100%">⚡ Générer pour les employés sans matricule</button><label style="display:block;margin:8px 0"><input type="checkbox" id="pma" '+(MCFG.auto?'checked':'')+'> Générer automatiquement pour les nouveaux employés</label><div style="max-height:34vh;overflow:auto"><table style="width:100%;font-size:12px">'+active().sort(byDeb).map(r=>'<tr><td>'+esc(r.n)+'</td><td><input data-m="'+esc(r.id)+'" value="'+esc(MAT[r.id]||'')+'" style="width:120px"></td></tr>').join('')+'</table></div><button class="s" id="pmv" style="width:100%;margin-top:6px">💾 Enregistrer les modifications</button>';
 if(tab==='arc')body='<div id="parl" class="muted">Chargement…</div>';
 if(tab==='mod')body='<p class="muted" style="font-size:12px">Choisissez la structure du bulletin et personnalisez-la. Le logo se règle dans 📷.</p><select id="pmm" style="width:100%"><option value="classic">Classique (tableau encadré)</option><option value="moderne">Moderne (bandeau couleur)</option><option value="compact">Compact (plusieurs par page)</option></select><label style="display:flex;justify-content:space-between;margin:6px 0">Couleur<input id="pmc" type="color" value="'+(MOD.color||'#1f5fbf')+'"></label><label style="display:block;margin:6px 0"><input id="pml" type="checkbox" '+(MOD.logo?'checked':'')+'> Afficher le logo</label><input id="pms" placeholder="Signature (ex. La Direction)" value="'+esc(MOD.sig||'')+'" style="width:100%;margin:3px 0"><input id="pmf" placeholder="Texte de bas de page gauche" value="'+esc(MOD.foot||'')+'" style="width:100%;margin:3px 0"><textarea id="pmt" placeholder="Mention légale (ex. À conserver sans limitation de durée)" style="width:100%;min-height:60px">'+esc(MOD.mention||'')+'</textarea><button class="p" id="pmsv" style="width:100%;margin-top:6px">💾 Enregistrer</button><button class="s" id="pmp" style="width:100%;margin-top:6px">👁️ Aperçu</button>';
+if(tab==='mod')body+='<button class="s" id="mod_open" style="width:100%;margin-top:8px">📄 Bulletins modèles (pied, patronales, couleur)</button>';
 if(tab==='cfg')body='<p class="muted" style="font-size:12px">Valeurs par défaut issues de sources en ligne (CNPS, CGI) : à valider avec votre comptable ou la DGI, car elles changent selon les lois de finances.</p>'+Object.keys(DEF).map(k=>'<label style="display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-size:13px">'+LBL[k]+'<input data-k="'+k+'" type="number" step="any" value="'+CFG[k]+'" style="width:110px"></label>').join('')+'<button class="p" id="pys" style="width:100%;margin-top:8px">💾 Enregistrer (cette entreprise)</button>';
+if(tab==='pt')body='<p class="muted" style="font-size:12px">Saisissez les heures supplémentaires de chaque salarié pour la période. Elles sont reprises dans le bulletin détaillé.</p><button class="p" id="pt_open" style="width:100%">⏱ Ouvrir le pointage</button>';
+if(tab==='simu')body='<p class="muted" style="font-size:12px">Simulation sur le salaire de base seul (sans primes ni indemnités). Pour une simulation complète, ouvrez le bulletin détaillé puis 🧮 Simulation.</p><input id="sim_sal" type="number" placeholder="Salaire de base actuel" style="width:100%"><button class="p" id="simu_open" style="width:100%;margin-top:6px">🧮 Simuler</button>';
 if(tab==='wg')body='<p class="muted" style="font-size:12px">Activez ou désactivez les modules pour l\'entreprise ouverte. Un module désactivé est caché aux non-administrateurs.</p>'+WG.map(([k,l])=>'<label style="display:block;margin:8px 0"><input type="checkbox" data-w="'+k+'" '+(WGT[k]===false?'':'checked')+'> '+l+'</label>').join('')+'<button class="p" id="pws" style="width:100%">💾 Enregistrer</button>';
 m.innerHTML='<div style="background:var(--bg,#fff);color:inherit;max-width:480px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:14px"><h3 style="margin:0 0 8px">💰 Paie &amp; droit — '+esc(curCo()?.nom||'')+'</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">'+tabs+'</div>'+body+'<button class="s" id="pyx" style="width:100%;margin-top:12px">Fermer</button></div>';
 document.body.appendChild(m);$('pyx').onclick=close;m.onclick=e=>{if(e.target===m)close();};m.querySelectorAll('[data-pt]').forEach(b=>b.onclick=()=>open(b.dataset.pt));
+const hx=(id,f)=>{const el=m.querySelector('#'+id);if(el)el.onclick=f;};
+const listeSal=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||''}));
+const periodeCourante=()=>{const d=new Date(),y=d.getFullYear(),mo=d.getMonth()+1,pp=n=>String(n).padStart(2,'0'),aa=String(y).slice(2),last=new Date(y,mo,0).getDate();return '01/'+pp(mo)+'/'+aa+' au '+pp(last)+'/'+pp(mo)+'/'+aa;};
+hx('pt_open',()=>{if(window.PaiePointage)PaiePointage.ouvrir({employes:listeSal(),periode:periodeCourante()});else say('Module pointage non chargé');});
+hx('simu_open',()=>{const v=parseFloat(m.querySelector('#sim_sal').value)||0;if(!(v>0)){say('Saisissez le salaire de base');return;}if(window.PaieSimulation)PaieSimulation.ouvrir({lignes:[{code:'1000',gain:v,cnps:true,irpp:true}],saisies:{taux:window.PAIE_TAUX_CACHE||{}},nom:''});else say('Module simulation non chargé');});
+hx('sim_det',()=>{const __id=(typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{};if(window.PaieDetail)PaieDetail.ouvrir({bulletin:__id,employeur:__id.societe||'',taux:window.PAIE_TAUX_CACHE,rubriques:window.PAIE_RUB_CACHE,employes:listeSal()});else say('Bulletin détaillé non chargé');});
+hx('rub_cat',()=>{if(window.PaieRubriques)PaieRubriques.ouvrir(window.PAIE_RUB_CACHE||[],l=>{window.PAIE_RUB_CACHE=l;});else say('Éditeur de rubriques non chargé');});
+hx('mod_open',()=>{if(window.PaieModeles)PaieModeles.ouvrir();else say('Modèles non chargés');});
 if($('pyc'))$('pyc').onclick=()=>{const b=+$('pyb').value;if(!(b>0)){toast('Saisissez le salaire brut');return;}const r=calc(b,+$('pya').value||0),nm=$('pye').selectedOptions[0]?.text||'';const L=[['Salaire brut',r.b],['CNPS salarié',-r.cn],['Crédit foncier salarié',-r.cfc_sal||-r.cf],['IRPP (mensuel)',-r.ir/12],['CAC',-r.ca/12],['Autres retenues',-r.aut]];
 $('pyr').innerHTML='<table style="width:100%;font-size:13px">'+L.map(x=>'<tr><td>'+x[0]+'</td><td style="text-align:right">'+fm(x[1])+'</td></tr>').join('')+'<tr><td><b>Net à payer</b></td><td style="text-align:right"><b>'+fm(r.net)+'</b></td></tr><tr><td>Charges patronales</td><td style="text-align:right">'+fm(r.pat)+'</td></tr><tr><td>Coût employeur</td><td style="text-align:right">'+fm(r.cout)+'</td></tr></table><button class="s" id="pyp" style="margin-top:8px">🖨️ Imprimer</button>';
 $('pyp').onclick=()=>{const e=(E||[]).find(x=>String(x.id)===$('pye').value);if(e){SAL[e.id]={b:+$('pyb').value,p:0,r:+$('pya').value||0};printHTML('Bulletin de paie',slip(null,e,per()));return;}printHTML('Bulletin de paie','<h2>Bulletin de paie (simulation)</h2><p>'+esc(curCo()?.nom||'')+(nm&&!nm.startsWith('—')?' — '+esc(nm):'')+'</p><table><tbody>'+L.map(x=>'<tr><td>'+x[0]+'</td><td>'+fm(x[1])+'</td></tr>').join('')+'<tr><th>Net à payer</th><th>'+fm(r.net)+'</th></tr></tbody></table><p style="font-size:10px">Document indicatif : à valider selon les taux en vigueur.</p>');};};
@@ -7227,9 +7251,9 @@ const T=m=>{try{toast(m)}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.messa
 const uid=()=>{try{return (window.ME&&(ME.id||ME.email))||(q('.ub')&&q('.ub').textContent)||'u'}catch(e){return 'u'}};
 const LK=()=>'terh_lang_'+uid();
 let LANG=localStorage.getItem(LK())||localStorage.getItem('terh_lang')||'fr';
-const EN={'Tableau de bord':'Dashboard','Personnel':'Staff','Alertes':'Alerts','Disciplinaire':'Disciplinary','Congés':'Leave','Nouvel employé':'New employee','Paramètres':'Settings','Paie & droit':'Payroll & law','Propriétaire':'Owner','Importer':'Import'};
+const I18N_EN={'Tableau de bord':'Dashboard','Personnel':'Staff','Alertes':'Alerts','Disciplinaire':'Disciplinary','Congés':'Leave','Nouvel employé':'New employee','Paramètres':'Settings','Paie & droit':'Payroll & law','Propriétaire':'Owner','Importer':'Import'};
 function applyLang(){document.documentElement.lang=LANG;
- document.querySelectorAll('nav button').forEach(b=>{if(b.id==='tx_cnps'||b.id==='tx_lang')return;if(!b.dataset.fr)b.dataset.fr=b.textContent;[...b.childNodes].filter(n=>n.nodeType===3).forEach(n=>{if(n.__fr===undefined)n.__fr=n.nodeValue;let t=n.__fr;if(LANG==='en')Object.entries(EN).forEach(([k,v])=>{t=t.replace(k,v)});if(n.nodeValue!==t)n.nodeValue=t;});});}
+ document.querySelectorAll('nav button').forEach(b=>{if(b.id==='tx_cnps'||b.id==='tx_lang')return;if(!b.dataset.fr)b.dataset.fr=b.textContent;[...b.childNodes].filter(n=>n.nodeType===3).forEach(n=>{if(n.__fr===undefined)n.__fr=n.nodeValue;let t=n.__fr;if(LANG==='en')Object.entries(I18N_EN).forEach(([k,v])=>{t=t.replace(k,v)});if(n.nodeValue!==t)n.nodeValue=t;});});}
 function setLang(l){LANG=l;try{localStorage.removeItem('terh_vlang');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}const _b=document.getElementById('alang');if(_b)_b.textContent=(l==='en'?'EN':'FR');localStorage.setItem(LK(),l);localStorage.setItem('terh_lang',l);applyLang();T(l==='en'?'Language: English (AI replies in English)':'Langue : Français (l\'IA répond en français)');}
 const LN=()=>LANG==='en'?'English':'français';
 /* modal */
@@ -7505,7 +7529,7 @@ function ui(){const w=win(`<h2 style="margin:0 0 8px">🧮 Moteur de paie</h2>
   q('#s_sv').onclick=async()=>{if(!last){T('Calculez d\'abord');return;}try{const h=(await rd('paie_calculs_json'))||[];h.push({le:new Date().toISOString(),par:(q('.ub')||{}).textContent||'',...last});await wr('paie_calculs_json',h.slice(-100));T('Calcul archivé avec les paramètres utilisés');}catch(e){T('Erreur : '+e.message)}};};
  w.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>b.dataset.t==='p'?tabP():tabS());tabP();}
 function mk(){const nav=q('nav'),pb=q('#npaie');if(!nav||!pb)return;let b=q('#tx_paie');
- if(!b){b=document.createElement('button');b.id='tx_paie';b.type='button';b.textContent='🧮 Moteur de paie';b.title='Moteur de paie';b.style.display='none';b.onclick=async()=>{try{ if(window.PaieDetail){ PaieDetail.ouvrir({taux:window.PAIE_TAUX_CACHE, rubriques:window.PAIE_RUB_CACHE}); return; } if(!P)await load();ui();}catch(e){T('Erreur : '+e.message)}};pb.after(b);}
+ if(!b){b=document.createElement('button');b.id='tx_paie';b.type='button';b.textContent='🧮 Moteur de paie';b.title='Moteur de paie';b.style.display='none';b.onclick=()=>{const p=document.getElementById('npaie');if(p&&p.style.display!=='none')p.click();else T('Menu Paie non disponible pour votre rôle');};pb.after(b);}
  b.style.display=pb.style.display;}
 setInterval(mk,1500);window.TERH_calcPaie=calc;window.TERH_DEF=DEF;
 })();
@@ -9501,9 +9525,10 @@ hook();setInterval(hook,1500);
 <script src="formation/export-outils.js"></script>
 <script src="graphiques.js"></script>
 <script src="paie-moteur.js"></script>
-<script src="paie-rubriques-sage.js"></script>
+<script src="paie-conges.js"></script>
+<script src="paie-rubriques.js"></script>
 <script src="paie-modeles.js"></script>
-<script src="paie-bulletin-sage.js"></script>
+<script src="paie-pointage-simulation.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>

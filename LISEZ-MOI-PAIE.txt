@@ -1,0 +1,55 @@
+FICHIERS PAIE - A UPLOADER (dossier de l'application, a cote de index.html)
+==========================================================================
+1. index.html                    -> remplace l'ancien index (version paie branchee)
+2. paie-moteur.js                -> moteur de calcul (formules Sage verifiees, net sur montants exacts)
+3. paie-conges.js                -> congés payés
+4. paie-rubriques.js             -> éditeur des rubriques de paie (sauvegarde base)
+5. paie-modeles.js               -> bulletins modèles (sauvegarde base)
+6. paie-pointage-simulation.js   -> pointage des heures sup. et simulation
+7. paie-detail.js                -> bulletin détaillé (utilise tous les modules ci-dessus)
+8. sw.js                         -> service worker (version terh-v5), à la racine du site
+9. dipe-plus.js                  -> copie corrigée (deux corrections)
+
+NE PAS UPLOADER
+- obsoletes/paie-sage-pro.js : ancienne interface, remplacée par le bulletin détaillé.
+
+TEST APRES MISE EN LIGNE
+a) Moteur de paie > Bulletin détaillé : la liste des salariés est remplie, l'employeur est prérempli.
+b) Matricule interne affiché sur le bulletin ; alerte si absent.
+c) Bouton Rubriques : créer une rubrique, enregistrer, la retrouver après rechargement.
+d) Bouton Modèles : créer un modèle, le définir par défaut, imprimer (bloc patronal masqué si désactivé).
+e) Pointage : 10 h en 1110 -> Appliquer -> ligne « Heures supplémentaires 20 % » sur le bulletin.
+f) Simulation : +10 % -> net simulé inférieur, coût employeur supérieur.
+g) Paie & droit > Taux : une version datée est prise en compte dans le calcul.
+
+LIMITES CONNUES
+- Ecrans en doublon dans Paie & droit : anciens onglets « Rubriques » (liste personnalisée) et
+  « Modèles » (présentation classique/moderne/compact) coexistent avec les nouveaux écrans.
+- Simulation de l'onglet : salaire de base seul.
+- Pas encore testé dans un navigateur avec les données réelles.
+
+MISE A JOUR (consolidation des onglets)
+- Paie & droit : l'onglet « Modèles » est retiré du menu. Les modèles se gèrent depuis
+  le bulletin détaillé (bouton 📄 Modèles).
+- L'onglet « Rubriques » est renommé « Gains & retenues perso. » : ce sont les montants
+  personnalisés par salarié (utilisés par le calcul). Le catalogue des rubriques de paie
+  s'ouvre depuis le bouton « Catalogue des rubriques de paie » dans ce même onglet.
+
+MISE A JOUR (bouton 🧮)
+- Le bouton 🧮 ouvre désormais « 💰 Paie & droit » sur l'onglet Bulletin. Il n'y a plus qu'une
+  entrée de paie.
+- L'onglet Bulletin contient le bouton « 🧾 Bulletin détaillé (rubriques) ».
+
+VERSION 2 - BULLETINS MODELES ET SALARIES
+- Modèle : logo importé (PNG/JPG, 300 Ko max) avec position (gauche, centre, droite, aucun) ;
+  rubriques à imprimer cochées et ordonnées (▲ ▼) ; disposition des blocs ; colonnes
+  (nombre, base, taux, charges patronales) ; pied légal et texte complémentaire.
+  Ces choix sont appliqués au bulletin imprimé (paie-detail.js, fonction bulletinHTML).
+- Liste « Salarié » : alimentée depuis la fiche des salariés de la société, même si le bulletin
+  est ouvert directement (bouton 🧾 Bulletin détaillé).
+- Fond des champs : forcé en blanc dans les fenêtres Modèles, Rubriques, Pointage.
+
+IMPORTANT : déployer les fichiers de ce dossier outputs uniquement. Une version antérieure de
+paie-detail.js (message « Aucune fiche transmise ») ne contient pas ces corrections.
+Non intégrés pour l'instant : paie-bulletin-sage.js et paie-rubriques-sage.js (catalogue Sage
+de 145 rubriques) — à intégrer dans une étape dédiée si vous le souhaitez.
