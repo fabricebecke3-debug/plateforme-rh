@@ -117,33 +117,58 @@
     return L;
   }
 
-  function corpsTableau(L) {
-    var td = function (v, al) { return '<td style="border:1px solid #bbb;padding:1px 4px;text-align:' + (al || 'right') + ';white-space:nowrap">' + v + '</td>'; };
+  // Colonnes du tableau, selon le modèle (nombre, base, taux, retenue patronale peuvent être masqués)
+  var COLS = [['nombre', 'Nombre'], ['base', 'Base'], ['taux', 'Taux'], ['gain', 'Gain'], ['ret', 'Retenue salariale'], ['tauxP', 'Taux pat.'], ['retP', 'Retenue patronale']];
+  function colonnesVisibles(mod) {
+    var c = (mod && mod.colonnes) || {};
+    return COLS.filter(function (k) {
+      if (k[0] === 'nombre') return c.nombre !== false;
+      if (k[0] === 'base') return c.base !== false;
+      if (k[0] === 'taux' || k[0] === 'tauxP') return c.taux !== false;
+      if (k[0] === 'retP') return c.retenuePatronale !== false;
+      return true;
+    });
+  }
+  // Valeurs affichées pour une ligne (chaque clé = une colonne)
+  function valeursLigne(r, sansPatr) {
+    var v = {};
+    if (r.total) {
+      if (r.totalCot) { v.ret = fmt(r.ret); v.retP = sansPatr ? '' : fmt(r.retP); }
+      else { v.gain = fmt(r.gain); }
+      return v;
+    }
+    if (r.gainLigne) {
+      v.nombre = (r.nombre != null && r.nombre !== '') ? nb(r.nombre, 3) : '';
+      v.base = (r.base != null && r.base !== '') ? nb(r.base, 3) : '';
+      v.taux = (r.taux != null && r.taux !== '') ? nb(r.taux, 3) : '';
+      v.gain = fmt(r.gain);
+      return v;
+    }
+    v.base = r.base != null ? fmt(r.base) : '';
+    v.taux = r.tauxS != null ? nb(r.tauxS, 3) : '';
+    v.ret = r.ret ? fmt(r.ret) : (r.ret === 0 && r.code ? '0' : '');
+    v.tauxP = r.tauxP != null ? nb(r.tauxP, 3) : '';
+    v.retP = sansPatr ? '' : (r.retP ? fmt(r.retP) : (r.retP === 0 && r.code ? '0' : ''));
+    return v;
+  }
+  function corpsTableau(L, cols, sansPatr) {
     return L.map(function (r) {
-      if (r.total) {
-        if (r.totalCot) return '<tr style="font-weight:700">' + td('', 'left') + td('Total cotisations', 'left') + td('') + td('') + td('') + td('') + td('') + td('') + td(fmt(r.ret)) + td('') + td(fmt(r.retP)) + '</tr>';
-        return '<tr style="font-weight:700">' + td('', 'left') + td(r.total, 'left') + td('') + td('') + td('') + td(fmt(r.gain)) + td('') + td('') + td('') + td('') + '</tr>';
-      }
-      var gain = r.gainLigne ? fmt(r.gain) : '';
-      var base = r.gainLigne ? (r.nombre != null && r.nombre !== '' ? nb(r.nombre, 3) : '') : (r.base != null ? fmt(r.base) : '');
-      return '<tr>' + td(esc(r.code || ''), 'left') + td(esc(r.lib || ''), 'left') +
-        td(r.gainLigne ? (r.nombre != null && r.nombre !== '' ? nb(r.nombre, 3) : '') : '') +
-        td(r.gainLigne ? (r.base != null && r.base !== '' ? nb(r.base, 3) : '') : base) +
-        td(r.gainLigne ? (r.taux != null && r.taux !== '' ? nb(r.taux, 3) : '') : (r.tauxS != null ? nb(r.tauxS, 3) : '')) +
-        td(r.gainLigne ? gain : '') +
-        td(r.ret ? fmt(r.ret) : (r.ret === 0 && r.code && !r.gainLigne ? '0' : '')) +
-        td(r.tauxP != null ? nb(r.tauxP, 3) : '') +
-        td(r.retP ? fmt(r.retP) : (r.retP === 0 && r.code && !r.gainLigne ? '0' : '')) +
-        td(r.retenueDiverse ? '' : '') + '</tr>';
+      var v = valeursLigne(r, sansPatr);
+      var gras = r.total ? 'font-weight:700;' : '';
+      var td = function (x, al) { return '<td style="border:1px solid #bbb;padding:1px 4px;text-align:' + (al || 'right') + ';white-space:nowrap">' + x + '</td>'; };
+      return '<tr style="' + gras + '">' + td(r.total ? '' : esc(r.code || ''), 'left') +
+        td(r.total ? esc(r.total) : esc(r.lib || ''), 'left') +
+        cols.map(function (c) { return td(v[c[0]] || ''); }).join('') + '</tr>';
     }).join('');
   }
-
   function tableau(o, R, couleur) {
+    var mod = o.modele || {};
+    var cols = colonnesVisibles(mod);
     var L = lignesTableau(o, R);
     var th = function (t, al) { return '<th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;font-size:9px;text-align:' + (al || 'center') + '">' + t + '</th>'; };
     return '<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:0">' +
-      '<thead><tr>' + th('N°', 'left') + th('Désignation', 'left') + th('Nombre') + th('Base') + th('Taux') + th('Gain') + th('Retenue salariale') + th('Taux') + th('Retenue patronale') + th('') + '</tr></thead>' +
-      '<tbody>' + corpsTableau(L) + '</tbody></table>';
+      '<thead><tr>' + th('N°', 'left') + th('Désignation', 'left') + cols.map(function (c) { return th(c[1]); }).join('') + '</tr></thead>' +
+      '<tbody>' + corpsTableau(L, cols, o._sansPatronales) + '</tbody></table>';
   }
 
   function pied(o, R, couleur) {
@@ -171,16 +196,27 @@
       '<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:15px;font-weight:700;background:' + couleur + ';width:45%">NET À PAYER</td>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:18px;font-weight:700;text-align:right">' + fmt(R.net) + ' FCFA</td></tr></table>' +
-      '<p style="font-size:8.5px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' +
-      'Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>';
+      (o._sansPied ? '' : '<p style="font-size:8.5px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
+      (o._sansPatronales ? '' : '<p style="font-size:8.5px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
   }
 
   function html(o) {
     var R = o.resultat;
-    var couleur = teinte((o.bulletin || {}).couleur);
     if (!R) return '';
+    var mod = o.modele || {};
+    var couleur = teinte(mod.couleur || (o.bulletin || {}).couleur);
+    if (mod.afficherPatronales === false) o = Object.assign({}, o, { _sansPatronales: true });
+    if (mod.afficherPied === false) o = Object.assign({}, o, { _sansPied: true });
+    o = Object.assign({}, o, { _pied: mod.pied || '' });
+    var blocs = (mod.blocs && mod.blocs.length) ? mod.blocs : ['entete', 'salarie', 'rubriques', 'pied'];
+    var rendu = {
+      entete: function () { return enTete(o, R, couleur); },
+      salarie: function () { return zoneSalarie(o); },
+      rubriques: function () { return tableau(o, R, couleur); },
+      pied: function () { return pied(o, R, couleur); }
+    };
     return '<div style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
-      enTete(o, R, couleur) + zoneSalarie(o) + tableau(o, R, couleur) + pied(o, R, couleur) + '</div>';
+      blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
   root.PaieBulletinSage = { html: html, lignesTableau: lignesTableau, bornes: bornes };

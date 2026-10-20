@@ -110,7 +110,32 @@
     return 'table td,table th{border:1px solid #999;padding:3px 5px;color:#000}table th{background:' + c + ';color:#fff}' +
       'table tr td:first-child{white-space:nowrap}';
   }
+  // Valeurs calculées par le moteur, affichées en lecture seule
+  function valeursAuto() {
+    var M = root.PaieMoteur; if (!M) return '';
+    var T = M.TAUX_DEFAUT || {};
+    var lignes = [
+      ['Pension salariale CNPS', T.cnps_sal + ' %'], ['Pension patronale CNPS', T.cnps_pat + ' %'],
+      ['Accidents du travail (patronal)', T.at_pat + ' %'], ['Prestations familiales (patronal)', T.pf_pat + ' %'],
+      ['FNE (patronal)', T.fne_pat + ' %'], ['Crédit foncier salarial', T.cfc_sal + ' %'],
+      ['Crédit foncier patronal', T.cfc_pat + ' %'], ['CAC sur IRPP', T.cac + ' %'],
+      ['Plafond CNPS (mode ' + T.cnps_plafond_mode + ')', (T.plafond_cnps || 750000).toLocaleString('fr-FR')],
+      ['Heures par mois (base horaire)', '173,33'], ['Heures sup. 120 / 130 / 140 / 150 %', 'rubriques 1110 / 1130 / 1140 / 1150']
+    ];
+    return '<table style="border-collapse:collapse;margin-top:4px">' + lignes.map(function (l) {
+      return '<tr><td style="border-bottom:1px solid #e3e8ef;padding:2px 8px">' + echapper(l[0]) + '</td><td style="border-bottom:1px solid #e3e8ef;padding:2px 8px;text-align:right"><b>' + echapper(l[1]) + '</b></td></tr>';
+    }).join('') + '</table>';
+  }
+  // Modèle de bulletin : celui de la fiche (si renseigné et connu), sinon le modèle par défaut de la société
+  function modeleDuSalarie(etatSal) {
+    var PM = window.PaieModeles; if (!PM) return null;
+    var liste = PM.charger ? PM.charger() : [];
+    var code = etatSal && etatSal.modele;
+    if (code) { var m = liste.filter(function (x) { return x.id === code || x.nom === code; })[0]; if (m) return m; }
+    return PM.actif ? PM.actif() : null;
+  }
   function ouvrir(opts) {
+    if (window.PaieModeles && PaieModeles.synchroniser) PaieModeles.synchroniser();
     var bulletinSociete = (opts && opts.bulletin) || null;
     var tauxSage = (opts && opts.taux) || null;
     var catalogue = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques : ((window.PaieSageCatalogue && PaieSageCatalogue.rubriques) || []).map(function (r) { return { code: r.code, libelle: r.libelle, type: r.typeSage === 'C' ? 'retenue' : 'gain', imposable: r.imposable !== 'Jms', taux_defaut: null }; });
@@ -130,8 +155,8 @@
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
         '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
-      '<button type="button" class="s" data-x="exemple">Charger l\'exemple Sage</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
+      '<button type="button" class="s" data-x="modeles">🗂 Modèles de bulletin</button><button type="button" class="s" data-x="exemple">Charger l\'exemple Sage</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label><span data-nbfiches style="font-size:11px;color:#555;align-self:center"></span>' +
       '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
       '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
       '<label style="font-size:12px">Période<input data-f="periode" value="' + echapper(etat.periode) + '" placeholder="ex. 01/07/26 au 31/07/26"></label>' +
@@ -139,7 +164,9 @@
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px" data-tbl></table></div>' +
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<select data-cat style="font-size:12px"><option value="">+ Choisir dans le catalogue…</option></select>' +
-      '<select data-cst style="font-size:12px"><option value="">+ Ajouter une constante…</option></select></div>' +
+      '<select data-cst style="font-size:12px"><option value="">+ Constante personnelle (cst_…)</option></select></div>' +
+      '<p style="font-size:11px;color:#555;margin:4px 0">Constantes personnelles : créez-les dans Paramètres → Paie (taux), avec un code commençant par cst_. Les constantes Sage (salaire horaire, présence, plafonds, tables) sont calculées automatiquement.</p>' +
+      '<details style="font-size:11px;margin:4px 0"><summary style="cursor:pointer">Valeurs calculées automatiquement (lecture seule)</summary>' + valeursAuto() + '</details>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
       '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
@@ -188,7 +215,7 @@
         var fiche = employes[+e.target.value];
         if (fiche) {
           etat.nom = fiche.nom; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || '';
-          etat.salarie = { nom: fiche.nom, matricule: fiche.mat || '', niveau: fiche.niv || '', coefficient: fiche.coef || '', indice: fiche.ind || '',
+          etat.salarie = { modele: fiche.mod || '', nom: fiche.nom, matricule: fiche.mat || '', niveau: fiche.niv || '', coefficient: fiche.coef || '', indice: fiche.ind || '',
             categorie: fiche.cat || '', emploi: fiche.poste || fiche.p || '', secu: fiche.cnps || '', embauche: fiche.entree || fiche.deb || '',
             anciennete: (window.PaieMoteur && PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) || {texte:''}).texte, horaire: fiche.hor || 173.33, lieu: fiche.lieu || '', convention: fiche.conv || '' };
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
@@ -209,10 +236,11 @@
       else if (x === 'add') { etat.lignes.push({ code: '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: false, cfc: false, irpp: true, retenue: false }); rendre(); }
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
       else if (x === 'cat') { }
+      else if (x === 'modeles') { if (window.PaieModeles) PaieModeles.ouvrir(); else alert('Module des modèles non chargé.'); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'print') {
         var R = calcul();
-        var html = bulletinHTML({ salarie: etat.salarie, bulletin: etat.bulletin, nom: etat.nom, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: etat.saisies, resultat: R });
+        var html = bulletinHTML({ modele: modeleDuSalarie(etat.salarie), salarie: etat.salarie, bulletin: etat.bulletin, nom: etat.nom, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: etat.saisies, resultat: R });
         if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin(etat.bulletin), { apercu: true });
       }
     });
@@ -222,13 +250,17 @@
       sel.appendChild(o);
     });
     // Liste des salariés : repli sur la base si la liste transmise est vide
+    function majNb(t) { var e = cadre.querySelector('[data-nbfiches]'); if (e) e.textContent = t; }
     function remplirFiches(liste) {
       employes = liste || [];
       var sel = cadre.querySelector('[data-emp]'); if (!sel) return;
       sel.innerHTML = '<option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('');
+      majNb(employes.length + ' salarié(s) chargé(s)' + (employes.length ? '' : ' — aucune fiche trouvée pour cette société'));
     }
+    if (!employes.length && !(opts && typeof opts.charger === 'function')) majNb('Aucune fiche transmise (ouvrez le bulletin depuis 🧮 Moteur de paie).');
     if (!employes.length && opts && typeof opts.charger === 'function') {
-      Promise.resolve(opts.charger()).then(remplirFiches).catch(function (e) { console.warn('Chargement des fiches impossible', e); });
+      majNb('Chargement des fiches…');
+      Promise.resolve(opts.charger()).then(remplirFiches).catch(function (e) { majNb('Chargement impossible : ' + (e && e.message || e)); console.warn('Chargement des fiches impossible', e); });
     }
     var selCst = cadre.querySelector('[data-cst]');
     (opts && opts.constantes || []).forEach(function (c, i) {

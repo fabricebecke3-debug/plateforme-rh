@@ -8,7 +8,14 @@
   'use strict';
 
   var CLE = 'terh_paie_modeles';
-  var DEFAUT = [{ id: 'sage', nom: 'Sage standard', couleur: '', afficherPatronales: true, afficherPied: true, pied: '', defaut: true }];
+  var BLOCS_DEFAUT = ['entete', 'salarie', 'rubriques', 'pied'];
+  var COLONNES_DEFAUT = { nombre: true, base: true, taux: true, retenuePatronale: true };
+  var DISPOSITIONS = {
+    sage: ['entete', 'salarie', 'rubriques', 'pied'],
+    compact: ['entete', 'rubriques', 'pied'],
+    rubriques: ['rubriques', 'entete', 'salarie', 'pied']
+  };
+  var DEFAUT = [{ id: 'sage', nom: 'Sage standard', couleur: '', afficherPatronales: true, afficherPied: true, pied: '', defaut: true, blocs: BLOCS_DEFAUT.slice(), colonnes: Object.assign({}, COLONNES_DEFAUT) }];
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -23,7 +30,9 @@
       afficherPatronales: m.afficherPatronales !== false,
       afficherPied: m.afficherPied !== false,
       pied: String(m.pied || ''),
-      defaut: !!m.defaut
+      defaut: !!m.defaut,
+      blocs: (Array.isArray(m.blocs) && m.blocs.length ? m.blocs.filter(function (b) { return BLOCS_DEFAUT.indexOf(b) >= 0; }) : BLOCS_DEFAUT.slice()),
+      colonnes: Object.assign({}, COLONNES_DEFAUT, m.colonnes || {})
     };
   }
   function normaliser(liste) {
@@ -82,6 +91,9 @@
       if (!g('nom')) return;
       m.nom = g('nom').value; m.couleur = g('couleur').value; m.afficherPatronales = g('patr').checked;
       m.afficherPied = g('pied-on').checked; m.pied = g('pied').value;
+      var dispo = g('dispo'); if (dispo && DISPOSITIONS[dispo.value]) m.blocs = DISPOSITIONS[dispo.value].slice();
+      var cols = ['nombre', 'base', 'taux', 'retenuePatronale'];
+      cols.forEach(function (c) { var el = cadre.querySelector('[data-col="' + c + '"]'); if (el) m.colonnes[c] = el.checked; });
     }
     function msg(t, err) { var e = cadre.querySelector('[data-msg]'); if (e) { e.textContent = t; e.style.color = err ? '#c0392b' : '#1e8449'; } }
     function dessiner() {
@@ -101,6 +113,10 @@
           '<label style="display:flex;gap:6px;align-items:center"><input data-f="patr" type="checkbox"' + (m.afficherPatronales ? ' checked' : '') + '> Afficher les charges patronales</label>' +
           '<label style="display:flex;gap:6px;align-items:center"><input data-f="pied-on" type="checkbox"' + (m.afficherPied ? ' checked' : '') + '> Afficher le pied légal</label>' +
           '<label style="grid-column:1/3">Texte de pied (complément)<textarea data-f="pied" rows="3" style="width:100%">' + esc(m.pied) + '</textarea></label>' +
+          '<label>Disposition des blocs<select data-f="dispo">' + [['sage', 'Sage standard (en-tête, salarié, rubriques, pied)'], ['compact', 'Compact (sans bloc salarié)'], ['rubriques', 'Rubriques en premier']].map(function (d) { var actuel = (m.blocs || []).join(','); var sel = DISPOSITIONS[d[0]].join(',') === actuel; return '<option value="' + d[0] + '"' + (sel ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></label>' +
+          '<div style="grid-column:1/3;display:flex;gap:14px;flex-wrap:wrap"><b>Colonnes du tableau :</b>' +
+            [['nombre', 'Nombre'], ['base', 'Base'], ['taux', 'Taux salarial'], ['retenuePatronale', 'Retenue patronale']].map(function (c) { return '<label style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-col="' + c[0] + '"' + (m.colonnes[c[0]] !== false ? ' checked' : '') + '> ' + c[1] + '</label>'; }).join('') +
+          '</div>' +
           '</div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:12px"><button type="button" class="p" data-act="enregistrer" style="background:#1f5fbf;color:#fff;border-color:#1f5fbf">💾 Enregistrer</button><span data-msg style="margin-left:auto"></span></div>';
     }
