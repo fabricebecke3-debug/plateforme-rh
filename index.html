@@ -5365,14 +5365,20 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       rendreParamsPaie();
     } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
   }
-  // Identité de l'employeur sur le bulletin : réglages du bulletin, à défaut les coordonnées de l'entreprise (fiche société)
+  // Identité de l'employeur sur le bulletin.
+  // Mise à disposition : l'employeur est la société qui met le salarié à disposition (société mère),
+  // l'entreprise de l'appli est alors le client (ligne « Mis à disposition auprès de »).
+  // Entreprise simple : l'employeur est l'entreprise elle-même.
   function identiteBulletinLue() {
     var lu = {};
     try { lu = JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || {}; } catch (e) { lu = {}; }
     var P = (typeof PARAMS !== 'undefined' && PARAMS) || {};
+    var nomCo = P.soc || (typeof activeCoName === 'function' ? activeCoName() : '') || '';
+    var inf = (typeof entInfo === 'function') ? entInfo() : { mad: false, mere: '' };
+    var mad = !!(inf.mad && inf.mere);
     return Object.assign({}, lu, {
-      societe: lu.societe || P.soc || (typeof activeCoName === 'function' ? activeCoName() : '') || '',
-      adresse: lu.adresse || P.adresse || '',
+      societe: mad ? inf.mere : (lu.societe || nomCo || ''),
+      adresse: mad ? (String(entGet('ent_mere_adr') || '').trim() || lu.adresse || '') : (lu.adresse || P.adresse || ''),
       tel: lu.tel || P.tel || ''
     });
   }

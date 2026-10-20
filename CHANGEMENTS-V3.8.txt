@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.11 (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
+TERH PAIE - VERSION 3.13 (employeur en mise a disposition, sans ligne client) (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
 =========================================================================
 
 ECRAN DE VERIFICATION AVANT CREATION DU MODELE
@@ -36,3 +36,9 @@ VERSION 3.11 : LISIBILITE DE L'IMPRESSION
 - Tailles de police du bulletin relevees : libelles 8 px -> 10 px, texte des rubriques 9,5 px -> 11 px,
   en-tetes 9 px -> 10,5 px (avant, les petits caracteres devenaient illisibles sur A4).
 - Format A4 portrait, marge 14 mm (inchangee).
+
+VERSION 3.12 : EMPLOYEUR EN MISE A DISPOSITION
+- Mise a disposition active (ent_mode, avec une societe mere renseignee) : l'employeur sur le bulletin est la
+  societe mere (celle qui met le salarie a disposition). Le client n'est pas affiche sur le bulletin.
+- Entreprise simple : l'employeur reste l'entreprise elle-meme (comportement precedent).
+- A verifier : le reglage ent_mode (oui / non / auto) et le nom de la societe mere dans les parametres de l'entreprise.

@@ -83,7 +83,7 @@
     var logoOk = M.logo && /^data:image\//.test(M.logo) && M.logoPos !== 'aucun';
     var logoHtml = logoOk ? '<img src="' + M.logo + '" alt="Logo" style="max-height:70px;max-width:200px">' : '';
     var identite = '<div style="font-size:11px;line-height:1.4"><b>' + echapper(b.societe || o.employeur || '') + '</b>' +
-      (b.adresse ? '<br>' + echapper(b.adresse) : '') + (b.siret ? '<br>N° SIRET : ' + echapper(b.siret) : '') +
+      (b.adresse ? '<br>' + echapper(b.adresse) : '') (b.siret ? '<br>N° SIRET : ' + echapper(b.siret) : '') +
       (b.cnps ? '<br>N° CNPS employeur : ' + echapper(b.cnps) : '') + '</div>';
     var titre = '<div style="text-align:right;font-size:16px;font-weight:700;color:' + echapper(couleur) + '">BULLETIN DE PAIE' +
       '<div style="font-size:11px;color:#333;font-weight:400">Période : ' + echapper(o.periode || '') + '<br>Paiement : ' + echapper(o.paiement || '') + '</div></div>';
