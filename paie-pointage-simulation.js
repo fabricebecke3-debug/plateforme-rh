@@ -1,101 +1,182 @@
-/* paie-pointage-simulation.js — Pointage heures sup. et simulation
-   Design moderne style Sage, compact et professionnel
-*/
-(function(root){
-'use strict';
+/* paie-pointage-simulation.js
+ * PaiePointage.ouvrir({employes, periode, onApply})  : saisie des heures supplémentaires par salarié et par période.
+ *   onApply(heures) reçoit {1110: n, 1130: n, 1140: n, 1150: n, 1160: n} (nombre d'heures) pour le bulletin.
+ * PaieSimulation.ouvrir({lignes, saisies, nom})       : compare le bulletin actuel à un salaire simulé (% ou nouveau montant).
+ * Pointage stocké : localStorage 'terh_paie_pointage' + table parametres (paie_pointage_json) via window.TERH_paiePoint.
+ */
+(function (root) {
+  'use strict';
 
-var CATS = [
-  ['1110','Heures Supplémentaires 120%'],
-  ['1130','Heures Supplémentaires 130%'],
-  ['1140','Heures Supplémentaires 140%'],
-  ['1150','Heures Supplémentaires 150%'],
-  ['1160','Heures Supplémentaires 200%']
-];
+  var CLE = 'terh_paie_pointage';
+  var COULEUR = '#1f5fbf';
+  var CATS = [
+    ['1110', 'Heures sup. 20 %'], ['1130', 'Heures sup. 30 %'], ['1140', 'Heures sup. 40 %'],
+    ['1150', 'Heures sup. 50 % (fériés, repos)'], ['1160', 'Heures sup. 100 %']
+  ];
 
-function synchroniser() { /* hook */ }
-
-function ouvrir(opts) {
-  opts = opts || {};
-  var employes = opts.employes || [];
-  var periode = opts.periode || '';
-  var courant = opts.courant || '';
-  var onApply = opts.onApply || function(){};
-  
-  var heures = {};
-  CATS.forEach(function(c){ heures[c[0]] = 0; });
-  
-  var ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:center;justify-content:center;padding:16px';
-  
-  var cadre = document.createElement('div');
-  cadre.style.cssText = 'background:#fff;border-radius:8px;padding:0;max-width:600px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.3);font-family:"Segoe UI",Arial,sans-serif;overflow:hidden';
-  
-  if (!document.getElementById('pp-style')) {
-    var st = document.createElement('style');
-    st.id = 'pp-style';
-    st.textContent = `
-      .pp-cadre input,.pp-cadre select {
-        background:#fff; color:#1a1a1a; border:1px solid #d0d7de; border-radius:4px;
-        padding:6px 10px; font-size:13px; width:100%; box-sizing:border-box;
-      }
-      .pp-cadre input:focus,.pp-cadre select:focus { border-color:#1f5fbf; outline:none; box-shadow:0 0 0 2px rgba(31,95,191,.15); }
-      .pp-cadre .pp-header { background:#1f5fbf; color:#fff; padding:12px 16px; font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
-      .pp-cadre .pp-body { padding:16px; }
-      .pp-cadre .pp-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:8px; background:#f8f9fa; border-radius:6px; border:1px solid #e3e8ef; }
-      .pp-cadre .pp-row label { flex:1; font-size:13px; color:#1a1a1a; font-weight:500; }
-      .pp-cadre .pp-row input { width:100px; text-align:right; font-family:"Consolas",monospace; font-size:14px; }
-      .pp-cadre .pp-row .pp-unit { color:#6c757d; font-size:12px; min-width:30px; }
-      .pp-cadre button {
-        background:#eef2f8; color:#1a1a1a; border:1px solid #9aa5b5; border-radius:6px;
-        padding:8px 16px; cursor:pointer; font-size:13px; transition:all .2s;
-      }
-      .pp-cadre button:hover { background:#d6e4ff; border-color:#1f5fbf; }
-      .pp-cadre button.p { background:#1f5fbf; color:#fff; border-color:#1f5fbf; font-weight:600; }
-      .pp-cadre button.p:hover { background:#0d47a1; }
-      .pp-cadre button.d { background:#fff; color:#c0392b; border-color:#c0392b; }
-      .pp-cadre .pp-footer { padding:12px 16px; border-top:1px solid #dee2e6; display:flex; gap:8px; justify-content:flex-end; background:#f8f9fa; }
-      .pp-cadre .pp-info { background:#e7f1ff; border:1px solid #b6d4fe; border-radius:6px; padding:8px 12px; font-size:12px; color:#084298; margin-bottom:12px; }
-    `;
-    document.head.appendChild(st);
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
-  
-  cadre.innerHTML = '<div class="pp-header"><span> Pointage des heures supplémentaires</span><button type="button" class="d" data-x="close" style="padding:4px 10px;font-size:12px">✕</button></div>' +
-    '<div class="pp-body">' +
-    '<div class="pp-info">Période : <b>'+echapper(periode)+'</b> · Salarié : <b>'+echapper(courant)+'</b></div>' +
-    '<div style="margin-bottom:12px"><label style="font-size:12px;font-weight:600;color:#1f5fbf">Salarié</label><select data-emp style="margin-top:4px"><option value="">— choisir —</option>'+employes.map(function(x,i){ return '<option value="'+i+'"'+(x.mat===courant||x.nom===courant?' selected':'')+'>'+echapper(x.nom)+'</option>'; }).join('')+'</select></div>' +
-    '<div id="pp-rows"></div>' +
-    '</div>' +
-    '<div class="pp-footer"><button type="button" data-x="cancel">Annuler</button><button type="button" class="p" data-x="apply">✓ Appliquer au bulletin</button></div>';
-  
-  ov.appendChild(cadre);
-  document.body.appendChild(ov);
-  
-  var rowsDiv = cadre.querySelector('#pp-rows');
-  CATS.forEach(function(c){
-    var row = document.createElement('div');
-    row.className = 'pp-row';
-    row.innerHTML = '<label>'+echapper(c[1])+'</label><input type="number" step="0.5" min="0" value="0" data-c="'+c[0]+'" class="num"><span class="pp-unit">heures</span>';
-    rowsDiv.appendChild(row);
-  });
-  
-  cadre.addEventListener('input', function(e){
-    if (e.target.dataset.c) heures[e.target.dataset.c] = +e.target.value||0;
-  });
-  cadre.addEventListener('click', function(e){
-    var b = e.target.closest('[data-x]'); if (!b) return;
-    var x = b.dataset.x;
-    if (x==='close'||x==='cancel') ov.remove();
-    else if (x==='apply') { onApply(heures); ov.remove(); }
-  });
-  cadre.querySelector('[data-emp]').addEventListener('change', function(e){
-    var f = employes[+e.target.value];
-    if (f) { courant = f.mat||f.nom; cadre.querySelector('.pp-info').innerHTML = 'Période : <b>'+echapper(periode)+'</b> · Salarié : <b>'+echapper(courant)+'</b>'; }
-  });
-}
+  function nombre(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) && n >= 0 ? n : 0; }
+  function fmt(n) { var v = Math.round(Number(n) || 0); return (v < 0 ? '-' : '') + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
 
-function echapper(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function lire() { try { var b = root.localStorage && root.localStorage.getItem(CLE); return b ? JSON.parse(b) : {}; } catch (e) { return {}; } }
+  function ecrire(o) {
+    try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) {}
+    var p = root.TERH_paiePoint;
+    if (p && p.save) Promise.resolve(p.save(o)).catch(function (e) { console.error('Pointage : sauvegarde base impossible', e); });
+  }
+  function synchroniser() {
+    var p = root.TERH_paiePoint;
+    if (!p || !p.load) return Promise.resolve(null);
+    return Promise.resolve(p.load()).then(function (o) {
+      if (o && typeof o === 'object') { try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) {} return o; }
+      return null;
+    }).catch(function () { return null; });
+  }
 
-var API = { CATS:CATS, ouvrir:ouvrir, synchroniser:synchroniser };
-if (typeof module!=='undefined'&&module.exports) module.exports = API;
-else root.PaiePointage = API;
-})(typeof window!=='undefined'?window:globalThis);
+  function ouvrirPointage(opts) {
+    var id = 'pp-overlay';
+    if (document.getElementById(id)) return;
+    opts = opts || {};
+    var employes = (opts.employes || []).filter(function (e) { return e.nom; }).map(function (e) { return { key: e.mat || e.nom, nom: e.nom, mat: e.mat || '' }; });
+    var courant = opts.courant || '';
+    var periode = opts.periode || '';
+
+    var ov = document.createElement('div');
+    ov.id = id;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+    var cadre = document.createElement('div');
+    cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:720px;width:100%;border-radius:12px;padding:16px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box';
+    ov.appendChild(cadre);
+    document.body.appendChild(ov);
+
+    function msg(t, err) { var m = cadre.querySelector('[data-msg]'); if (m) { m.textContent = t; m.style.color = err ? '#c0392b' : '#1e8449'; } }
+    function heuresLues() {
+      var h = {};
+      CATS.forEach(function (c) { var el = cadre.querySelector('[data-h="' + c[0] + '"]'); h[c[0]] = el ? nombre(el.value) : 0; });
+      return h;
+    }
+    function remplir(key, nom) {
+      var mois = lire()[periode] || {};
+      var pt = mois[key] || mois[nom] || {};
+      CATS.forEach(function (c) { var el = cadre.querySelector('[data-h="' + c[0] + '"]'); if (el) el.value = pt[c[0]] || ''; });
+    }
+    function enregistrer(key, nom) {
+      var d = lire();
+      d[periode] = d[periode] || {};
+      d[periode][key] = heuresLues();
+      if (nom && nom !== key) delete d[periode][nom];
+      ecrire(d);
+    }
+
+    cadre.innerHTML =
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">⏱ Pointage des heures supplémentaires</b><button type="button" data-act="fermer">✕ Fermer</button></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">' +
+        '<label>Salarié<select data-sel style="min-width:260px"><option value="">— choisir —</option>' +
+          employes.map(function (e) { return '<option value="' + esc(e.key) + '" data-nom="' + esc(e.nom) + '"' + (e.key === courant ? ' selected' : '') + '>' + esc(e.nom) + (e.mat ? ' (matricule ' + esc(e.mat) + ')' : '') + '</option>'; }).join('') + '</select></label>' +
+        '<label>Période<input data-per value="' + esc(periode) + '" style="width:200px"></label></div>' +
+      '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + COULEUR + ';color:#fff"><th style="padding:6px;text-align:left">Catégorie</th><th style="padding:6px;text-align:right">Heures</th></tr></thead><tbody>' +
+        CATS.map(function (c) { return '<tr><td style="padding:4px 6px;border-bottom:1px solid #e3e8ef">' + c[0] + ' — ' + esc(c[1]) + '</td><td style="padding:4px 6px;border-bottom:1px solid #e3e8ef;text-align:right"><input data-h="' + c[0] + '" inputmode="decimal" style="width:90px;text-align:right"></td></tr>'; }).join('') +
+      '</tbody></table>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">' +
+        '<button type="button" data-act="enregistrer">💾 Enregistrer le pointage</button>' +
+        '<button type="button" data-act="appliquer" style="background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '">➜ Appliquer au bulletin</button>' +
+        '<span data-msg style="margin-left:auto"></span></div>' +
+      '<p style="font-size:11px;color:#777;margin:10px 0 0">Les heures sont multipliées par la base horaire (salaire de base ÷ 173,33) et par le taux de la catégorie lors du calcul du bulletin.</p>';
+
+    cadre.addEventListener('change', function (e) {
+      var sel = cadre.querySelector('[data-sel]');
+      if (e.target.matches('[data-sel]')) remplir(sel.value, sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.nom : '');
+      if (e.target.matches('[data-per]')) { periode = e.target.value; if (sel.value) remplir(sel.value, sel.selectedOptions[0].dataset.nom); }
+    });
+    cadre.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-act]'); if (!b) return;
+      var a = b.dataset.act;
+      if (a === 'fermer') { ov.remove(); return; }
+      var sel = cadre.querySelector('[data-sel]');
+      var key = sel ? sel.value : '';
+      if (!key) { msg('Choisissez un salarié.', true); return; }
+      if (!periode) { msg('Indiquez la période.', true); return; }
+      enregistrer(key, sel.selectedOptions[0] ? sel.selectedOptions[0].dataset.nom : '');
+      if (a === 'enregistrer') msg('Pointage enregistré.');
+      if (a === 'appliquer') {
+        if (typeof opts.onApply === 'function') opts.onApply(heuresLues());
+        ov.remove();
+      }
+    });
+  }
+
+  // ---------- Simulation ----------
+  function ouvrirSimulation(opts) {
+    var id = 'ps-overlay';
+    if (document.getElementById(id)) return;
+    opts = opts || {};
+    var M = root.PaieMoteur;
+    if (!M) { alert('paie-moteur.js n\'est pas chargé.'); return; }
+    var lignes = (opts.lignes || []).map(function (l) { return Object.assign({}, l); });
+    var l1000 = lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
+    var salaireActuel = l1000 ? M.gainLigne(l1000) : 0;
+    var saisies = opts.saisies || {};
+
+    var ov = document.createElement('div');
+    ov.id = id;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+    var cadre = document.createElement('div');
+    cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:720px;width:100%;border-radius:12px;padding:16px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box';
+    ov.appendChild(cadre);
+    document.body.appendChild(ov);
+
+    function simule(mode, valeur) {
+      var nouveau = mode === 'pct' ? salaireActuel * (1 + valeur / 100) : valeur;
+      var avant = M.calculer(lignes, saisies);
+      var sim = lignes.map(function (l) {
+        if (String(l.code) !== '1000') return l;
+        return Object.assign({}, l, { nombre: null, base: null, gain: nouveau });
+      });
+      var apres = M.calculer(sim, saisies);
+      return { avant: avant, apres: apres, nouveau: nouveau };
+    }
+    function dessiner(res) {
+      var ligne = function (lib, a, b) {
+        var d = b - a;
+        return '<tr><td style="padding:5px 6px;border-bottom:1px solid #e3e8ef">' + lib + '</td>' +
+          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef">' + fmt(a) + '</td>' +
+          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef">' + fmt(b) + '</td>' +
+          '<td style="padding:5px 6px;text-align:right;border-bottom:1px solid #e3e8ef;color:' + (d > 0 ? '#1e8449' : d < 0 ? '#c0392b' : '#444') + '">' + (d > 0 ? '+' : '') + fmt(d) + '</td></tr>';
+      };
+      var out = res ? '<table style="width:100%;border-collapse:collapse;margin-top:12px">' +
+        '<thead><tr style="background:' + COULEUR + ';color:#fff"><th style="padding:6px;text-align:left">Élément</th><th style="padding:6px;text-align:right">Actuel</th><th style="padding:6px;text-align:right">Simulé</th><th style="padding:6px;text-align:right">Écart</th></tr></thead><tbody>' +
+        ligne('Salaire de base', salaireActuel, res.nouveau) +
+        ligne('Brut', res.avant.brut, res.apres.brut) +
+        ligne('Total retenues', res.avant.totalRetenues, res.apres.totalRetenues) +
+        ligne('<b>Net à payer</b>', res.avant.net, res.apres.net) +
+        ligne('Charges patronales', res.avant.totalPatronales, res.apres.totalPatronales) +
+        ligne('<b>Coût employeur</b>', res.avant.coutEmployeur, res.apres.coutEmployeur) +
+        '</tbody></table>' : '';
+      cadre.innerHTML =
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">🧮 Simulation de salaire' + (opts.nom ? ' — ' + esc(opts.nom) : '') + '</b><button type="button" data-act="fermer">✕ Fermer</button></div>' +
+        '<p style="color:#444;margin:0 0 10px">Salaire de base actuel : <b>' + fmt(salaireActuel) + '</b> FCFA. Le calcul reprend les rubriques, taux et constantes du bulletin en cours, sans rien enregistrer.</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">' +
+          '<label>Mode<select data-mode><option value="pct">Augmentation en %</option><option value="montant">Nouveau salaire de base</option></select></label>' +
+          '<label>Valeur<input data-val inputmode="decimal" value="10" style="width:120px"></label>' +
+          '<button type="button" data-act="calc" style="background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '">▶ Simuler</button></div>' + out;
+    }
+
+    cadre.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-act]'); if (!b) return;
+      if (b.dataset.act === 'fermer') { ov.remove(); return; }
+      var mode = cadre.querySelector('[data-mode]').value;
+      var v = parseFloat(String(cadre.querySelector('[data-val]').value).replace(',', '.'));
+      if (!isFinite(v) || (mode === 'montant' && v < 0)) { alert('Valeur invalide.'); return; }
+      if (!l1000) { alert('Pas de salaire de base dans le bulletin.'); return; }
+      dessiner(simule(mode, v));
+    });
+    dessiner(null);
+  }
+
+  root.PaiePointage = { ouvrir: ouvrirPointage, lire: lire, synchroniser: synchroniser, CATS: CATS };
+  root.PaieSimulation = { ouvrir: ouvrirSimulation };
+})(typeof window !== 'undefined' ? window : globalThis);
