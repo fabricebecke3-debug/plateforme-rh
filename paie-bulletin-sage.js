@@ -34,32 +34,22 @@
 
   function cellule(lib, val, w) {
     return '<td style="border:1px solid #444;padding:1px 4px;vertical-align:top;width:' + (w || 'auto') + '">' +
-      '<div style="font-size:8px;color:#333">' + lib + '</div><div style="font-size:10px">' + esc(vide(val)) + '</div></td>';
+      '<div style="font-size:10px;color:#333">' + lib + '</div><div style="font-size:11.5px">' + esc(vide(val)) + '</div></td>';
   }
 
-  // Logo : celui du modèle, sinon celui de la société ; emplacement choisi dans le modèle
-  function logoDuBulletin(o) {
-    var mod = o.modele || {};
-    var src = mod.logo || (o.bulletin || {}).logo || '';
-    if (!/^data:image\/(png|jpeg|svg\+xml);base64,/.test(src)) return { html: '', pos: '' };
-    return { html: '<img src="' + src + '" alt="" style="max-height:60px;max-width:180px;display:block;margin-bottom:4px">', pos: mod.logoPos || 'gauche' };
-  }
   function enTete(o, R, couleur) {
     var s = o.salarie || {}, b = o.bulletin || {}, per = bornes(o.periode);
-    var logo = logoDuBulletin(o);
-    var logoG = logo.pos === 'gauche' ? logo.html : '';
-    var logoD = logo.pos === 'droite' ? logo.html : '';
     var paiement = o.paiement || per.fin || '';
     var anc = s.anciennete || '';
     return '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0">' +
       '<tr>' +
-        '<td style="border:1px solid #444;width:40%;padding:4px 6px;background:' + couleur + ';font-size:14px;font-weight:700;vertical-align:middle">' + logoD + 'BULLETIN DE PAIE</td>' +
+        '<td style="border:1px solid #444;width:40%;padding:4px 6px;background:' + couleur + ';font-size:14px;font-weight:700;vertical-align:middle">BULLETIN DE PAIE</td>' +
         '<td style="border:1px solid #444;padding:3px 6px;vertical-align:top">Période du : <b>' + esc(per.debut) + '</b> &nbsp; au : <b>' + esc(per.fin) + '</b></td>' +
         '<td style="border:1px solid #444;padding:3px 6px;vertical-align:top">Paiement le : <b>' + esc(paiement) + '</b> &nbsp; par : Virement</td>' +
       '</tr>' +
       '<tr>' +
         '<td rowspan="3" style="border:1px solid #444;padding:4px 6px;vertical-align:top;line-height:1.35">' +
-          logoG + '<b>' + esc(b.societe || o.employeur || '') + '</b><br>' + esc(b.adresse || '') +
+          '<b>' + esc(b.societe || o.employeur || '') + '</b><br>' + esc(b.adresse || '') +
           (b.siret ? '<br>N° SIRET : ' + esc(b.siret) : '') + (b.cnps ? '<br>N° CNPS employeur : ' + esc(b.cnps) : '') + '</td>' +
         '<td style="border:1px solid #444;padding:0"><table style="width:100%;border-collapse:collapse"><tr>' +
           cellule('Matricule', s.matricule, '20%') + cellule('Niveau', s.niveau, '14%') + cellule('Coefficient', s.coefficient, '18%') +
@@ -85,15 +75,15 @@
   function zoneSalarie(o) {
     var s = o.salarie || {}, c = o.conges || {};
     return '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0"><tr>' +
-      '<td style="border:1px solid #444;width:38%;vertical-align:top;padding:4px 6px;font-size:10px">' +
-        '<table style="width:100%;border-collapse:collapse;font-size:9px"><tr><th style="border:1px solid #888;background:#f2f2f2"></th><th style="border:1px solid #888;background:#f2f2f2">Acquis</th><th style="border:1px solid #888;background:#f2f2f2">Reste à prendre</th><th style="border:1px solid #888;background:#f2f2f2">Pris</th></tr>' +
+      '<td style="border:1px solid #444;width:38%;vertical-align:top;padding:4px 6px;font-size:11.5px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:10.5px"><tr><th style="border:1px solid #888;background:#f2f2f2"></th><th style="border:1px solid #888;background:#f2f2f2">Acquis</th><th style="border:1px solid #888;background:#f2f2f2">Reste à prendre</th><th style="border:1px solid #888;background:#f2f2f2">Pris</th></tr>' +
         '<tr><td style="border:1px solid #888">Repos comp.</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposAcquis, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposReste, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposPris, 3) + '</td></tr>' +
         '<tr><td style="border:1px solid #888">Congés</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesAcquis, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesReste, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesPris, 3) + '</td></tr></table>' +
-        '<div style="margin-top:6px;font-size:9px">Dates de congés : du ' + esc(vide(c.du)) + ' au ' + esc(vide(c.au)) + '</div></td>' +
+        '<div style="margin-top:6px;font-size:10.5px">Dates de congés : du ' + esc(vide(c.du)) + ' au ' + esc(vide(c.au)) + '</div></td>' +
       '<td style="border:1px solid #444;vertical-align:top;padding:6px 10px;background:#eef7ee">' +
         '<div style="font-size:12px;font-weight:700">' + esc(vide(o.nom || s.nom)) + '</div>' +
         '<div style="font-size:10px;margin-top:4px">' + esc(vide(s.adresse)) + '</div>' +
-        (o.commentaire ? '<div style="font-size:9px;margin-top:6px;color:#333">Commentaire : ' + esc(o.commentaire) + '</div>' : '') +
+        (o.commentaire ? '<div style="font-size:10.5px;margin-top:6px;color:#333">Commentaire : ' + esc(o.commentaire) + '</div>' : '') +
       '</td></tr></table>';
   }
 
@@ -109,7 +99,7 @@
     L.push({ total: 'Total brut', gain: R.brut });
     var S = R.salariales, P = R.patronales;
     L.push({ code: '8100', lib: 'Pension vieillesse CNPS', base: R.baseCNPS, tauxS: 4.2, ret: S.cnps, tauxP: 4.2, retP: P.cnps });
-    L.push({ code: '8110', lib: 'Accident de Travail', base: (R.baseAT != null ? R.baseAT : R.baseCNPS), tauxS: 0, ret: 0, tauxP: 2.5, retP: P.at });
+    L.push({ code: '8110', lib: 'Accident de Travail', base: R.baseCNPS, tauxS: 0, ret: 0, tauxP: 2.5, retP: P.at });
     L.push({ code: '8120', lib: 'Prestations Familiales', base: R.baseCNPS, tauxS: 0, ret: 0, tauxP: 7, retP: P.pf });
     L.push({ code: '8130', lib: "Fonds National de l'Emploi", base: R.baseCNPS, tauxS: 0, ret: 0, tauxP: 1, retP: P.fne });
     L.push({ code: '8140', lib: 'Crédit Foncier Patronal', base: R.baseCFC, tauxS: 0, ret: 0, tauxP: 1.5, retP: P.cfc });
@@ -165,9 +155,9 @@
     return L.map(function (r) {
       var v = valeursLigne(r, sansPatr);
       var gras = r.total ? 'font-weight:700;' : '';
-      var td = function (x, al) { return '<td style="border:1px solid #bbb;padding:1px 4px;text-align:' + (al || 'right') + ';white-space:nowrap">' + x + '</td>'; };
+      var td = function (x, al, wrap) { return '<td' + (wrap ? ' class="bs-lib"' : '') + ' style="border:1px solid #bbb;padding:1px 4px;line-height:1.2;text-align:' + (al || 'right') + ';white-space:' + (wrap ? 'normal' : 'nowrap') + '">' + x + '</td>'; };
       return '<tr style="' + gras + '">' + td(r.total ? '' : esc(r.code || ''), 'left') +
-        td(r.total ? esc(r.total) : esc(r.lib || ''), 'left') +
+        td(r.total ? esc(r.total) : esc(r.lib || ''), 'left', true) +
         cols.map(function (c) { return td(v[c[0]] || ''); }).join('') + '</tr>';
     }).join('');
   }
@@ -175,8 +165,8 @@
     var mod = o.modele || {};
     var cols = colonnesVisibles(mod);
     var L = lignesTableau(o, R);
-    var th = function (t, al) { return '<th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;font-size:9px;text-align:' + (al || 'center') + '">' + t + '</th>'; };
-    return '<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:0">' +
+    var th = function (t, al) { return '<th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;font-size:10.5px;text-align:' + (al || 'center') + '">' + t + '</th>'; };
+    return '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:0">' +
       '<thead><tr>' + th('N°', 'left') + th('Désignation', 'left') + cols.map(function (c) { return th(c[1]); }).join('') + '</tr></thead>' +
       '<tbody>' + corpsTableau(L, cols, o._sansPatronales) + '</tbody></table>';
   }
@@ -200,14 +190,14 @@
     };
     var periodeV = [fmt(R.brut), fmt(R.netImposable), fmt(cotSal), fmt(R.totalPatronales), hTrav, fmt(hSup), '0'];
     var anneeV = [fmt(an.brut), fmt(an.netImposable), fmt(an.cotisationsSalariales), fmt(an.chargesPatronales), fmt(an.heures), fmt(an.heuresSup), '0'];
-    return '<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:8px">' +
+    return '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">' +
       '<tr><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;width:9%">Cumuls</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Salaire brut</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Net imposable</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Cotisations salariales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Charges patronales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures travaillées</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures sup.</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Avantages en nature</th></tr>' +
       ligne('Période', periodeV) + ligne('Année', anneeV) + '</table>' +
       '<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:15px;font-weight:700;background:' + couleur + ';width:45%">NET À PAYER</td>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:18px;font-weight:700;text-align:right">' + fmt(R.net) + ' FCFA</td></tr></table>' +
-      (o._sansPied ? '' : '<p style="font-size:8.5px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
-      (o._sansPatronales ? '' : '<p style="font-size:8.5px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
+      (o._sansPied ? '' : '<p style="font-size:10px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
+      (o._sansPatronales ? '' : '<p style="font-size:10px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
   }
 
   function html(o) {
@@ -225,10 +215,21 @@
       rubriques: function () { return tableau(o, R, couleur); },
       pied: function () { return pied(o, R, couleur); }
     };
-    var pied_logo = logoDuBulletin(o).pos === 'pied' ? '<div style="margin-top:6px">' + logoDuBulletin(o).html + '</div>' : '';
-    return '<div style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
-      blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + pied_logo + '</div>';
+    return '<div class="bs-bulletin" style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
+      blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
-  root.PaieBulletinSage = { html: html, lignesTableau: lignesTableau, bornes: bornes };
+  // Feuille de style du bulletin : cellules serrées (9,5 px), désignation qui passe à la ligne, en-têtes lisibles
+  // sur la couleur choisie (texte blanc si la couleur est foncée, noir sinon)
+  function css(couleur) {
+    var c = teinte(couleur), r = parseInt(c.substr(1, 2), 16), g = parseInt(c.substr(3, 2), 16), b = parseInt(c.substr(5, 2), 16);
+    var txt = (r * 299 + g * 587 + b * 114) / 1000 < 150 ? '#fff' : '#000';
+    return '.bs-bulletin{font-family:Arial,sans-serif;font-size:11px;color:#000}' +
+      '.bs-bulletin table{border-collapse:collapse;width:100%}' +
+      '.bs-bulletin td,.bs-bulletin th{border:1px solid #888;padding:1px 4px;line-height:1.2}' +
+      '.bs-bulletin td.bs-lib{white-space:normal}' +
+      '.bs-bulletin th{color:' + txt + ' !important;font-size:10.5px}';
+  }
+
+  root.PaieBulletinSage = { html: html, css: css, lignesTableau: lignesTableau, bornes: bornes };
 })(typeof window !== 'undefined' ? window : globalThis);
