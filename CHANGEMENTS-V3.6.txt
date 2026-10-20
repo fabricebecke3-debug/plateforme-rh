@@ -1,0 +1,19 @@
+TERH PAIE - VERSION 3.6 (identité de l'entreprise sur le bulletin, modèles par entreprise)
+=====================================================================================
+
+IDENTITE SUR LE BULLETIN
+- Le nom, l'adresse et le téléphone de l'employeur viennent des coordonnées de l'entreprise (fiche société).
+  Les réglages « identité du bulletin » (SIRET, N° CNPS employeur, logo, couleur) restent prioritaires quand ils sont renseignés.
+- Le bouton « Identité du bulletin » pré-remplit désormais le formulaire avec ces coordonnées.
+
+MODELES DE BULLETIN PAR ENTREPRISE
+- Les modèles sont sauvegardés dans le navigateur sous une clé propre à chaque entreprise (terh_paie_modeles_<entreprise>).
+  Avant, une seule clé était partagée : les modèles d'une société pouvaient apparaître dans une autre.
+- La copie en base (paramètres de l'entreprise, paie_modeles_json) reste isolée par entreprise.
+
+LOGO
+- Upload PNG/JPG/WebP/GIF, 300 Ko maximum, dans le modèle (position gauche, centre, droite ou aucun).
+
+A VERIFIER AVANT DEPLOIEMENT
+- Ces changements n'ont pas été testés dans un navigateur avec les données réelles.
+- Un modèle créé avant V3.6 reste dans la clé commune : il faut le recréer (ou le réenregistrer) dans chaque entreprise.

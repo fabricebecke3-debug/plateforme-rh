@@ -768,7 +768,7 @@ function modOn(v){
   return !k||M.includes(k);
 }
 async function ensureCompanies(){try{let {data,error}=await db.from('entreprises').select('*').order('created_at');if(error){const r2=await db.from('entreprises').select('*');if(r2.error)throw r2.error;data=r2.data;error=null;}window.__coErr=null;COS=(data||[]);window.__ALLCOS=COS.slice();MULTI=true;if(isOwnerUser()){const sv=localStorage.getItem('terh_co');CO=(COS.find(c=>c.id===sv)||COS.find(c=>c.actif!==false)||COS[0]||{}).id||null;}else{if(MEMS.length){const gr=MEMS.filter(m=>COS.some(x=>x.id===m.entreprise_id)&&(m.role==='admin'||(m.perms&&m.perms.dg===true)));gr.slice().forEach(g=>{_desc(g.entreprise_id).forEach(id=>{if(id!==g.entreprise_id&&!MEMS.some(m=>m.entreprise_id===id))MEMS.push({entreprise_id:id,role:g.role==='admin'?'admin':'lecteur',virtual:true});});});COS=COS.filter(c=>MEMS.some(m=>m.entreprise_id===c.id));}else{COS=[];CO=null;}if(!CO||!COS.find(c=>c.id===CO))CO=COS[0]?.id||null;}}catch(e){window.__coErr=(e&&e.message)||String(e);const miss=/does not exist|42P01|schema cache|Could not find the table/i.test(window.__coErr);MULTI=isOwnerUser()?!miss:true;CO=null;COS=[];}}
-const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json','recit_plateforme','assistant_style'];
+const PUBLIC_PARAMS=['soc','lieu','tel','email','sig','fn','client','adresse','tpl_let','tpl_cert','ent_service','ent_mere','ent_mere_adr','ent_mad_label','ent_mode','ent_mentions','ent_risque_at','dash','alert_jours','contrats_hist','perso_extra','perso_cols','perso_show','essai_hist','essai_decisions','sortie_checklist','cdd_seuils','types_contrat','profils_acces','owner_json','web_json','ui_texts_json','signatures_json','recit_plateforme','assistant_style'];
 let _fails=0,_lock=0;
 const $=i=>document.getElementById(i);
 const ERRLOG=[];function logErr(m){ERRLOG.unshift(new Date().toLocaleString('fr-FR')+' — '+m);ERRLOG.length=Math.min(ERRLOG.length,50);}
@@ -4592,10 +4592,12 @@ document.addEventListener('change',e=>{
 const OWX={},OWP={};
 
 /* ============ TERH · EN-TÊTE DES LETTRES, IMPORT DE MODÈLES, ONGLETS ent / bib / mt ============ */
-const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:''};
+const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',ent_risque_at:'moyen'};
 const ENT_KEYS=Object.keys(ENT_DEF);
 function _entLS(){try{return JSON.parse(localStorage.getItem('terh_ent_'+(CO||''))||'{}')||{};}catch(e){return {};}}
 function entGet(k){const o=_entLS(),v=PARAMS[k];if(k in o&&(v==null||v===ENT_DEF[k]))return o[k];return v==null?'':v;}
+// Réglages paie de la structure (paramètres de l'entreprise) transmis au calcul
+window.TERH_tauxEntreprise=()=>({at_pat:({faible:1.75,moyen:2.5,eleve:5})[entGet('ent_risque_at')]||2.5});
 function entInfo(){
   const co=(typeof curCo==='function'&&curCo())||{};let ci={cab:'',cli:'',logo:''};
   try{ci=(window.cabinetInfo&&window.cabinetInfo())||ci;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
@@ -4646,13 +4648,14 @@ ${f('email','Email',P.email)}${f('service','Service / direction',entGet('ent_ser
 <label>Mise à disposition<select id="${p}mode"><option value="auto">Automatique (si l'entreprise a une société mère)</option><option value="oui">Toujours afficher la société mère</option><option value="non">Jamais</option></select></label>
 ${f('mere','Société mère (nom)',entGet('ent_mere'),'ex. TOTAL EMPLOI RH (vide = société mère du groupe)')}
 ${f('mereadr','Adresse de la société mère',entGet('ent_mere_adr'),'vide = adresse ci-dessus')}${f('madlabel','Libellé de mise à disposition',entGet('ent_mad_label'),'Mis à disposition auprès de')}
+<label>Risque accidents du travail (structure)<select id="${p}risque"><option value="faible">Faible (1,75 %)</option><option value="moyen">Moyen (2,5 %)</option><option value="eleve">Élevé (5 %)</option></select></label>
 <label style="grid-column:1/-1">Mentions légales (RCCM, NIU, BP… une ligne par mention)<textarea id="${p}mentions" rows="3">${v('ent_mentions')}</textarea></label>
 </div>
 <p class="muted" style="font-size:12px;margin:8px 0 2px">Aperçu de l'en-tête</p>
 <div id="${p}prev" style="border:1px dashed var(--bd,#bbb);border-radius:8px;padding:10px;font:11pt/1.5 'Times New Roman',serif;background:#fff;color:#000;max-width:420px"></div>
 <p style="margin-top:10px"><button class="p" type="button" id="${p}save">💾 Enregistrer l'en-tête</button> <button class="s" type="button" id="${p}reset">↺ Valeurs par défaut</button></p>`;
 }
-function entFormRead(p){const g=id=>{const x=document.getElementById(p+id);return x?x.value:'';};return {soc:g('soc').trim(),lieu:g('lieu').trim(),adresse:g('adresse').trim(),tel:g('tel').trim(),email:g('email').trim(),ent_service:g('service').trim(),ent_mode:g('mode')||'auto',ent_mere:g('mere').trim(),ent_mere_adr:g('mereadr').trim(),ent_mad_label:g('madlabel').trim(),ent_mentions:g('mentions')};}
+function entFormRead(p){const g=id=>{const x=document.getElementById(p+id);return x?x.value:'';};return {soc:g('soc').trim(),lieu:g('lieu').trim(),adresse:g('adresse').trim(),tel:g('tel').trim(),email:g('email').trim(),ent_service:g('service').trim(),ent_mode:g('mode')||'auto',ent_mere:g('mere').trim(),ent_mere_adr:g('mereadr').trim(),ent_mad_label:g('madlabel').trim(),ent_mentions:g('mentions'),ent_risque_at:g('risque')||'moyen'};}
 function entPreview(p){
   const el=document.getElementById(p+'prev');if(!el)return;
   const o=entFormRead(p),bak={};Object.keys(o).forEach(k=>{bak[k]=PARAMS[k];PARAMS[k]=o[k];});
@@ -4676,10 +4679,10 @@ function entImgMount(p){
 function entMount(id,p){
   const box=document.getElementById(id);if(!box)return;
   box.innerHTML=entImgHTML(p)+entFormHTML(p);entImgMount(p);
-  const set=(i,v)=>{const x=document.getElementById(p+i);if(x)x.value=v;};set('mode',entGet('ent_mode')||'auto');
+  const set=(i,v)=>{const x=document.getElementById(p+i);if(x)x.value=v;};set('mode',entGet('ent_mode')||'auto');set('risque',entGet('ent_risque_at')||'moyen');
   box.querySelectorAll('input,select,textarea').forEach(x=>{x.oninput=x.onchange=()=>entPreview(p);});
   entPreview(p);
-  document.getElementById(p+'reset').onclick=()=>{set('service',ENT_DEF.ent_service);set('mode','auto');set('mere','');set('mereadr','');set('madlabel',ENT_DEF.ent_mad_label);set('mentions','');entPreview(p);};
+  document.getElementById(p+'reset').onclick=()=>{set('service',ENT_DEF.ent_service);set('mode','auto');set('mere','');set('mereadr','');set('madlabel',ENT_DEF.ent_mad_label);set('mentions','');set('risque','moyen');entPreview(p);};
   document.getElementById(p+'save').onclick=async()=>{
     if(typeof CAN!=='undefined'&&CAN.params&&!CAN.params()){toast('Permission refusée');return;}
     const o=entFormRead(p);let ko=null;
@@ -5362,8 +5365,16 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
       rendreParamsPaie();
     } catch (e) { toast('Erreur : ' + (e && e.message || e)); }
   }
+  // Identité de l'employeur sur le bulletin : réglages du bulletin, à défaut les coordonnées de l'entreprise (fiche société)
   function identiteBulletinLue() {
-    try { return JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || null; } catch (e) { return null; }
+    var lu = {};
+    try { lu = JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || {}; } catch (e) { lu = {}; }
+    var P = (typeof PARAMS !== 'undefined' && PARAMS) || {};
+    return Object.assign({}, lu, {
+      societe: lu.societe || P.soc || '',
+      adresse: lu.adresse || P.adresse || '',
+      tel: lu.tel || P.tel || ''
+    });
   }
   function remplirIdentiteBulletin() {
     const b = identiteBulletinLue() || {};
@@ -6059,7 +6070,7 @@ w.querySelector('input').onchange=async e=>{const f=e.target.files[0];if(!f)retu
 /* ===== Paie camerounaise, congés légaux, widgets activables (par entreprise) ===== */
 (function(){
 const DEF={plafond:750000,cnps_sal:4.2,cfc_sal:1,cnps_pat:4.2,af:7,at:2.5,cfc_pat:1.5,fne:1,abatt:30,abatt_max:4800000,fixe:500000,cac:10,t1:10,t2:15,t3:25,t4:35,l1:2000000,l2:3000000,l3:5000000,hmois:173.33,hs1:20,hs2:30,hs3:40,hsd:40,hsn:50};
-const LBL={plafond:'Plafond CNPS mensuel (FCFA)',cnps_sal:'CNPS salarié %',cfc_sal:'Crédit foncier salarié %',cnps_pat:'CNPS pension employeur %',af:'Alloc. familiales employeur %',at:'Accidents du travail % (selon risque)',cfc_pat:'Crédit foncier employeur %',fne:'FNE employeur %',abatt:'Abattement frais pro %',abatt_max:'Plafond abattement (FCFA/an)',fixe:'Abattement fixe (FCFA/an)',cac:'CAC % de l\'IRPP',l1:'Tranche 1 jusqu\'à',t1:'Taux tranche 1 %',l2:'Tranche 2 jusqu\'à',t2:'Taux tranche 2 %',l3:'Tranche 3 jusqu\'à',t3:'Taux tranche 3 %',t4:'Taux au-delà %',hmois:'Heures normales par mois',hs1:'H. sup : majoration 8 premières h %',hs2:'H. sup : 8 suivantes %',hs3:'H. sup : 3e tranche (≤20 h/sem) %',hsd:'H. sup dimanche/férié %',hsn:'H. sup de nuit %'};
+const LBL={plafond:'Plafond CNPS mensuel (FCFA)',cnps_sal:'CNPS salarié %',cfc_sal:'Crédit foncier salarié %',cnps_pat:'CNPS pension employeur %',af:'Alloc. familiales employeur %',at:'Risque accidents du travail (structure)',cfc_pat:'Crédit foncier employeur %',fne:'FNE employeur %',abatt:'Abattement frais pro %',abatt_max:'Plafond abattement (FCFA/an)',fixe:'Abattement fixe (FCFA/an)',cac:'CAC % de l\'IRPP',l1:'Tranche 1 jusqu\'à',t1:'Taux tranche 1 %',l2:'Tranche 2 jusqu\'à',t2:'Taux tranche 2 %',l3:'Tranche 3 jusqu\'à',t3:'Taux tranche 3 %',t4:'Taux au-delà %',hmois:'Heures normales par mois',hs1:'H. sup : majoration 8 premières h %',hs2:'H. sup : 8 suivantes %',hs3:'H. sup : 3e tranche (≤20 h/sem) %',hsd:'H. sup dimanche/férié %',hsn:'H. sup de nuit %'};
 const WG=[['paie','💰 Paie & droit du travail'],['dsp','⚖️ Disciplinaire'],['c','🏖️ Congés'],['a','🔔 Alertes']];
 let CFG={...DEF},WGT={},SAL={},CUS=[],MAT={},MCFG={prefix:'',width:4,next:1,auto:false},MOD={m:'sage',color:'#1f5fbf',logo:true,sig:'La Direction',foot:'',mention:''};const fm=n=>Math.round(n).toLocaleString('fr-FR')+' F';
 async function rd(cle){try{const {data}=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle',cle).maybeSingle();return data?.valeur?JSON.parse(data.valeur):null;}catch(e){return null;}}
@@ -6067,7 +6078,8 @@ async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,v
 window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
-window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({id:String(x.id),nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',dane:x.dane||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||''}));
+window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
+window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({id:String(x.id),nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',dane:x.dane||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||'',...window.TERH_composantsFiche(x.n||x.nom)}));
 window.TERH_listeSalaries=window.TERH_fichesPaie;
 window.TERH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
 window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');MAT[id]=String(mat||'').trim();await wr('matricules_json',MAT);return true;};
@@ -6090,7 +6102,7 @@ function calc(b,aut,nc,tx,nt){
   if(nc>0)lignes.push({code:'9999',lib:'Élément non cotisable CNPS',gain:nc,cnps:false,irpp:true});
   if(aux>0)lignes.push({code:'2000',lib:'Autres retenues',gain:aux,retenue:true});
   const saisies={salaireBase:b,
-    taux:Object.assign({cnps_sal:CF.cnps_sal,cnps_pat:CF.cnps_pat,at_pat:CF.at,pf_pat:CF.af,fne_pat:CF.fne,cfc_sal:CF.cfc_sal,cfc_pat:CF.cfc_pat,cac:CF.cac,plafond_cnps:CF.plafond,cnps_plafond_mode:CF.cnps_plafond_mode||'sage'},window.PAIE_TAUX_CACHE||{}),
+    taux:Object.assign({cnps_sal:CF.cnps_sal,cnps_pat:CF.cnps_pat,at_pat:(window.TERH_tauxEntreprise?window.TERH_tauxEntreprise().at_pat:CF.at),pf_pat:CF.af,fne_pat:CF.fne,cfc_sal:CF.cfc_sal,cfc_pat:CF.cfc_pat,cac:CF.cac,plafond_cnps:CF.plafond,cnps_plafond_mode:CF.cnps_plafond_mode||'sage'},window.PAIE_TAUX_CACHE||{}),
     taxeCommunale:tx==='tc'?undefined:0,
     taxeDevLocal:tx==='tdl',
     redevance:CF.crtv===0?0:undefined};
@@ -6172,7 +6184,7 @@ if(tab==='mat')body='<p class="muted" style="font-size:12px">Choisissez le premi
 if(tab==='arc')body='<div id="parl" class="muted">Chargement…</div>';
 if(tab==='mod')body='<p class="muted" style="font-size:12px">Choisissez la structure du bulletin et personnalisez-la. Le logo se règle dans 📷.</p><select id="pmm" style="width:100%"><option value="classic">Classique (tableau encadré)</option><option value="moderne">Moderne (bandeau couleur)</option><option value="compact">Compact (plusieurs par page)</option></select><label style="display:flex;justify-content:space-between;margin:6px 0">Couleur<input id="pmc" type="color" value="'+(MOD.color||'#1f5fbf')+'"></label><label style="display:block;margin:6px 0"><input id="pml" type="checkbox" '+(MOD.logo?'checked':'')+'> Afficher le logo</label><input id="pms" placeholder="Signature (ex. La Direction)" value="'+esc(MOD.sig||'')+'" style="width:100%;margin:3px 0"><input id="pmf" placeholder="Texte de bas de page gauche" value="'+esc(MOD.foot||'')+'" style="width:100%;margin:3px 0"><textarea id="pmt" placeholder="Mention légale (ex. À conserver sans limitation de durée)" style="width:100%;min-height:60px">'+esc(MOD.mention||'')+'</textarea><button class="p" id="pmsv" style="width:100%;margin-top:6px">💾 Enregistrer</button><button class="s" id="pmp" style="width:100%;margin-top:6px">👁️ Aperçu</button>';
 if(tab==='mod')body+='<button class="s" id="mod_open" style="width:100%;margin-top:8px">📄 Bulletins modèles (pied, patronales, couleur)</button>';
-if(tab==='cfg')body='<p class="muted" style="font-size:12px">Valeurs par défaut issues de sources en ligne (CNPS, CGI) : à valider avec votre comptable ou la DGI, car elles changent selon les lois de finances.</p>'+Object.keys(DEF).map(k=>'<label style="display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-size:13px">'+LBL[k]+'<input data-k="'+k+'" type="number" step="any" value="'+CFG[k]+'" style="width:110px"></label>').join('')+'<button class="p" id="pys" style="width:100%;margin-top:8px">💾 Enregistrer (cette entreprise)</button>';
+if(tab==='cfg')body='<p class="muted" style="font-size:12px">Valeurs par défaut issues de sources en ligne (CNPS, CGI) : à valider avec votre comptable ou la DGI, car elles changent selon les lois de finances.</p>'+Object.keys(DEF).filter(k=>k!=='at').map(k=>'<label style="display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-size:13px">'+LBL[k]+(k==='at'?'<select data-k="at" style="width:200px">'+[[1.75,'Faible (1,75 %)'],[2.5,'Moyen (2,5 %)'],[5,'Élevé (5 %)']].map(o=>'<option value="'+o[0]+'"'+(Math.abs(CFG.at-o[0])<0.001?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>':'<input data-k="'+k+'" type="number" step="any" value="'+CFG[k]+'" style="width:110px">')+'</label>').join('')+'<button class="p" id="pys" style="width:100%;margin-top:8px">💾 Enregistrer (cette entreprise)</button>';
 if(tab==='pt')body='<p class="muted" style="font-size:12px">Saisissez les heures supplémentaires de chaque salarié pour la période. Elles sont reprises dans le bulletin détaillé.</p><button class="p" id="pt_open" style="width:100%">⏱ Ouvrir le pointage</button>';
 if(tab==='simu')body='<p class="muted" style="font-size:12px">Simulation sur le salaire de base seul (sans primes ni indemnités). Pour une simulation complète, ouvrez le bulletin détaillé puis 🧮 Simulation.</p><input id="sim_sal" type="number" placeholder="Salaire de base actuel" style="width:100%"><button class="p" id="simu_open" style="width:100%;margin-top:6px">🧮 Simuler</button>';
 if(tab==='wg')body='<p class="muted" style="font-size:12px">Activez ou désactivez les modules pour l\'entreprise ouverte. Un module désactivé est caché aux non-administrateurs.</p>'+WG.map(([k,l])=>'<label style="display:block;margin:8px 0"><input type="checkbox" data-w="'+k+'" '+(WGT[k]===false?'':'checked')+'> '+l+'</label>').join('')+'<button class="p" id="pws" style="width:100%">💾 Enregistrer</button>';

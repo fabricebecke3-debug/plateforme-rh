@@ -25,6 +25,9 @@
     { code: '1130', libelle: 'Heures supplémentaires 30 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 130, heures_sup: true },
     { code: '1140', libelle: 'Heures supplémentaires 40 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 140, heures_sup: true },
     { code: '1150', libelle: 'Heures supplémentaires 50 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 150, heures_sup: true },
+    { code: '1202', libelle: "Prime d'ancienneté", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'calcul', taux_defaut: null },
+    { code: '1901', libelle: 'Primes cotisables (fiche)', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
+    { code: '1902', libelle: 'Indemnités non cotisables (fiche)', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
     { code: '2000', libelle: 'Avance sur salaire', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
     { code: '2010', libelle: 'Cantine', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null }
   ];

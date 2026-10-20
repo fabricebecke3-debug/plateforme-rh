@@ -1,0 +1,26 @@
+TERH PAIE - VERSION 3.7 (import d'un bulletin modèle en PDF, formats de logo élargis)
+==================================================================================
+
+CREER UN MODELE DEPUIS UN BULLETIN (PDF)
+- Bouton « 📥 Créer depuis un bulletin PDF » dans l'éditeur des bulletins modèles.
+- Le PDF doit contenir du texte (non scanné). Les lignes « code + libellé » (ex. 1000 Salaire de Base mensuel)
+  sont lues dans l'ordre du bulletin ; le modèle est créé avec ces rubriques, à vérifier puis à enregistrer.
+- Les rubriques absentes du catalogue sont signalées : il faut les créer dans « Catalogue des rubriques de paie ».
+- Test effectué sur le texte du bulletin Sage d'avril 2026 : 15 rubriques lues (1000 à 9230), dans l'ordre du bulletin.
+- Ce que l'import reprend : les rubriques et leur ordre. Il ne reprend pas le logo (à importer à la main).
+- La mise en page reste celle du bulletin de l'appli (blocs, couleurs, colonnes, logo, pied) : le modèle la règle, l'import ne copie pas les positions exactes du PDF.
+
+LOGO
+- Formats acceptés : PNG, JPG, WebP, GIF, BMP, SVG.
+- Taille du fichier choisi : jusqu'à 5 Mo. L'image est redimensionnée (600 px maximum) et compressée
+  pour rester sous 300 Ko à l'enregistrement.
+
+BULLETIN SCANNE (IMAGE) : LECTURE PAR OCR
+- Si le PDF ne contient pas de texte, chaque page est rendue en image puis lue par OCR (Tesseract.js 5.1.1, langue française).
+- Le moteur OCR et ses données de langue sont chargés depuis cdnjs et jsdelivr (connexion requise la première fois).
+- Fiabilité : les codes (4 chiffres) et les montants peuvent être mal lus. Chaque rubrique doit être vérifiée avant enregistrement.
+
+A VERIFIER AVANT DEPLOIEMENT
+- Pas testé dans un navigateur avec un vrai PDF texte ni un vrai scan : pdf.js, Tesseract.js et les données françaises doivent se charger.
+- Le chemin des données OCR (@tesseract.js-data/fra/4.0.0_best_int sur jsdelivr) est à confirmer au premier essai.
+- Pour un scan, l'OCR peut être lent (quelques secondes par page).

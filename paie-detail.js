@@ -134,7 +134,8 @@
   }
   function ouvrir(opts) {
     var bulletinSociete = (opts && opts.bulletin) || null;
-    var tauxSage = (opts && opts.taux) || null;
+    // Réglages de la structure (risque AT, base FNE) prioritaires sur les taux par défaut
+    var tauxSage = Object.assign({}, (opts && opts.taux) || {}, (root.TERH_tauxEntreprise ? root.TERH_tauxEntreprise() : {}));
     var perso = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques.slice() : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
     var catalogue = fusionCatalogue(perso);
     if (root.PaiePointage) root.PaiePointage.synchroniser();
@@ -199,7 +200,7 @@
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
         '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
-      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="pointage">⏱ Pointage</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
+      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="pointage">⏱ Pointage</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
       '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
       '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
@@ -222,12 +223,15 @@
       return out;
     }
     function bandeauEcarts() {
-      var e = ecartsFiche();
-      if (!e.length) return '';
-      return '<div style="border:1px solid #f0c36d;background:#fff8e6;color:#5c4400;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px">' +
-        '<b>Informations à enregistrer dans la fiche de ' + echapper(etat.nom) + ' ?</b>' +
-        e.map(function (x) { return '<div style="margin-top:4px">' + x.lib + ' : « ' + echapper(x.actuel || '—') + ' » → « ' + echapper(x.nouveau) + ' »</div>'; }).join('') +
-        '<div style="margin-top:6px"><button type="button" class="p" data-x="saveEcart">Enregistrer dans la fiche</button></div></div>';
+      var e = ecartsFiche(), ctl = controleCotisable(), html = '';
+      if (e.length) {
+        html += '<div style="border:1px solid #f0c36d;background:#fff8e6;color:#5c4400;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px">' +
+          '<b>Informations à enregistrer dans la fiche de ' + echapper(etat.nom) + ' ?</b>' +
+          e.map(function (x) { return '<div style="margin-top:4px">' + x.lib + ' : « ' + echapper(x.actuel || '—') + ' » → « ' + echapper(x.nouveau) + ' »</div>'; }).join('') +
+          '<div style="margin-top:6px"><button type="button" class="p" data-x="saveEcart">Enregistrer dans la fiche</button></div></div>';
+      }
+      if (ctl) html += '<div style="border:1px solid #f0c36d;background:#fff8e6;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px">' + ctl + '</div>';
+      return html;
     }
     function enregistrerEcarts(btn) {
       var f = etat.fiche, e = ecartsFiche();
@@ -239,6 +243,40 @@
       if (ch.cnps !== undefined) p = p.then(function () { return root.TERH_majFiche(f.id, ch); }).then(function () { f.cnps = ch.cnps; });
       p.then(function () { alert('Enregistré dans la fiche de ' + etat.nom + '.'); rendre(); })
         .catch(function (err) { alert('Enregistrement impossible : ' + ((err && err.message) || err)); btn.disabled = false; btn.textContent = 'Enregistrer dans la fiche'; });
+    }
+    // Composants de la fiche (colonnes importées) : salaire de base en rubrique 1000, primes cotisables et
+    // indemnités non cotisables en lignes automatiques (code PRC / IND, à rattacher à vos rubriques)
+    function nombreFiche(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
+    function appliquerFiche(f) {
+      if (!f) return;
+      var hor = Number(f.hor) || 173.33, col = f.colonnes || {};
+      var sb = nombreFiche(f.sbImp) || nombreFiche(f.sb);
+      var b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
+      if (sb && b1000) { b1000.nombre = hor; b1000.base = sb / hor; b1000.gain = null; }
+      // Lignes générées pour le salarié précédent : retirées ; les lignes saisies à la main restent
+      etat.lignes = etat.lignes.filter(function (l) { return !l.auto; });
+      // Le modèle de bulletin décide des éléments à générer (rubriques cochées)
+      var modele = (root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null;
+      var choisis = (modele && modele.rubriques && modele.rubriques.length) ? modele.rubriques.map(String) : null;
+      var connus = (root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger().map(function (r) { return String(r.code); }) : [];
+      ELEMENTS_FICHE.forEach(function (e) {
+        if (choisis && connus.indexOf(e.code) >= 0 && choisis.indexOf(e.code) < 0) return;
+        var cle = Object.keys(col).filter(function (k) { return e.cle.test(k) && nombreFiche(col[k]) !== 0; })[0];
+        var v = cle ? nombreFiche(col[cle]) : 0;
+        if (!v) return;
+        var dr = (root.PaieMoteur && PaieMoteur.drapeaux) ? PaieMoteur.drapeaux(e.nature) : { irpp: true, cnps: false, cfc: false };
+        etat.lignes.push({ code: e.code, lib: e.lib, nombre: null, base: null, taux: null, gain: v,
+          cnps: dr.cnps, cfc: dr.cfc, irpp: dr.irpp, retenue: false, auto: true });
+      });
+    }
+    // Contrôle : base CNPS du bulletin contre « salaire cotisable » de la fiche
+    function controleCotisable() {
+      var f = etat.fiche, c = f ? nombreFiche(f.salCotisable) : 0;
+      if (!c) return '';
+      var R = calcul(), ecart = Math.round(R.baseCNPS - c);
+      if (Math.abs(ecart) <= 1) return '';
+      return '<div style="margin-top:6px;color:#8a4b00">Base CNPS du bulletin ' + fmt(R.baseCNPS) + ' ≠ salaire cotisable de la fiche ' + fmt(c) +
+        ' (écart ' + fmt(ecart) + '). Vérifiez le mode de plafond CNPS et les cases « cotisable ».</div>';
     }
     function calcul() {
       var s = etat.saisies;
@@ -286,10 +324,7 @@
         if (fiche) {
           etat.nom = fiche.nom; etat.mat = fiche.mat || ''; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || ''; etat.fiche = fiche;
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
-          if (fiche.sb) {
-            var hor = Number(fiche.hor) || 173.33, b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
-            if (b1000) { b1000.nombre = hor; b1000.base = Number(fiche.sb) / hor; b1000.gain = null; }
-          } var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
+          appliquerFiche(fiche); var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
           cadre.querySelector('[data-f="nom"]').value = etat.nom;
           cadre.querySelector('[data-f="cnps"]').value = etat.cnps;
           var mi = cadre.querySelector('[data-f="mat"]'); if (mi) mi.value = etat.mat;
@@ -307,6 +342,7 @@
       else if (x === 'rub') { openRubriques(); }
       else if (x === 'anc') { ajouterAnciennete(); }
       else if (x === 'saveEcart') { enregistrerEcarts(b); }
+      else if (x === 'fiche') { if (etat.fiche) { appliquerFiche(etat.fiche); rendre(); } else alert('Choisissez d\'abord le salarié.'); }
       else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
       else if (x === 'pointage') {
         if (!root.PaiePointage) { alert('paie-pointage-simulation.js n\'est pas chargé.'); }
@@ -343,6 +379,17 @@
     rendre();
   }
   // Contrôles affichés avant impression : plafond CNPS, net négatif, brut nul, retenues supérieures au brut
+  // Éléments lus dans les colonnes importées de la fiche (le modèle de bulletin choisit ceux à générer)
+  var ELEMENTS_FICHE = [
+    { code: '1040', lib: 'Sursalaire', cle: /sursalaire/i, nature: 'salaire' },
+    { code: '1430', lib: 'Indemnité de transport', cle: /transport/i, nature: 'transport' },
+    { code: '1435', lib: 'Indemnité de logement', cle: /logement/i, nature: 'logement_avantage' },
+    { code: '1310', lib: 'Prime de panier', cle: /panier/i, nature: 'remboursement' },
+    { code: '1442', lib: 'Indemnité de salissure', cle: /salissure/i, nature: 'remboursement' },
+    { code: '1510', lib: "Prime d'assiduité", cle: /assiduit/i, nature: 'salaire' },
+    { code: '1901', lib: 'Primes cotisables (fiche)', cle: /prime.*cotisable/i, nature: 'salaire' },
+    { code: '1902', lib: 'Indemnités non cotisables (fiche)', cle: /indemn.*non\s*cotisable/i, nature: 'indemnite_non_cotisable' }
+  ];
   function controles(R, lignes, cnps) {
     var msg = [];
     if (!R) return msg;

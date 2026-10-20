@@ -139,9 +139,10 @@
     var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(saltaxf, s.plafondCFPat) : saltaxf;
     var patRaw = {
       cnps: netimpopl * T.cnps_pat / 100,
-      at: netimpopl * T.at_pat / 100,
+      at: basecot * T.at_pat / 100,   // cours V.2 : accidents du travail sur le salaire NON plafonné
       pf: netimpopl * T.pf_pat / 100,
-      fne: netimpopl * T.fne_pat / 100,
+      // FNE employeur = masse salariale assujettie NON plafonnée × 1 % (avantages en nature inclus, sans plafond CNPS)
+      fne: basecot * T.fne_pat / 100,
       cfc: baseCFPat * T.cfc_pat / 100
     };
     var totPatRaw = patRaw.cnps + patRaw.at + patRaw.pf + patRaw.fne + patRaw.cfc;
@@ -212,8 +213,27 @@
     return Math.round(nb(salaireCategoriel) * tauxAnciennete(ans) / 100);
   }
 
+  // Accidents du travail selon le risque de la structure (cours, V.2) : faible 1,75 % ; moyen 2,5 % ; élevé 5 %
+  var RISQUE_AT = { faible: 1.75, moyen: 2.5, eleve: 5 };
+  // Nature des éléments (cours, tableau « taxable / cotisable ») :
+  //  salaire : heures normales, sursalaire, primes de complément -> imposable, cotisable, CFC
+  //  logement_avantage : logement (avantage en nature en espèces) -> imposable, cotisable (LOG CONS traité dans NETIMPOL)
+  //  transport : indemnité de transport -> imposable, non cotisable (bulletins Sage de la société)
+  //  indemnite_non_cotisable : indemnité sans caractère de salaire -> imposable, non cotisable (à confirmer)
+  //  remboursement : frais (panier, salissure...) -> ni imposable ni cotisable
+  var NATURES = {
+    salaire: { irpp: true, cnps: true, cfc: true },
+    logement_avantage: { irpp: true, cnps: true, cfc: false },
+    transport: { irpp: true, cnps: false, cfc: false },
+    indemnite_non_cotisable: { irpp: true, cnps: false, cfc: false },
+    remboursement: { irpp: false, cnps: false, cfc: false }
+  };
+  function drapeaux(nature) { var n = NATURES[nature] || NATURES.salaire; return { irpp: n.irpp, cnps: n.cnps, cfc: n.cfc }; }
+
   var API = {
     calculer: calculer,
+    RISQUE_AT: RISQUE_AT,
+    drapeaux: drapeaux,
     gainLigne: gainLigne,
     ancienneteDepuis: ancienneteDepuis,
     tauxAnciennete: tauxAnciennete,

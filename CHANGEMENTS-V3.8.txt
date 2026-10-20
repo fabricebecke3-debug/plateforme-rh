@@ -1,0 +1,27 @@
+TERH PAIE - VERSION 3.9 (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
+=========================================================================
+
+ECRAN DE VERIFICATION AVANT CREATION DU MODELE
+- Apres lecture d'un bulletin PDF (texte ou scan), une fenetre liste les rubriques lues : code, libelle,
+  montant lu (derniere colonne de la ligne) et confiance OCR.
+- Les codes et montants sont modifiables ; une ligne peut etre exclue (case a decocher).
+- Les lignes en orange sont a verifier : confiance OCR inferieure a 80 %, code non a 4 chiffres ou montant absent.
+- Un code absent du catalogue est signale : il faut le creer dans « Catalogue des rubriques de paie ».
+- Le modele n'est cree qu'apres validation (« Créer le modèle »).
+
+OCR
+- La confiance est donnee par ligne (Tesseract.js) et affichee dans l'ecran de verification.
+
+CORRECTIONS (V3.9)
+- Le montant n'est plus impose : la colonne se choisit sur l'ecran de verification.
+
+LIMITES RESTANTES
+- Mise en page : l'import reprend les rubriques et leur ordre, pas les positions du PDF. Le moteur de gabarit
+  (reproduction des positions) n'est pas construit ; c'est une etape separee.
+- Montant : l'ecran affiche toutes les valeurs numeriques de la ligne (base, taux, nombre, gain, retenue...) et
+  propose par defaut la derniere colonne. Pour une ligne patronale (ex. 8110), choisir la colonne « charge patronale »
+  ou « retenue » selon le cas ; la base et le taux ne sont pas retenus par defaut.
+
+A VERIFIER AVANT DEPLOIEMENT
+- Pas teste dans un navigateur avec un PDF texte reel ni un scan reel.
+- Le chemin des donnees OCR (@tesseract.js-data/fra/4.0.0_best_int sur jsdelivr) reste a confirmer au premier essai.
