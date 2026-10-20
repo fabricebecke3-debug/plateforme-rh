@@ -1181,6 +1181,11 @@ const CAN={
   }
 };
 const toApp=r=>({id:String(r.id),entree:r.date_entree||'',lieu:r.lieu_travail||'',sb:r.salaire_base??'',hor:r.horaire??'',per:r.periodicite||'mois',mod:r.modele_bulletin||'',conv:r.convention||'',cat:r.categorie||'',niv:r.niveau||'',ind:r.indice||'',coef:r.coefficient||'',dane:r.date_anciennete||'',dep:r.date_entree_profession||'',tent:r.type_entree||'',etab:r.etablissement||'',n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.date_naissance||'',t:r.type_contrat||'TEMPORAIRE',deb:r.debut||'',fin:r.fin||'',tel:r.telephone||'',cnps:r.cnps||'',dv:r.date_visite||'',darret:r.date_arret||'',marret:r.motif_arret||'',comarret:r.commentaire_arret||'',contrat_url:r.contrat_url||'',contrat_nom:r.contrat_nom||'',scnpsSafe:cnpsStatut(r.cnps)});
+window.chargerFichesPaie=async function(){
+  const r=await scq(db.from('employes').select('*')).order('nom',{ascending:true});
+  if(r.error) throw r.error;
+  return (r.data||[]).map(toApp).filter(function(x){return x.n;}).map(function(x){return {nom:x.n, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||'', poste:x.p||'', niv:x.niv||'', ind:x.ind||'', coef:x.coef||'', cat:x.cat||'', conv:x.conv||'', mod:x.mod||''};});
+};
 const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail:o.lieu}:{}),
   ...(o.sb?{salaire_base:Number(o.sb)}:{}),...(o.hor?{horaire:Number(o.hor)}:{}),...(o.per?{periodicite:o.per}:{}),
   ...(o.mod?{modele_bulletin:o.mod}:{}),...(o.conv?{convention:o.conv}:{}),...(o.cat?{categorie:o.cat}:{}),
@@ -5272,7 +5277,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({employeur: (window.activeCoName?window.activeCoName():''), bulletin: identiteBulletinLue(), constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (window.ENLIST?window.ENLIST():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||'', poste:x.p||'', niv:x.niv||'', ind:x.ind||'', coef:x.coef||'', cat:x.cat||'', conv:x.conv||'', mod:x.mod||''};})}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({charger: window.chargerFichesPaie, employeur: (window.activeCoName?window.activeCoName():''), bulletin: identiteBulletinLue(), constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (window.ENLIST?window.ENLIST():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||'', poste:x.p||'', niv:x.niv||'', ind:x.ind||'', coef:x.coef||'', cat:x.cat||'', conv:x.conv||'', mod:x.mod||''};})}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -9490,6 +9495,8 @@ hook();setInterval(hook,1500);
 <script src="formation/export-outils.js"></script>
 <script src="graphiques.js"></script>
 <script src="paie-moteur.js"></script>
+<script src="paie-rubriques-sage.js"></script>
+<script src="paie-bulletin-sage.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>

@@ -50,6 +50,7 @@
       ligne(lignes1) + ligne(lignes2) + '</table>';
   }
   function bulletinHTML(o) {
+    if (root.PaieBulletinSage && root.PaieBulletinSage.html) return root.PaieBulletinSage.html(o);
     var R = o.resultat, lignes = o.lignes || [], s = o.saisies || {};
     var rub = lignes.map(function (l, i) {
       var g = (R.rubriques && R.rubriques[i]) ? R.rubriques[i].gain : (l.gain || 0);
@@ -112,7 +113,7 @@
   function ouvrir(opts) {
     var bulletinSociete = (opts && opts.bulletin) || null;
     var tauxSage = (opts && opts.taux) || null;
-    var catalogue = (opts && opts.rubriques) || [];
+    var catalogue = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques : ((window.PaieSageCatalogue && PaieSageCatalogue.rubriques) || []).map(function (r) { return { code: r.code, libelle: r.libelle, type: r.typeSage === 'C' ? 'retenue' : 'gain', imposable: r.imposable !== 'Jms', taux_defaut: null }; });
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
       saisies: {}, nom: (opts && opts.nom) || '', cnps: (opts && opts.cnps) || '', lieu: (opts && opts.lieu) || '', periode: (opts && opts.periode) || periodeMoisCourant(), employeur: (opts && opts.employeur) || '' };
     var employes = (opts && opts.employes) || [];
@@ -189,7 +190,7 @@
           etat.nom = fiche.nom; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || '';
           etat.salarie = { nom: fiche.nom, matricule: fiche.mat || '', niveau: fiche.niv || '', coefficient: fiche.coef || '', indice: fiche.ind || '',
             categorie: fiche.cat || '', emploi: fiche.poste || fiche.p || '', secu: fiche.cnps || '', embauche: fiche.entree || fiche.deb || '',
-            anciennete: '', horaire: fiche.hor || 173.33, lieu: fiche.lieu || '', convention: fiche.conv || '' };
+            anciennete: (window.PaieMoteur && PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) || {texte:''}).texte, horaire: fiche.hor || 173.33, lieu: fiche.lieu || '', convention: fiche.conv || '' };
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
           if (fiche.sb) {
             var hor = Number(fiche.hor) || 173.33, b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
@@ -220,6 +221,15 @@
       var o = document.createElement('option'); o.value = String(i); o.textContent = r.code + ' — ' + r.libelle + (r.type === 'retenue' ? ' (retenue)' : '');
       sel.appendChild(o);
     });
+    // Liste des salariés : repli sur la base si la liste transmise est vide
+    function remplirFiches(liste) {
+      employes = liste || [];
+      var sel = cadre.querySelector('[data-emp]'); if (!sel) return;
+      sel.innerHTML = '<option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('');
+    }
+    if (!employes.length && opts && typeof opts.charger === 'function') {
+      Promise.resolve(opts.charger()).then(remplirFiches).catch(function (e) { console.warn('Chargement des fiches impossible', e); });
+    }
     var selCst = cadre.querySelector('[data-cst]');
     (opts && opts.constantes || []).forEach(function (c, i) {
       var o = document.createElement('option'); o.value = String(i); o.textContent = c.code + ' — ' + c.libelle + ' (' + c.valeur + ')';
