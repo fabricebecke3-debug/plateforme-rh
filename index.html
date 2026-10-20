@@ -5371,7 +5371,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     try { lu = JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || {}; } catch (e) { lu = {}; }
     var P = (typeof PARAMS !== 'undefined' && PARAMS) || {};
     return Object.assign({}, lu, {
-      societe: lu.societe || P.soc || '',
+      societe: lu.societe || P.soc || (typeof activeCoName === 'function' ? activeCoName() : '') || '',
       adresse: lu.adresse || P.adresse || '',
       tel: lu.tel || P.tel || ''
     });

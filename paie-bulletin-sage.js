@@ -34,7 +34,7 @@
 
   function cellule(lib, val, w) {
     return '<td style="border:1px solid #444;padding:1px 4px;vertical-align:top;width:' + (w || 'auto') + '">' +
-      '<div style="font-size:8px;color:#333">' + lib + '</div><div style="font-size:10px">' + esc(vide(val)) + '</div></td>';
+      '<div style="font-size:10px;color:#333">' + lib + '</div><div style="font-size:11.5px">' + esc(vide(val)) + '</div></td>';
   }
 
   function enTete(o, R, couleur) {
@@ -75,15 +75,15 @@
   function zoneSalarie(o) {
     var s = o.salarie || {}, c = o.conges || {};
     return '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:0"><tr>' +
-      '<td style="border:1px solid #444;width:38%;vertical-align:top;padding:4px 6px;font-size:10px">' +
-        '<table style="width:100%;border-collapse:collapse;font-size:9px"><tr><th style="border:1px solid #888;background:#f2f2f2"></th><th style="border:1px solid #888;background:#f2f2f2">Acquis</th><th style="border:1px solid #888;background:#f2f2f2">Reste à prendre</th><th style="border:1px solid #888;background:#f2f2f2">Pris</th></tr>' +
+      '<td style="border:1px solid #444;width:38%;vertical-align:top;padding:4px 6px;font-size:11.5px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:10.5px"><tr><th style="border:1px solid #888;background:#f2f2f2"></th><th style="border:1px solid #888;background:#f2f2f2">Acquis</th><th style="border:1px solid #888;background:#f2f2f2">Reste à prendre</th><th style="border:1px solid #888;background:#f2f2f2">Pris</th></tr>' +
         '<tr><td style="border:1px solid #888">Repos comp.</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposAcquis, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposReste, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.reposPris, 3) + '</td></tr>' +
         '<tr><td style="border:1px solid #888">Congés</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesAcquis, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesReste, 3) + '</td><td style="border:1px solid #888;text-align:right">' + nb(c.congesPris, 3) + '</td></tr></table>' +
-        '<div style="margin-top:6px;font-size:9px">Dates de congés : du ' + esc(vide(c.du)) + ' au ' + esc(vide(c.au)) + '</div></td>' +
+        '<div style="margin-top:6px;font-size:10.5px">Dates de congés : du ' + esc(vide(c.du)) + ' au ' + esc(vide(c.au)) + '</div></td>' +
       '<td style="border:1px solid #444;vertical-align:top;padding:6px 10px;background:#eef7ee">' +
         '<div style="font-size:12px;font-weight:700">' + esc(vide(o.nom || s.nom)) + '</div>' +
         '<div style="font-size:10px;margin-top:4px">' + esc(vide(s.adresse)) + '</div>' +
-        (o.commentaire ? '<div style="font-size:9px;margin-top:6px;color:#333">Commentaire : ' + esc(o.commentaire) + '</div>' : '') +
+        (o.commentaire ? '<div style="font-size:10.5px;margin-top:6px;color:#333">Commentaire : ' + esc(o.commentaire) + '</div>' : '') +
       '</td></tr></table>';
   }
 
@@ -165,8 +165,8 @@
     var mod = o.modele || {};
     var cols = colonnesVisibles(mod);
     var L = lignesTableau(o, R);
-    var th = function (t, al) { return '<th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;font-size:9px;text-align:' + (al || 'center') + '">' + t + '</th>'; };
-    return '<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:0">' +
+    var th = function (t, al) { return '<th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;font-size:10.5px;text-align:' + (al || 'center') + '">' + t + '</th>'; };
+    return '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:0">' +
       '<thead><tr>' + th('N°', 'left') + th('Désignation', 'left') + cols.map(function (c) { return th(c[1]); }).join('') + '</tr></thead>' +
       '<tbody>' + corpsTableau(L, cols, o._sansPatronales) + '</tbody></table>';
   }
@@ -190,14 +190,14 @@
     };
     var periodeV = [fmt(R.brut), fmt(R.netImposable), fmt(cotSal), fmt(R.totalPatronales), hTrav, fmt(hSup), '0'];
     var anneeV = [fmt(an.brut), fmt(an.netImposable), fmt(an.cotisationsSalariales), fmt(an.chargesPatronales), fmt(an.heures), fmt(an.heuresSup), '0'];
-    return '<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin-top:8px">' +
+    return '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">' +
       '<tr><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;width:9%">Cumuls</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Salaire brut</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Net imposable</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Cotisations salariales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Charges patronales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures travaillées</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures sup.</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Avantages en nature</th></tr>' +
       ligne('Période', periodeV) + ligne('Année', anneeV) + '</table>' +
       '<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:15px;font-weight:700;background:' + couleur + ';width:45%">NET À PAYER</td>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:18px;font-weight:700;text-align:right">' + fmt(R.net) + ' FCFA</td></tr></table>' +
-      (o._sansPied ? '' : '<p style="font-size:8.5px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
-      (o._sansPatronales ? '' : '<p style="font-size:8.5px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
+      (o._sansPied ? '' : '<p style="font-size:10px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
+      (o._sansPatronales ? '' : '<p style="font-size:10px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
   }
 
   function html(o) {
@@ -224,11 +224,11 @@
   function css(couleur) {
     var c = teinte(couleur), r = parseInt(c.substr(1, 2), 16), g = parseInt(c.substr(3, 2), 16), b = parseInt(c.substr(5, 2), 16);
     var txt = (r * 299 + g * 587 + b * 114) / 1000 < 150 ? '#fff' : '#000';
-    return '.bs-bulletin{font-family:Arial,sans-serif;font-size:9.5px;color:#000}' +
+    return '.bs-bulletin{font-family:Arial,sans-serif;font-size:11px;color:#000}' +
       '.bs-bulletin table{border-collapse:collapse;width:100%}' +
       '.bs-bulletin td,.bs-bulletin th{border:1px solid #888;padding:1px 4px;line-height:1.2}' +
       '.bs-bulletin td.bs-lib{white-space:normal}' +
-      '.bs-bulletin th{color:' + txt + ' !important;font-size:9px}';
+      '.bs-bulletin th{color:' + txt + ' !important;font-size:10.5px}';
   }
 
   root.PaieBulletinSage = { html: html, css: css, lignesTableau: lignesTableau, bornes: bornes };

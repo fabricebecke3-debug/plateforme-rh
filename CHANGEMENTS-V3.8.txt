@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.9 (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
+TERH PAIE - VERSION 3.11 (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
 =========================================================================
 
 ECRAN DE VERIFICATION AVANT CREATION DU MODELE
@@ -25,3 +25,14 @@ LIMITES RESTANTES
 A VERIFIER AVANT DEPLOIEMENT
 - Pas teste dans un navigateur avec un PDF texte reel ni un scan reel.
 - Le chemin des donnees OCR (@tesseract.js-data/fra/4.0.0_best_int sur jsdelivr) reste a confirmer au premier essai.
+
+VERSION 3.10 : EMPLOYEUR
+- Le nom de l'employeur sur le bulletin et dans le champ « Employeur » vient, à défaut de l'identité du bulletin
+  et des paramètres, du nom de l'entreprise active (avant : champ vide, en-tête du bulletin sans nom).
+- Matricule interne : il est vide tant qu'il n'est pas saisi dans la fiche ou sur le bulletin (le bouton
+  d'enregistrement propose de le sauvegarder). Il peut aussi venir de l'import d'un bulletin (DIPE).
+
+VERSION 3.11 : LISIBILITE DE L'IMPRESSION
+- Tailles de police du bulletin relevees : libelles 8 px -> 10 px, texte des rubriques 9,5 px -> 11 px,
+  en-tetes 9 px -> 10,5 px (avant, les petits caracteres devenaient illisibles sur A4).
+- Format A4 portrait, marge 14 mm (inchangee).
