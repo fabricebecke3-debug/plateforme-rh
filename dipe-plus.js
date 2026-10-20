@@ -232,7 +232,7 @@ T.deriveDays=function(lines,R,hmois,r){
 
 /* ---------- 1. lecture enrichie d'un bulletin (appelée par l'index) ---------- */
 T.enrich=function(r,text,fn){
-  const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||[],MAT=ctx.MAT||{};
+  const ctx=T.ctx||{},PC=Object.assign({plafond:750000,cnps_sal:4.2},ctx.PC||{}),E=ctx.E||(typeof E!=='undefined'?E:[]),MAT=ctx.MAT||{};
   const lines=normLines(text),C=T.custom||{},src=r.src={};
   const R=k=>(C[k]||[]).map(custRe).concat((T.LABELS[k]||[]).map(s=>new RegExp(s,'i')));
   /* nom : ligne « M NOM PRENOMS » (sans deux-points) */
@@ -278,7 +278,7 @@ T.enrich=function(r,text,fn){
     if(byMi){
       if(e&&e.id!==byMi.id){
         /* le NOM du bulletin fait foi : on garde la fiche trouvée par le nom, et le matricule du bulletin est retenu */
-        r.warn=(r.warn?r.warn+' · ':'')+'matricule du bulletin ('+r.mi+') ≠ fiche « '+(e.n||r.nom)+' » ('+(MAT[e.id]||'—')+') : nom confirmé, matricule du bulletin retenu';
+        r.warn='matricule du bulletin ('+r.mi+') ≠ fiche « '+(e.n||r.nom)+' » ('+(MAT[e.id]||'—')+') : nom confirmé, matricule du bulletin retenu';
         r.miFromSlip=true;
       }else{e=byMi;r.eid=byMi.id;r.nom=byMi.n;}
     }}
