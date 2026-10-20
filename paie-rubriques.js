@@ -1,197 +1,165 @@
-/* paie-rubriques.js : éditeur de rubriques de paie (catalogue).
- * Ouverture : PaieRubriques.ouvrir(catalogue, onChange)
- *   catalogue : tableau d'objets {code, libelle, type:'gain'|'retenue', imposable, cnps, cfc,
- *               mode:'fixe'|'heures'|'pct', taux_defaut, transport, logement, heures_sup}
- *   onChange(liste) est appelé à chaque enregistrement.
- * Sauvegarde locale : localStorage 'terh_paie_catalogue' (chargé automatiquement par PaieRubriques.charger()).
- * Limite : le mode de calcul est enregistré, mais les formules libres ne sont pas encore interprétées.
- */
-(function (root) {
-  'use strict';
+/* paie-rubriques.js — Éditeur du catalogue de rubriques de paie */
+(function(root){
+'use strict';
 
-  var CLE = 'terh_paie_catalogue';
-  var COULEUR = '#1f5fbf';
+var RUBRIQUES = [];
 
-  // Modèle inspiré des rubriques Sage du bulletin de référence
-  var MODELE = [
-    { code: '1000', libelle: 'Salaire de base mensuel', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: null },
-    { code: '1040', libelle: 'Sursalaire', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
-    { code: '1430', libelle: 'Indemnité de transport', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null, transport: true },
-    { code: '1435', libelle: 'Indemnité de logement', type: 'gain', imposable: true, cnps: true, cfc: false, mode: 'fixe', taux_defaut: null, logement: true },
-    { code: '1510', libelle: "Prime d'assiduité", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
-    { code: '1310', libelle: 'Prime de panier', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '1442', libelle: 'Indemnité de salissure', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '1110', libelle: 'Heures supplémentaires 20 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 120, heures_sup: true },
-    { code: '1130', libelle: 'Heures supplémentaires 30 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 130, heures_sup: true },
-    { code: '1140', libelle: 'Heures supplémentaires 40 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 140, heures_sup: true },
-    { code: '1150', libelle: 'Heures supplémentaires 50 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 150, heures_sup: true },
-    { code: '2000', libelle: 'Avance sur salaire', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '2010', libelle: 'Cantine', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null }
-  ];
-
-  var MODES = { fixe: 'Montant fixe', heures: 'Nombre × base × taux', pct: '% du salaire de base' };
-
-  function esc(v) {
-    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-  function copie(r) {
-    return {
-      code: String(r.code || '').trim(),
-      libelle: String(r.libelle || '').trim(),
-      type: r.type === 'retenue' ? 'retenue' : 'gain',
-      imposable: r.imposable !== false,
-      cnps: !!r.cnps,
-      cfc: !!r.cfc,
-      mode: MODES[r.mode] ? r.mode : 'fixe',
-      taux_defaut: (r.taux_defaut === null || r.taux_defaut === '' || r.taux_defaut === undefined) ? null : Number(r.taux_defaut),
-      transport: !!r.transport,
-      logement: !!r.logement,
-      heures_sup: !!r.heures_sup
-    };
-  }
-  function valider(liste) {
-    var vu = {};
-    for (var i = 0; i < liste.length; i++) {
-      var r = liste[i];
-      if (!/^\d{4}$/.test(r.code)) return 'Code invalide (4 chiffres) : « ' + r.code + ' »';
-      if (!r.libelle) return 'Libellé manquant pour le code ' + r.code;
-      if (vu[r.code]) return 'Code en double : ' + r.code;
-      if (r.taux_defaut !== null && !(r.taux_defaut >= 0)) return 'Taux invalide pour ' + r.code;
-      vu[r.code] = true;
-    }
-    return '';
-  }
-  function charger() {
-    try {
-      var brut = root.localStorage && root.localStorage.getItem(CLE);
-      if (brut) { var l = JSON.parse(brut); if (Array.isArray(l) && l.length) return l.map(copie); }
-    } catch (e) {}
-    return MODELE.map(copie);
-  }
-  function sauver(liste) {
-    try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(liste)); } catch (e) {}
-    var pont = root.TERH_paieRub;
-    if (pont && pont.save) {
-      Promise.resolve(pont.save(liste)).catch(function (e) { console.error('Rubriques : sauvegarde base impossible', e); });
+function charger() {
+  try { RUBRIQUES = JSON.parse(localStorage.getItem('paie_rubriques')||'[]'); } catch(e){ RUBRIQUES = []; }
+  if (!RUBRIQUES.length) {
+    // Charger depuis Sage si dispo
+    if (root.PaieDetail && root.PaieDetail.getCatalogue) {
+      RUBRIQUES = root.PaieDetail.getCatalogue();
     }
   }
-  // Lit le catalogue enregistré pour la société (table parametres). Renvoie la liste, ou null si rien en base.
-  function synchroniser() {
-    var pont = root.TERH_paieRub;
-    if (!pont || !pont.load) return Promise.resolve(null);
-    return Promise.resolve(pont.load()).then(function (l) {
-      if (!Array.isArray(l) || !l.length) return null;
-      var propre = l.map(copie);
-      try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(propre)); } catch (e) {}
-      return propre;
-    }).catch(function () { return null; });
+}
+function sauver() {
+  try { localStorage.setItem('paie_rubriques',JSON.stringify(RUBRIQUES)); } catch(e){}
+}
+function synchroniser() { charger(); return Promise.resolve(RUBRIQUES.slice()); }
+
+function ouvrir(catalogueInitial, onSaved) {
+  if (catalogueInitial && catalogueInitial.length) {
+    RUBRIQUES = catalogueInitial.slice();
+  } else {
+    charger();
   }
-
-  function ouvrir(catalogue, onChange) {
-    var id = 'pr-overlay';
-    if (document.getElementById(id)) return;
-    if (!document.getElementById('pr-style')) {
-      var st = document.createElement('style');
-      st.id = 'pr-style';
-      st.textContent = '#pr-cadre,#pr-cadre *{font-family:Arial,sans-serif;box-sizing:border-box}' +
-        '#pr-cadre{background:#fff;color:#1a1a1a}#pr-cadre input,#pr-cadre select{background:#fff;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 6px;font-size:12px}' +
-        '#pr-cadre table th{background:' + COULEUR + ';color:#fff;padding:6px;font-size:12px;text-align:left}' +
-        '#pr-cadre table td{padding:4px;border-bottom:1px solid #e3e8ef;vertical-align:middle}' +
-        '#pr-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}' +
-        '#pr-cadre button.p{background:' + COULEUR + ';color:#fff;border-color:' + COULEUR + '}' +
-        '#pr-cadre button.d{background:#fdecec;border-color:#e74c3c;color:#a93226}';
-      document.head.appendChild(st);
-    }
-    var liste = (catalogue && catalogue.length ? catalogue : charger()).map(copie);
-
-    var ov = document.createElement('div');
-    ov.id = id;
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
-    var cadre = document.createElement('div');
-    cadre.id = 'pr-cadre';
-    cadre.style.cssText = 'max-width:1100px;width:100%;border-radius:12px;padding:16px';
-    ov.appendChild(cadre);
-    document.body.appendChild(ov);
-
-    function lire() {
-      var rows = cadre.querySelectorAll('[data-row]');
-      liste = Array.prototype.map.call(rows, function (tr) {
-        function g(f) { return tr.querySelector('[data-f="' + f + '"]'); }
-        return copie({
-          code: g('code').value, libelle: g('libelle').value, type: g('type').value,
-          imposable: g('imposable').checked, cnps: g('cnps').checked, cfc: g('cfc').checked,
-          mode: g('mode').value, taux_defaut: g('taux').value,
-          transport: g('transport').checked, logement: g('logement').checked, heures_sup: g('hs').checked
-        });
-      });
-    }
-    function msg(t, err) {
-      var m = cadre.querySelector('[data-msg]');
-      if (m) { m.textContent = t; m.style.color = err ? '#c0392b' : '#1e8449'; }
-    }
-    function dessiner() {
-      var cb = function (f, v) { return '<td style="text-align:center"><input type="checkbox" data-f="' + f + '"' + (v ? ' checked' : '') + '></td>'; };
-      var lignes = liste.map(function (r, i) {
-        return '<tr data-row="' + i + '">' +
-          '<td><input data-f="code" value="' + esc(r.code) + '" maxlength="4" style="width:64px"></td>' +
-          '<td><input data-f="libelle" value="' + esc(r.libelle) + '" style="width:230px"></td>' +
-          '<td><select data-f="type"><option value="gain"' + (r.type === 'gain' ? ' selected' : '') + '>Gain</option><option value="retenue"' + (r.type === 'retenue' ? ' selected' : '') + '>Retenue</option></select></td>' +
-          '<td><select data-f="mode">' + Object.keys(MODES).map(function (k) { return '<option value="' + k + '"' + (r.mode === k ? ' selected' : '') + '>' + MODES[k] + '</option>'; }).join('') + '</select></td>' +
-          '<td><input data-f="taux" value="' + (r.taux_defaut === null ? '' : esc(r.taux_defaut)) + '" style="width:60px" placeholder="—"></td>' +
-          cb('imposable', r.imposable) + cb('cnps', r.cnps) + cb('cfc', r.cfc) + cb('transport', r.transport) + cb('logement', r.logement) + cb('hs', r.heures_sup) +
-          '<td style="white-space:nowrap"><button type="button" data-act="dup" data-i="' + i + '">⧉</button> <button type="button" class="d" data-act="del" data-i="' + i + '">✕</button></td>' +
-          '</tr>';
-      }).join('');
-      cadre.innerHTML =
-        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
-          '<b style="flex:1;font-size:16px;color:#1a1a1a">⚙️ Rubriques de paie</b>' +
-          '<button type="button" data-act="fermer">✕ Fermer</button></div>' +
-        '<p style="font-size:12px;color:#444;margin:0 0 10px">Une rubrique = un code à 4 chiffres, un libellé et un mode de calcul. ' +
-          '<b>Imposable</b> : entre dans l\'IRPP. <b>CNPS</b> : entre dans la base de la pension. <b>CFC</b> : entre dans le crédit foncier. ' +
-          '<b>Transport / Logement / HS</b> : rubriques spéciales reconnues par le calcul.</p>' +
-        '<div style="overflow:auto;max-height:60vh"><table style="border-collapse:collapse;width:100%"><thead><tr>' +
-          '<th>Code</th><th>Libellé</th><th>Type</th><th>Mode de calcul</th><th>Taux %</th>' +
-          '<th style="text-align:center">Imposable</th><th style="text-align:center">CNPS</th><th style="text-align:center">CFC</th>' +
-          '<th style="text-align:center">Transport</th><th style="text-align:center">Logement</th><th style="text-align:center">HS</th><th></th>' +
-          '</tr></thead><tbody>' + lignes + '</tbody></table></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">' +
-          '<button type="button" data-act="add">➕ Nouvelle rubrique</button>' +
-          '<button type="button" class="p" data-act="save">💾 Enregistrer</button>' +
-          '<button type="button" data-act="modele">↺ Rétablir le modèle</button>' +
-          '<span data-msg style="font-size:12px;margin-left:auto"></span></div>' +
-        '<p style="font-size:11px;color:#777;margin:10px 0 0">Le mode « % du salaire de base » est enregistré ; le calcul par formule libre n\'est pas encore disponible.</p>';
-    }
-
-    cadre.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-act]'); if (!b) return;
-      var a = b.dataset.act, i = +b.dataset.i;
-      if (a === 'fermer') { ov.remove(); return; }
-      lire();
-      if (a === 'add') {
-        liste.push(copie({ code: '', libelle: 'Nouvelle rubrique', type: 'gain', imposable: true, mode: 'fixe' }));
-      } else if (a === 'dup') {
-        var c = copie(liste[i]); c.code = ''; c.libelle = c.libelle + ' (copie)'; liste.splice(i + 1, 0, c);
-      } else if (a === 'del') {
-        if (liste[i].code === '1000') { msg('La rubrique 1000 (salaire de base) ne peut pas être supprimée.', true); return; }
-        liste.splice(i, 1);
-      } else if (a === 'modele') {
-        if (!confirm('Remplacer toutes les rubriques par le modèle de départ ?')) return;
-        liste = MODELE.map(copie);
-      } else if (a === 'save') {
-        var err = valider(liste);
-        if (err) { dessiner(); msg(err, true); return; }
-        sauver(liste);
-        if (typeof onChange === 'function') onChange(liste.map(copie));
-        dessiner(); msg('Rubriques enregistrées (' + liste.length + ').');
-        return;
+  
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483700;display:flex;align-items:center;justify-content:center;padding:16px';
+  
+  var cadre = document.createElement('div');
+  cadre.style.cssText = 'background:#fff;border-radius:8px;padding:0;max-width:900px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.3);font-family:"Segoe UI",Arial,sans-serif;overflow:hidden;max-height:90vh;display:flex;flex-direction:column';
+  
+  if (!document.getElementById('pr-style')) {
+    var st = document.createElement('style');
+    st.id = 'pr-style';
+    st.textContent = `
+      .pr-cadre input,.pr-cadre select {
+        background:#fff; color:#1a1a1a; border:1px solid #d0d7de; border-radius:4px;
+        padding:6px 10px; font-size:13px; box-sizing:border-box;
       }
-      dessiner();
-    });
-
-    dessiner();
+      .pr-cadre input:focus,.pr-cadre select:focus { border-color:#1f5fbf; outline:none; box-shadow:0 0 0 2px rgba(31,95,191,.15); }
+      .pr-cadre .pr-header { background:#1f5fbf; color:#fff; padding:12px 16px; font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
+      .pr-cadre .pr-toolbar { padding:8px 16px; background:#f8f9fa; border-bottom:1px solid #dee2e6; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .pr-cadre .pr-toolbar input[type=text] { flex:1; min-width:200px; }
+      .pr-cadre .pr-body { padding:0; overflow-y:auto; flex:1; }
+      .pr-cadre table { width:100%; border-collapse:collapse; font-size:12px; }
+      .pr-cadre table th { background:#1f5fbf; color:#fff; padding:8px; text-align:left; font-size:11px; text-transform:uppercase; position:sticky; top:0; }
+      .pr-cadre table td { padding:6px 8px; border-bottom:1px solid #e3e8ef; }
+      .pr-cadre table tr:hover td { background:#f5f8ff; }
+      .pr-cadre table input { width:100%; border:1px solid transparent; background:transparent; padding:4px; border-radius:3px; }
+      .pr-cadre table input:focus { border-color:#1f5fbf; background:#fff; }
+      .pr-cadre button {
+        background:#eef2f8; color:#1a1a1a; border:1px solid #9aa5b5; border-radius:6px;
+        padding:6px 12px; cursor:pointer; font-size:12px; transition:all .2s;
+      }
+      .pr-cadre button:hover { background:#d6e4ff; border-color:#1f5fbf; }
+      .pr-cadre button.p { background:#1f5fbf; color:#fff; border-color:#1f5fbf; font-weight:600; }
+      .pr-cadre button.p:hover { background:#0d47a1; }
+      .pr-cadre button.d { background:#fff; color:#c0392b; border-color:#c0392b; }
+      .pr-cadre button.d:hover { background:#c0392b; color:#fff; }
+      .pr-cadre .pr-footer { padding:12px 16px; border-top:1px solid #dee2e6; display:flex; gap:8px; justify-content:flex-end; background:#f8f9fa; }
+      .pr-cadre .pr-type-gain { color:#28a745; font-weight:600; }
+      .pr-cadre .pr-type-cot { color:#dc3545; font-weight:600; }
+      .pr-cadre .pr-type-ret { color:#fd7e14; font-weight:600; }
+    `;
+    document.head.appendChild(st);
   }
+  
+  var html = '<div class="pr-header"><span>⚙️ Catalogue des rubriques de paie ('+RUBRIQUES.length+')</span><button type="button" class="d" data-x="close" style="padding:4px 10px;font-size:12px">✕</button></div>';
+  html += '<div class="pr-toolbar"><button type="button" class="p" data-x="add">+ Ajouter</button><button type="button" data-x="import-sage">📥 Importer Sage</button><input type="text" data-search placeholder=" Rechercher..." style="margin-left:auto"></div>';
+  html += '<div class="pr-body"><table><thead><tr><th style="width:70px">Code</th><th>Désignation</th><th style="width:90px">Type</th><th style="width:60px">CNPS</th><th style="width:60px">CFC</th><th style="width:70px">Imposable</th><th style="width:50px"></th></tr></thead><tbody id="pr-tbody"></tbody></table></div>';
+  html += '<div class="pr-footer"><button type="button" class="p" data-x="save">💾 Enregistrer et fermer</button><button type="button" data-x="cancel">Annuler</button></div>';
+  
+  cadre.innerHTML = html;
+  cadre.className = 'pr-cadre';
+  ov.appendChild(cadre);
+  document.body.appendChild(ov);
+  
+  var search = '';
+  
+  function render() {
+    var tbody = cadre.querySelector('#pr-tbody');
+    var filtered = RUBRIQUES.filter(function(r){
+      if (!search) return true;
+      var s = search.toLowerCase();
+      return r.code.toLowerCase().indexOf(s)>=0 || r.libelle.toLowerCase().indexOf(s)>=0;
+    });
+    tbody.innerHTML = filtered.map(function(r,i){
+      var idx = RUBRIQUES.indexOf(r);
+      var typeClass = r.type==='gain'?'pr-type-gain':(r.type==='cotisation'?'pr-type-cot':'pr-type-ret');
+      var typeLabel = r.type==='gain'?'GAIN':(r.type==='cotisation'?'COTIS.':'RETENUE');
+      return '<tr data-idx="'+idx+'">'+
+        '<td><input data-k="code" value="'+echapper(r.code)+'"></td>'+
+        '<td><input data-k="libelle" value="'+echapper(r.libelle)+'"></td>'+
+        '<td><select data-k="type"><option value="gain"'+(r.type==='gain'?' selected':'')+'>GAIN</option><option value="cotisation"'+(r.type==='cotisation'?' selected':'')+'>COTISATION</option><option value="retenue"'+(r.type==='retenue'?' selected':'')+'>RETENUE</option></select></td>'+
+        '<td style="text-align:center"><input type="checkbox" data-k="cnps"'+(r.cnps?' checked':'')+'></td>'+
+        '<td style="text-align:center"><input type="checkbox" data-k="cfc"'+(r.cfc?' checked':'')+'></td>'+
+        '<td style="text-align:center"><input type="checkbox" data-k="imposable"'+(r.imposable!==false?' checked':'')+'></td>'+
+        '<td style="text-align:center"><button type="button" class="d" data-x="del" data-idx="'+idx+'" style="padding:2px 8px;font-size:11px">✕</button></td>'+
+        '</tr>';
+    }).join('');
+    cadre.querySelector('.pr-header span').textContent = '⚙️ Catalogue des rubriques de paie ('+RUBRIQUES.length+')';
+  }
+  
+  render();
+  
+  cadre.querySelector('[data-search]').addEventListener('input', function(e){
+    search = e.target.value;
+    render();
+  });
+  
+  cadre.addEventListener('input', function(e){
+    var t = e.target;
+    if (t.dataset.k && t.closest('tr')) {
+      var idx = +t.closest('tr').dataset.idx;
+      var r = RUBRIQUES[idx];
+      if (t.type==='checkbox') r[t.dataset.k] = t.checked;
+      else r[t.dataset.k] = t.value;
+    }
+  });
+  cadre.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.dataset.k && t.closest('tr')) {
+      var idx = +t.closest('tr').dataset.idx;
+      RUBRIQUES[idx][t.dataset.k] = t.value;
+    }
+  });
+  
+  cadre.addEventListener('click', function(e){
+    var b = e.target.closest('[data-x]'); if (!b) return;
+    var x = b.dataset.x;
+    if (x==='close'||x==='cancel') ov.remove();
+    else if (x==='add') {
+      RUBRIQUES.push({ code:'', libelle:'Nouvelle rubrique', type:'gain', cnps:false, cfc:false, imposable:true });
+      render();
+    }
+    else if (x==='del') {
+      var idx = +b.dataset.idx;
+      RUBRIQUES.splice(idx,1);
+      render();
+    }
+    else if (x==='import-sage') {
+      if (root.PaieDetail && root.PaieDetail.getCatalogue) {
+        var sage = root.PaieDetail.getCatalogue();
+        sage.forEach(function(r){
+          if (!RUBRIQUES.filter(function(x){return x.code===r.code}).length) RUBRIQUES.push(r);
+        });
+        render();
+      } else alert('Catalogue Sage non disponible.');
+    }
+    else if (x==='save') {
+      sauver();
+      if (onSaved) onSaved(RUBRIQUES.slice());
+      ov.remove();
+    }
+  });
+}
 
-  root.PaieRubriques = { ouvrir: ouvrir, charger: charger, synchroniser: synchroniser, modele: function () { return MODELE.map(copie); } };
-})(typeof window !== 'undefined' ? window : globalThis);
+function echapper(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var API = { ouvrir:ouvrir, charger:charger, sauver:sauver, synchroniser:synchroniser };
+if (typeof module!=='undefined'&&module.exports) module.exports = API;
+else root.PaieRubriques = API;
+})(typeof window!=='undefined'?window:globalThis);
