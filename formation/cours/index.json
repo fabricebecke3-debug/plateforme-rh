@@ -1,0 +1,57 @@
+[
+  {
+    "titre": "Cours 1 — Le bulletin de paie",
+    "fichier": "formation/cours/01-bulletin-de-paie.md",
+    "resume": "Obligations, structure, contrôle en 5 points, exercices"
+  },
+  {
+    "titre": "Cours 2 — Les sanctions disciplinaires",
+    "fichier": "formation/cours/02-sanctions-disciplinaires.md",
+    "resume": "Amende interdite, mise à pied, procédure"
+  },
+  {
+    "titre": "Cours 3 — Rupture et licenciement",
+    "fichier": "formation/cours/03-rupture-et-licenciement.md",
+    "resume": "Notification, préavis, dommages-intérêts, conciliation"
+  },
+  {
+    "titre": "Cours 4 — Le dossier de sortie",
+    "fichier": "formation/cours/04-dossier-de-sortie.md",
+    "resume": "Certificat de travail, sommes dues, solde de tout compte"
+  },
+  {
+    "titre": "Cours 5 — Dossier du personnel et registre",
+    "fichier": "formation/cours/05-dossier-personnel-et-registre.md",
+    "resume": "Pièces obligatoires, visite médicale, registre"
+  },
+  {
+    "titre": "Cours 6 — Santé, maternité et représentation",
+    "fichier": "formation/cours/06-sante-maternite-et-representation.md",
+    "resume": "Congé de maternité, allaitement, délégués"
+  },
+  {
+    "titre": "Cours 7 — Les indicateurs RH",
+    "fichier": "formation/cours/07-indicateurs-rh.md",
+    "resume": "Turnover, absentéisme, ancienneté moyenne"
+  },
+  {
+    "titre": "Cours 8 — Recrutement et évaluation",
+    "fichier": "formation/cours/08-recrutement-et-evaluation.md",
+    "resume": "Sélection, grille, fin de période d'essai"
+  },
+  {
+    "titre": "Cours 9 — Protection des données",
+    "fichier": "formation/cours/09-protection-des-donnees.md",
+    "resume": "Finalité, accès, anonymisation"
+  },
+  {
+    "titre": "Cours 10 — Tableau de bord RH avec Power BI",
+    "fichier": "formation/cours/10-tableau-de-bord-power-bi.md",
+    "resume": "Données propres, modèle, mesures DAX, visuels"
+  },
+  {
+    "titre": "Cours 11 — Formation professionnelle et plan de formation",
+    "fichier": "formation/cours/11-plan-de-formation.md",
+    "resume": "Besoin, plan, évaluation à 4 niveaux"
+  }
+]
