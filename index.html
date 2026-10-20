@@ -348,33 +348,44 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     <span id="os" style="margin-left:10px;font-size:12px;color:var(--mu)"></span>
     <pre id="op" style="display:none;max-height:200px;overflow:auto;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:11px;margin-top:10px;white-space:pre-wrap"></pre><div id="scanrep" style="font-size:12px;margin-top:8px"></div><button type="button" class="s" id="scanai" style="display:none;margin-top:8px">🤖 Compléter avec l'IA locale (1er chargement ≈ 1 Go)</button>
   </div>
+  <style>.fm .fs{grid-column:1/-1;border:1px solid var(--bd);border-radius:10px;padding:12px 14px 8px;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 14px;background:var(--card)}.fm .fs legend{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);padding:0 6px}</style>
   <form class="fm" id="fm">
     <input type="hidden" id="fid"><input type="hidden" id="cu"><input type="hidden" id="cn">
-    <label>Nom et prénoms *<input id="f_n" required></label>
-    <label>Poste<input id="f_p" list="pl"></label><datalist id="pl"></datalist>
-    <label>Genre<select id="f_g"><option value="M">Masculin</option><option value="F">Féminin</option></select></label>
-    <label>Date de naissance<input type="date" id="f_dn"></label>
-    <label>Type de contrat<select id="f_t"><option value="TEMPORAIRE">CTT 1 mois (renouvelable, 12 max)</option><option value="TEMPORAIRE3">CTT 3 mois (renouvelable, 12 max)</option><option value="CDI">CDI</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option></select></label>
-    <label>Début<input type="date" id="f_deb"></label>
-    <label>Date d'entrée<input type="date" id="f_entree"></label>
-    <label>Lieu de travail (ville)<input id="f_lieu" placeholder="ex. Douala, Yaoundé"></label>
-    <label>Salaire de base<input type="number" step="any" id="f_sb"></label>
-    <label>Horaire (h/mois)<input type="number" step="any" id="f_hor" placeholder="173.33"></label>
-    <label>Périodicité<select id="f_per"><option value="mois">Mois</option><option value="quinzaine">Quinzaine</option><option value="semaine">Semaine</option></select></label>
-    <label>Modèle de bulletin<input id="f_mod" placeholder="vide = modèle de la société"></label>
-    <label>Convention collective<input id="f_conv"></label>
-    <label>Catégorie<input id="f_cat"></label>
-    <label>Niveau<input id="f_niv"></label>
-    <label>Indice<input id="f_ind"></label>
-    <label>Coefficient<input id="f_coef"></label>
-    <label>Date d'ancienneté<input type="date" id="f_dane"></label>
-    <label>Date d'entrée dans la profession<input type="date" id="f_dep"></label>
-    <label>Type d'entrée<input id="f_tent" placeholder="ex. EM (embauche)"></label>
-    <label>Établissement<input id="f_etab"></label>
-    <label>Fin (auto)<input type="date" id="f_fin"></label>
-    <label>Téléphone<input id="f_tel"></label>
-    <label>N° CNPS<input id="f_cnps"></label>
-    <label>Dernière visite médicale<input type="date" id="f_dv"></label>
+    <fieldset class="fs"><legend>Identité</legend>
+      <label>Nom et prénoms *<input id="f_n" required></label>
+      <label>Genre<select id="f_g"><option value="M">Masculin</option><option value="F">Féminin</option></select></label>
+      <label>Date de naissance<input type="date" id="f_dn"></label>
+      <label>Téléphone<input id="f_tel"></label>
+    </fieldset>
+    <fieldset class="fs"><legend>Contrat et présence</legend>
+      <label>Poste<input id="f_p" list="pl"></label><datalist id="pl"></datalist>
+      <label>Type de contrat<select id="f_t"><option value="TEMPORAIRE">CTT 1 mois (renouvelable, 12 max)</option><option value="TEMPORAIRE3">CTT 3 mois (renouvelable, 12 max)</option><option value="CDI">CDI</option><option value="CDD">CDD</option><option value="OCCASIONNEL">Occasionnel</option></select></label>
+      <label>Début<input type="date" id="f_deb"></label>
+      <label>Fin (auto)<input type="date" id="f_fin"></label>
+      <label>Date d'entrée<input type="date" id="f_entree"></label>
+      <label>Lieu de travail (ville)<input id="f_lieu" placeholder="ex. Douala, Yaoundé"></label>
+      <label>Établissement<input id="f_etab"></label>
+      <label>Type d'entrée<input id="f_tent" placeholder="ex. EM (embauche)"></label>
+    </fieldset>
+    <fieldset class="fs"><legend>Rémunération et paie</legend>
+      <label>Salaire de base<input type="number" step="any" id="f_sb"></label>
+      <label>Horaire (h/mois)<input type="number" step="any" id="f_hor" placeholder="173.33"></label>
+      <label>Périodicité<select id="f_per"><option value="mois">Mois</option><option value="quinzaine">Quinzaine</option><option value="semaine">Semaine</option></select></label>
+      <label>Modèle de bulletin<input id="f_mod" placeholder="vide = modèle de la société"></label>
+    </fieldset>
+    <fieldset class="fs"><legend>Classification</legend>
+      <label>Convention collective<input id="f_conv"></label>
+      <label>Catégorie<input id="f_cat"></label>
+      <label>Niveau<input id="f_niv"></label>
+      <label>Indice<input id="f_ind"></label>
+      <label>Coefficient<input id="f_coef"></label>
+      <label>Date d'ancienneté<input type="date" id="f_dane"></label>
+      <label>Date d'entrée dans la profession<input type="date" id="f_dep"></label>
+    </fieldset>
+    <fieldset class="fs"><legend>Sécurité sociale et suivi</legend>
+      <label>N° CNPS<input id="f_cnps"></label>
+      <label>Dernière visite médicale<input type="date" id="f_dv"></label>
+    </fieldset>
     <label style="grid-column:1/-1;font-size:11px;color:var(--mu)" id="f_info"></label>
     <div style="align-self:end"><button class="p" type="submit" id="fsub">Enregistrer</button> <button class="s" type="button" id="rz">Annuler</button></div>
   </form>
@@ -6056,7 +6067,10 @@ async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,v
 window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
-window.TERH_listeSalaries=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||''}));
+window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({id:String(x.id),nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',dane:x.dane||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||''}));
+window.TERH_listeSalaries=window.TERH_fichesPaie;
+window.TERH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
+window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');MAT[id]=String(mat||'').trim();await wr('matricules_json',MAT);return true;};
 let loaded='';async function load(){if(!CO||loaded===CO)return;loaded=CO;CFG={...DEF,...(await rd('paie_json')||{})};WGT=await rd('widgets_json')||{};SAL=await rd('paie_sal_json')||{};MAT=await rd('matricules_json')||{};CUS=await rd('rubriques_json')||[];MCFG={...MCFG,...(await rd('matricule_cfg_json')||{})};MOD={...MOD,...(await rd('paie_mod_json')||{})};applyW();}
 function applyW(){const adm=['admin','super_owner'].includes(ER());document.querySelectorAll('nav button[data-v]').forEach(b=>{const k=b.dataset.v;if(['dsp','c','a'].includes(k)){const off=WGT[k]===false;if(off&&!adm)b.style.display='none';else if(off&&adm)b.style.opacity='.5';else{b.style.opacity='';if(b.id!=='nh'&&b.style.display==='none'&&k!=='dsp')b.style.display='';}}});const p=$('npaie');if(p)p.style.display=(['admin','super_owner','editeur'].includes(ER())&&WGT.paie!==false)?'':'none';}
 const TB=(v,T)=>{for(const [m,x] of T)if(v<=m)return x;return T[T.length-1][1];};
@@ -6165,7 +6179,7 @@ if(tab==='wg')body='<p class="muted" style="font-size:12px">Activez ou désactiv
 m.innerHTML='<div style="background:var(--bg,#fff);color:inherit;max-width:480px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:14px"><h3 style="margin:0 0 8px">💰 Paie &amp; droit — '+esc(curCo()?.nom||'')+'</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">'+tabs+'</div>'+body+'<button class="s" id="pyx" style="width:100%;margin-top:12px">Fermer</button></div>';
 document.body.appendChild(m);$('pyx').onclick=close;m.onclick=e=>{if(e.target===m)close();};m.querySelectorAll('[data-pt]').forEach(b=>b.onclick=()=>open(b.dataset.pt));
 const hx=(id,f)=>{const el=m.querySelector('#'+id);if(el)el.onclick=f;};
-const listeSal=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||''}));
+const listeSal=()=>window.TERH_fichesPaie();
 const periodeCourante=()=>{const d=new Date(),y=d.getFullYear(),mo=d.getMonth()+1,pp=n=>String(n).padStart(2,'0'),aa=String(y).slice(2),last=new Date(y,mo,0).getDate();return '01/'+pp(mo)+'/'+aa+' au '+pp(last)+'/'+pp(mo)+'/'+aa;};
 hx('pt_open',()=>{if(window.PaiePointage)PaiePointage.ouvrir({employes:listeSal(),periode:periodeCourante()});else say('Module pointage non chargé');});
 hx('simu_open',()=>{const v=parseFloat(m.querySelector('#sim_sal').value)||0;if(!(v>0)){say('Saisissez le salaire de base');return;}if(window.PaieSimulation)PaieSimulation.ouvrir({lignes:[{code:'1000',gain:v,cnps:true,irpp:true}],saisies:{taux:window.PAIE_TAUX_CACHE||{}},nom:''});else say('Module simulation non chargé');});

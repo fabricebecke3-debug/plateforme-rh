@@ -183,7 +183,8 @@
     }
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base mensuel', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
       saisies: {}, nom: (opts && opts.nom) || '', mat: (opts && opts.mat) || '', cnps: (opts && opts.cnps) || '', lieu: (opts && opts.lieu) || '', periode: (opts && opts.periode) || periodeMoisCourant(), employeur: (opts && opts.employeur) || '' };
-    var employes = (opts && opts.employes && opts.employes.length) ? opts.employes : ((root.TERH_listeSalaries && root.TERH_listeSalaries()) || []);
+    // Une seule source pour tous les points d'entrée : fiche + matricule + CNPS (index.html)
+    var employes = root.TERH_fichesPaie ? root.TERH_fichesPaie() : ((opts && opts.employes) || []);
     etat.bulletin = bulletinSociete;
     if (!etat.employeur && bulletinSociete && bulletinSociete.societe) etat.employeur = bulletinSociete.societe;
     var ov = document.createElement('div');
@@ -211,6 +212,34 @@
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
       '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
+    // Écarts entre le bulletin (N° CNPS, matricule saisis ou lus) et la fiche : proposer l'enregistrement
+    function ecartsFiche() {
+      var f = etat.fiche, out = [];
+      if (!f || !f.id) return out;
+      var cn = String(etat.cnps || '').trim(), mt = String(etat.mat || '').trim();
+      if (cn && cn !== String(f.cnps || '').trim()) out.push({ k: 'cnps', lib: 'N° CNPS', nouveau: cn, actuel: f.cnps || '' });
+      if (mt && mt !== String(f.mat || '').trim()) out.push({ k: 'mat', lib: 'Matricule interne', nouveau: mt, actuel: f.mat || '' });
+      return out;
+    }
+    function bandeauEcarts() {
+      var e = ecartsFiche();
+      if (!e.length) return '';
+      return '<div style="border:1px solid #f0c36d;background:#fff8e6;color:#5c4400;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px">' +
+        '<b>Informations à enregistrer dans la fiche de ' + echapper(etat.nom) + ' ?</b>' +
+        e.map(function (x) { return '<div style="margin-top:4px">' + x.lib + ' : « ' + echapper(x.actuel || '—') + ' » → « ' + echapper(x.nouveau) + ' »</div>'; }).join('') +
+        '<div style="margin-top:6px"><button type="button" class="p" data-x="saveEcart">Enregistrer dans la fiche</button></div></div>';
+    }
+    function enregistrerEcarts(btn) {
+      var f = etat.fiche, e = ecartsFiche();
+      if (!f || !e.length) return;
+      btn.disabled = true; btn.textContent = 'Enregistrement…';
+      var ch = {}, mat = null, p = Promise.resolve();
+      e.forEach(function (x) { if (x.k === 'cnps') ch.cnps = x.nouveau; if (x.k === 'mat') mat = x.nouveau; });
+      if (mat !== null) p = p.then(function () { return root.TERH_enregistrerMat(f.id, mat); }).then(function () { f.mat = mat; });
+      if (ch.cnps !== undefined) p = p.then(function () { return root.TERH_majFiche(f.id, ch); }).then(function () { f.cnps = ch.cnps; });
+      p.then(function () { alert('Enregistré dans la fiche de ' + etat.nom + '.'); rendre(); })
+        .catch(function (err) { alert('Enregistrement impossible : ' + ((err && err.message) || err)); btn.disabled = false; btn.textContent = 'Enregistrer dans la fiche'; });
+    }
     function calcul() {
       var s = etat.saisies;
       var saisies = {};   // tout est calculé automatiquement par le moteur (aucune correction manuelle)
@@ -236,7 +265,7 @@
       }).join('');
       tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
       var alertes = ((etat.mat ? [] : ['Matricule interne manquant : renseignez-le ici ou dans la fiche du salarié.']).concat(controles(R, etat.lignes, etat.cnps))).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
-      cadre.querySelector('[data-res]').innerHTML = alertes + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
+      cadre.querySelector('[data-res]').innerHTML = alertes + bandeauEcarts() + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(R.baseCNPS) + '</b></span><span>Retenues : <b>' + fmt(R.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(R.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(R.net) + '</b></span></div>';
     }
@@ -277,6 +306,7 @@
       else if (x === 'cat') { }
       else if (x === 'rub') { openRubriques(); }
       else if (x === 'anc') { ajouterAnciennete(); }
+      else if (x === 'saveEcart') { enregistrerEcarts(b); }
       else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
       else if (x === 'pointage') {
         if (!root.PaiePointage) { alert('paie-pointage-simulation.js n\'est pas chargé.'); }
