@@ -120,3 +120,10 @@ VERSION 3.22 : SUPPRESSION POINTAGE
 VERSION 3.23 : NETTOYAGE ONGLET PAIE
 - Droits d'accès : retrait du reste de l'onglet Pointage (liste des onglets autorisés pour les non-administrateurs).
 - Rappel : l'écran affiché dans le retour de test (« Paie & droit », onglet Pointage, « Paie & droit du travail ») correspond à une ancienne version déployée ; la version actuelle affiche « Paie ».
+
+VERSION 3.24 : POSTES REGROUPÉS
+- Un seul intitulé par poste dans toute l'appli : VIDEUR / videur / VIDEURS / VDR / Vidéuur fusionnés en « VIDEUR ».
+- Abréviations courantes développées en intitulé complet (OP, VDR, ELEC, MECA, AGT, RESP, CHF, COMPTA, LABO, SECU, etc. — liste POSTE_ABR, modifiable).
+- Fautes de frappe détectées (distance d'édition 1 pour les mots courts, 2 sinon) et rattachées au poste déjà existant ; préfixes uniques acceptés (VIDEU → VIDEUR).
+- Appliqué à l'import Excel, à la saisie manuelle, à la liste, aux filtres, à la liste déroulante et aux fiches de paie.
+- Accents et casse : affichage en majuscules avec accents conservés.

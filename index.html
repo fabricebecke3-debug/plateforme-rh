@@ -1030,6 +1030,7 @@ let _ENcache=null,_ENver=0,_ENlast=-1;
 function bumpEN(){_ENver++;}
 function EN(){
   if(_ENlast!==_ENver||!_ENcache){
+    posteSeed(E.map(function(r){return r.p;}));
     _ENcache=E.map(en);
     _ENlast=_ENver;
   }
@@ -1198,7 +1199,7 @@ const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail
   ...(o.tent?{type_entree:o.tent}:{}),...(o.etab?{etablissement:o.etab}:{}),nom:(o.n||'').trim(),poste:(o.p||'').trim(),genre:o.g==='F'?'F':'M',date_naissance:o.dn||null,type_contrat:['CDI','CDD','TEMPORAIRE','OCCASIONNEL'].includes(o.t)?o.t:'TEMPORAIRE',debut:o.deb||null,fin:o.fin||null,telephone:(o.tel||'').trim(),cnps:(o.cnps||'').trim(),date_visite:o.dv||null,date_arret:o.darret||null,motif_arret:(o.marret||'').trim()||null,commentaire_arret:(o.comarret||'').trim()||null,contrat_url:o.contrat_url||null,contrat_nom:o.contrat_nom||null,...(MULTI&&CO?{entreprise_id:CO}:{})});
 function statC(d){if(!d)return 'INCONNU';const dt=d instanceof Date?d:P(d);if(!dt)return 'INCONNU';if(dt<T)return 'EXPIRÉ';return dt<=new Date(+T+90*day)?'BIENTÔT':'VALIDE';}
 function statV(d){if(!d)return 'INCONNUE';const p=P(d);if(!p)return 'INCONNUE';if(p>T)return 'PLANIFIÉE';const s=statC(addM(p,12));return s==='EXPIRÉ'?'EXPIRÉE':s;}
-function en(r){const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
+function en(r){const _p=posteCanon(r.p);const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,p:_p,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
 const cnt=(a,k)=>a.reduce((o,r)=>(o[r[k]]=(o[r[k]]||0)+1,o),{});
 const bd=s=>{const safe=esc(String(s??''));return `<span class="b ${safe.replace(/\s/g,'')}">${safe}</span>`;};
 function bars(id,o,limit){let e=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(limit)e=e.slice(0,limit);if(!e.length){$(id).textContent='—';return;}const m=e[0][1];$(id).innerHTML=e.map(([k,v],i)=>`<div class="br"><span>${esc(k)}</span><i style="width:${v/m*100}%"></i><em>${v}</em></div>`).join('');}
@@ -1786,7 +1787,7 @@ $('rz').onclick=()=>{reset();go('l');};
 $('fm').onsubmit=async e=>{
   e.preventDefault();
   if(!CAN.edit()){toast('Permission refusée');return;}
-  const o={};FLK.forEach((k,i)=>o[k]=($(FLD[i]).value||'').trim());
+  const o={};FLK.forEach((k,i)=>o[k]=k==='p'?normPoste($(FLD[i]).value||''):($(FLD[i]).value||'').trim());
   o.contrat_url=$('cu').value;o.contrat_nom=$('cn').value;
   if(!o.n){toast('Le nom est obligatoire');return;}
   if((o.t==='CDD'||o.t==='OCCASIONNEL'||o.t==='TEMPORAIRE')&&!o.fin){toast('Renseignez la date de fin');return;}
@@ -2121,7 +2122,37 @@ function normPoste(p){
   x=x.replace(/^0PERATEUR/,'OPERATEUR').replace(/CONDITIONEMENT/g,'CONDITIONNEMENT').replace(/^OP /,'OPERATEUR ')
      .replace(/^OPERATEUR LABO$/,'OPERATEUR LABORATOIRE').replace(/^AGENT D'?ENTRETIEN$/,"AGENT D'ENTRETIEN")
      .replace(/^AGENT (DE )?PROXIMIT[EÉ]$/,'AGENT DE PROXIMITÉ').replace(/^OPRATEUR/,'OPERATEUR').replace(/ELECTROMECANIEN/,'ELECTROMECANICIEN');
-  return x;
+  return posteCanon(x);
+}
+/* ===== Postes : un seul intitulé par poste (fautes de frappe, abréviations, accents, casse) ===== */
+const POSTE_ABR={OP:'OPERATEUR',OPR:'OPERATEUR',OPERAT:'OPERATEUR',VDR:'VIDEUR',ELEC:'ELECTRICIEN',MECA:'MECANICIEN',ELECTRO:'ELECTROMECANICIEN',AGT:'AGENT',RESP:'RESPONSABLE',CHF:'CHEF',ADJ:'ADJOINT',COMPTA:'COMPTABLE',TECH:'TECHNICIEN',LABO:'LABORATOIRE',SECU:'SECURITE',MAG:'MAGASINIER',CHAUFF:'CHAUFFEUR',ENTRET:'ENTRETIEN',PROD:'PRODUCTION'};
+const POSTE_REF=new Map();
+function posteDisplay(p){
+  return String(p??'').normalize('NFC').replace(/[’`]/g,"'").replace(/\s+/g,' ').trim().toUpperCase()
+    .split(' ').map(function(w){const k=w.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z]/g,'');return POSTE_ABR[k]||w;}).join(' ');
+}
+function posteKey(p){return posteDisplay(p).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]+/g,' ').trim();}
+function posteDist(a,b){
+  if(a===b)return 0; if(!a.length)return b.length; if(!b.length)return a.length;
+  let prev=[],cur=[],j;for(j=0;j<=b.length;j++)prev[j]=j;
+  for(let i=1;i<=a.length;i++){cur[0]=i;for(j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));}prev=cur.slice();}
+  return prev[b.length];
+}
+function posteCanon(p){
+  const k=posteKey(p);if(!k)return '';
+  if(POSTE_REF.has(k))return POSTE_REF.get(k);
+  let best=null,bd=99;
+  POSTE_REF.forEach(function(canon,rk){const d=posteDist(k,rk),lim=k.length<=5?1:2;if(d<=lim&&d<bd){bd=d;best=canon;}});
+  if(!best&&k.length>=4){const m=[];POSTE_REF.forEach(function(canon,rk){if(rk.indexOf(k)===0)m.push(canon);});if(m.length===1)best=m[0];}
+  const disp=best||posteDisplay(p);
+  POSTE_REF.set(k,disp);
+  return disp;
+}
+function posteSeed(list){
+  const cnt=new Map(),disp=new Map();
+  list.forEach(function(p){const k=posteKey(p);if(!k)return;cnt.set(k,(cnt.get(k)||0)+1);if(!disp.has(k))disp.set(k,posteDisplay(p));});
+  POSTE_REF.clear();
+  [...cnt.keys()].sort(function(a,b){return cnt.get(b)-cnt.get(a);}).forEach(function(k){POSTE_REF.set(k,disp.get(k));});
 }
 function parseEffectif(rows){
   const isName=c=>{const t=nA(c).replace(/\(.*?\)/g,' ').replace(/[^A-Z& ]/g,' ').replace(/\s+/g,' ').trim();return /^(NOMS?( (ET|&))? ?PRENOMS?|NOMS?( COMPLETS?)?|NOM PRENOM|EMPLOYES?|AGENTS?|SALARIES?|PERSONNEL|IDENTITE)$/.test(t);};
