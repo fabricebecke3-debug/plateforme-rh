@@ -211,7 +211,7 @@
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<input data-catq list="pd-cat-list" placeholder="+ Rechercher une rubrique (code ou nom)…" style="width:340px"><datalist id="pd-cat-list"></datalist></div>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
+      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="s" data-x="grille">🧮 Grille de saisie (jours / heures)</button><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
     // Écarts entre le bulletin (N° CNPS, matricule saisis ou lus) et la fiche : proposer l'enregistrement
     function ecartsFiche() {
@@ -247,6 +247,16 @@
     // Composants de la fiche (colonnes importées) : salaire de base en rubrique 1000, primes cotisables et
     // indemnités non cotisables en lignes automatiques (code PRC / IND, à rattacher à vos rubriques)
     function nombreFiche(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
+    // Mise à jour en direct : la grille de saisie prévient le bulletin ouvert pour ce salarié
+    ACTIF = {
+      id: function () { return etat.fiche ? String(etat.fiche.id) : null; },
+      maj: function () {
+        if (!root.PaieGrille || !root.PaieGrille.lignesPour) return;
+        var gl = root.PaieGrille.lignesPour(etat.fiche.id);
+        etat.lignes = etat.lignes.filter(function (l) { return !l.auto; }).concat(gl);
+        rendre();
+      }
+    };
     function appliquerFiche(f) {
       if (!f) return;
       var hor = Number(f.hor) || 173.33, col = f.colonnes || {};
@@ -286,7 +296,7 @@
       if (tauxSage && Object.keys(tauxSage).length) saisies.taux = tauxSage;
       return PaieMoteur.calculer(etat.lignes, saisies);
     }
-    function rendre() {
+    function rendre(sansTable) {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
       var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Imposable">Imposable</th><th title="Retenue : avance sur salaire, cantine, etc.">Retenue</th><th></th></tr>';
       var corps = etat.lignes.map(function (l, i) {
@@ -301,11 +311,23 @@
           '<td><button type="button" class="s" data-x="del" data-l="' + i + '">✕</button></td>' +
           '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
       }).join('');
-      tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
+      if (!sansTable) tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
       var alertes = ((etat.mat ? [] : ['Matricule interne manquant : renseignez-le ici ou dans la fiche du salarié.']).concat(controles(R, etat.lignes, etat.cnps))).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
       cadre.querySelector('[data-res]').innerHTML = alertes + bandeauEcarts() + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(R.baseCNPS) + '</b></span><span>Retenues : <b>' + fmt(R.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(R.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(R.net) + '</b></span></div>';
+    }
+    // Mise à jour pendant la saisie : seuls le résultat et la colonne Gain sont recalculés,
+    // le tableau n'est pas reconstruit (sinon le champ perd le focus à chaque touche)
+    function rendreResultat() {
+      var R = calcul();
+      var lignesTbl = cadre.querySelectorAll('[data-tbl] tbody tr');
+      lignesTbl.forEach(function (tr, i) {
+        var cellule = tr.lastElementChild && tr.lastElementChild.previousElementSibling;
+        if (cellule && etat.lignes[i]) cellule.textContent = fmt(PaieMoteur.gainLigne(etat.lignes[i]));
+      });
+      var res = cadre.querySelector('[data-res]');
+      rendre(true);
     }
     cadre.addEventListener('input', function (e) {
       var t = e.target;
@@ -315,7 +337,7 @@
         else l[k] = t.value === '' ? null : +t.value;
       } else if (t.dataset.s) etat.saisies[t.dataset.s] = t.value;
       else if (t.dataset.f) etat[t.dataset.f] = t.value;
-      rendre();
+      rendreResultat();
     });
     cadre.addEventListener('change', function (e) {
       if (e.target.dataset.k && (e.target.type === 'checkbox')) rendre();
@@ -324,7 +346,13 @@
         if (fiche) {
           etat.nom = fiche.nom; etat.mat = fiche.mat || ''; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || ''; etat.fiche = fiche;
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
-          appliquerFiche(fiche); var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
+          appliquerFiche(fiche);
+          // Grille de saisie (jours ou heures) : remplace les lignes générées à partir de la fiche pour ce salarié
+          if (root.PaieGrille && root.PaieGrille.lignesPour && fiche.id != null) {
+            var gl = root.PaieGrille.lignesPour(fiche.id);
+            if (gl.length) etat.lignes = etat.lignes.filter(function (l) { return !l.auto; }).concat(gl);
+          }
+          var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
           cadre.querySelector('[data-f="nom"]').value = etat.nom;
           cadre.querySelector('[data-f="cnps"]').value = etat.cnps;
           var mi = cadre.querySelector('[data-f="mat"]'); if (mi) mi.value = etat.mat;
@@ -352,6 +380,7 @@
       else if (x === 'simul') { if (root.PaieSimulation) root.PaieSimulation.ouvrir({ lignes: etat.lignes, saisies: { taux: tauxSage || {} }, nom: etat.nom }); else alert('paie-pointage-simulation.js n\'est pas chargé.'); }
       else if (x === 'mod') { if (root.PaieModeles) root.PaieModeles.ouvrir(); else alert('paie-modeles.js n\'est pas chargé.'); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
+      else if (x === 'grille') { if (root.PaieGrille) root.PaieGrille.ouvrir(); else alert('paie-grille.js n\'est pas chargé.'); }
       else if (x === 'print') {
         var R = calcul();
         var modele = (root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null, html;
@@ -402,6 +431,11 @@
     if (base > 750000) msg.push('Base CNPS au-delà de 750 000 : cotisation plafonnée à 31 500 (4,2 %).');
     return msg;
   }
+  // Bulletin actuellement ouvert (pour la mise à jour en direct depuis la grille)
+  var ACTIF = null;
+  root.addEventListener('paie-grille-maj', function (ev) {
+    if (ACTIF && ev.detail && ACTIF.id() === String(ev.detail.id)) ACTIF.maj();
+  });
   var API = { periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;

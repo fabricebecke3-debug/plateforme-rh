@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.13 (employeur en mise a disposition, sans ligne client) (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
+TERH PAIE - VERSION 3.14 (saisie fluide dans le bulletin) (employeur en mise a disposition, sans ligne client) (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
 =========================================================================
 
 ECRAN DE VERIFICATION AVANT CREATION DU MODELE
@@ -42,3 +42,56 @@ VERSION 3.12 : EMPLOYEUR EN MISE A DISPOSITION
   societe mere (celle qui met le salarie a disposition). Le client n'est pas affiche sur le bulletin.
 - Entreprise simple : l'employeur reste l'entreprise elle-meme (comportement precedent).
 - A verifier : le reglage ent_mode (oui / non / auto) et le nom de la societe mere dans les parametres de l'entreprise.
+
+VERSION 3.14 : SAISIE DANS LE BULLETIN DETAILLE
+- Pendant la saisie (nombre, base, taux, gain...), seuls le résultat et la colonne Gain sont recalculés :
+  le tableau n'est plus reconstruit à chaque touche, donc le champ garde le focus et on enchaîne sans cliquer.
+- Non traité dans cette version : barre de défilement du tableau, couleurs du mode sombre, saisie des heures et primes
+  par employé au format tableur (à faire dans une étape dédiée).
+
+VERSION 3.15 : CUMUL « CHARGES SALARIALES »
+- Le cumul affiché (période) est maintenant celui de Sage : CNPS salarié + logement (avantage en nature).
+  Vérifié sur deux bulletins Sage : avril 2026 (7 741 + 27 500 = 35 241) et août 2026 Minye (5 471 + 27 000 = 32 471).
+- Le libellé de colonne devient « Charges salariales ».
+- Les retenues du bloc rubriques (IRPP, CAC, CFC, taxes) et le net à payer ne changent pas.
+- Règle déduite de deux bulletins : à confirmer sur d'autres bulletins (cumul annuel non traité).
+
+VERSION 3.16 : GRILLE DE SAISIE (jours ou heures)
+- Nouveau bouton « 🧮 Grille de saisie » dans le bulletin détaillé. Une ligne par salarié : profil, saisie en jours OU en heures
+  (l'autre se calcule : 1 jour = heures du mois / jours du mois), samedis (forfait heures sup.), salaire de base.
+- Les montants se calculent par formules par profil (ex. 82311*fraction). Variables : fraction, jours, heures, heures_sam, base.
+- Paramètres (bouton « ⚙ Paramètres et formules ») : jours et heures du mois, profils, rubriques (code, libellé, nature, formule),
+  ajout et suppression de rubriques et de profils. La formule est vérifiée avant enregistrement.
+- Profils pré-remplis avec les formules des fichiers Excel : hôtesses (août 2026) et machine operators (septembre 2026).
+- A la sélection d'un salarié dans le bulletin, les lignes de la grille remplacent les lignes générées depuis la fiche.
+- Bulletin : rubriques de la grille reprises avec la nature choisie (salaire, transport, logement, remboursement...) ;
+  les cotisations et impôts restent calculés par le moteur (base CNPS selon Sage : logement inclus, transport exclu).
+- Stockage : par entreprise (navigateur + paramètres, clé paie_grille_json).
+- Limites : pas de relecture par navigateur ; les lignes du bulletin se mettent à jour à la sélection du salarié (pas en direct) ;
+  le chargement depuis la base peut écraser une saisie faite pendant le chargement.
+
+VERSION 3.17 : GRILLE DE SAISIE (suite)
+- Heures supplémentaires par défaut selon le cours (et non selon les fichiers Excel) : samedi et 8 premières heures à 120 %,
+  8 suivantes à 130 %, au-delà de 16 h à 140 %, dimanche 140 %, nuit 150 % (un seul taux si dimanche et nuit), férié 200 %.
+  Taux horaire = salaire de base ÷ 173,33 (diviseur modifiable). Les formules restent modifiables par profil.
+- Heures du mois automatiques : méthode « calendrier » par défaut (jours lun.-ven. hors fériés × 8 h ; août 2026 = 168 h).
+  Méthode « quatre semaines × 40 h » (160 h, comme le fichier Excel d'août) et saisie manuelle disponibles.
+  Fériés : fixes (1er janv., 11 févr., 1er mai, 20 mai, 15 août, 25 déc.) et Pâques (vendredi saint, lundi de Pâques), à vérifier.
+- Mise à jour en direct : chaque saisie est enregistrée sur ce navigateur et met à jour le bulletin ouvert pour ce salarié.
+- Chargement depuis la base : ne remplace plus une saisie faite pendant le chargement.
+- Libellé de rubrique repris du catalogue quand le code est reconnu (si le libellé est vide).
+- Export « 📊 Exporter au format Excel » : un fichier .xls par mois, une feuille par profil, totaux en formules SUM.
+- Limites : pas de relecture dans un navigateur ; les semaines ne sont pas découpées (les tranches 120/130/140 % se saisissent
+  comme totaux mensuels) ; la base CNPS suit toujours Sage (logement inclus, transport exclu) en attente de votre choix.
+
+VERSION 3.18 : PLAFOND CNPS
+- La base cotisable CNPS est plafonnée à 750 000 FCFA dans tous les cas : base = min(base, 750 000). Ce choix suit la loi et la logique Sage.
+- Avant : le mode « sage » ne plafonnait pas les bases inférieures à 300 000 et passait à 750 000 au-delà (erreur corrigée).
+- Effet : une base entre 300 000 et 750 000 est maintenant cotisée sur sa valeur réelle (ex. 400 000 : CNPS salarié 16 800).
+  Pour une base au-delà de 750 000 : CNPS 31 500 (4,2 %).
+- Avril 2026 (184 315) : inchangé.
+
+VERSION 3.19 : NET A PAYER
+- Le net est calculé à partir des retenues arrondies ligne par ligne (comme sur le bulletin Sage). Avant, la somme
+  non arrondie donnait 1 FCFA d'écart (bulletin Cédric septembre 2026 : 70 687 attendu, 70 686 obtenu).
+- Vérifié sur trois bulletins : avril 2026 (175 000), août 2026 Tsanga (200 000), septembre 2026 Cédric (70 687, avec cantine 3 000).

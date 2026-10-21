@@ -174,7 +174,9 @@
   function pied(o, R, couleur) {
     var c = o.cumuls || {}, per = c.periode || {}, an = c.annee || {};
     var S = R.salariales, P = R.patronales;
-    var cotSal = S.cnps + S.cfc + S.irpp + S.cac + S.redevance + S.taxeCommunale + (S.taxeDevLocal || 0) + (S.taxeProp || 0);
+    // Cumul « Charges salariales » tel que Sage l'affiche : CNPS salarié + logement (vérifié sur avril 2026 : 7 741 + 27 500 = 35 241,
+    // et août 2026 : 5 471 + 27 000 = 32 471). Les autres retenues ne sont pas dans ce cumul.
+    var cotSal = S.cnps + (R.logement || 0);
     var heures = (o.lignes || []).filter(function (l) { return String(l.code) === '1000'; })[0];
     var hTrav = heures && heures.nombre ? Math.round(Number(heures.nombre)) : '';
     var hSup = (o.lignes || []).filter(function (l) { return l.heures_sup; }).reduce(function (t, l) { return t + (Number(l.nombre) || 0); }, 0);
@@ -191,7 +193,7 @@
     var periodeV = [fmt(R.brut), fmt(R.netImposable), fmt(cotSal), fmt(R.totalPatronales), hTrav, fmt(hSup), '0'];
     var anneeV = [fmt(an.brut), fmt(an.netImposable), fmt(an.cotisationsSalariales), fmt(an.chargesPatronales), fmt(an.heures), fmt(an.heuresSup), '0'];
     return '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">' +
-      '<tr><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;width:9%">Cumuls</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Salaire brut</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Net imposable</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Cotisations salariales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Charges patronales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures travaillées</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures sup.</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Avantages en nature</th></tr>' +
+      '<tr><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px;width:9%">Cumuls</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Salaire brut</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Net imposable</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Charges salariales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Charges patronales</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures travaillées</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Heures sup.</th><th style="border:1px solid #444;background:' + couleur + ';padding:2px 4px">Avantages en nature</th></tr>' +
       ligne('Période', periodeV) + ligne('Année', anneeV) + '</table>' +
       '<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:15px;font-weight:700;background:' + couleur + ';width:45%">NET À PAYER</td>' +

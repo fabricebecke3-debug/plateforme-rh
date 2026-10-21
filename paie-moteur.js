@@ -122,7 +122,8 @@
     }
     var plafond = (typeof s.taux === 'object' && s.taux && typeof s.taux.plafond_cnps === 'number') ? s.taux.plafond_cnps : PLAFOND_CNPS;
     var mode = s.cnpsPlafondMode || (s.taux && s.taux.cnps_plafond_mode) || TAUX_DEFAUT.cnps_plafond_mode;
-    var netimpopl = (mode === 'legal') ? Math.min(basecot, plafond) : (basecot < 300000 ? basecot : plafond);
+    // Plafond CNPS (loi et Sage) : la base cotisable ne dépasse jamais le plafond ; en dessous, la base est entière
+    var netimpopl = Math.min(basecot, plafond);
 
     // Retenues salariales (montants exacts)
     var irppRaw = (typeof s.irpp === 'number') ? s.irpp : irppSage(saltaxf);
@@ -133,7 +134,8 @@
     var taxeComRaw = (typeof s.taxeCommunale === 'number') ? s.taxeCommunale : taxeCommunaleSage(saltaxf);
     var taxeDevRaw = s.taxeDevLocal ? taxeDevLocalSage(saltaxf) : 0;
     var taxePropRaw = s.taxeProp ? netimpo * 4.8 / 100 : 0;
-    var retenuesRaw = cnpsSalRaw + cfcSalRaw + irppRaw + cacRaw + redevanceRaw + taxeComRaw + taxeDevRaw + taxePropRaw + retenuesDiv;
+    // Net : somme des retenues arrondies ligne par ligne (comme le bulletin Sage)
+    var retenuesRaw = arr(cnpsSalRaw) + arr(cfcSalRaw) + arr(irppRaw) + arr(cacRaw) + arr(redevanceRaw) + arr(taxeComRaw) + arr(taxeDevRaw) + arr(taxePropRaw) + retenuesDiv;
 
     // Charges patronales (montants exacts)
     var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(saltaxf, s.plafondCFPat) : saltaxf;

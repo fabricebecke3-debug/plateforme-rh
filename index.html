@@ -5284,7 +5284,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), employeur: ((typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{}).societe||'', constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {nom:x.n||x.nom, mat:(typeof MAT!=='undefined'&&MAT[x.id])||'', cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), employeur: ((typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{}).societe||'', constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {id:String(x.id), nom:x.n||x.nom, mat:(typeof MAT!=='undefined'&&MAT[x.id])||'', cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');
@@ -6083,6 +6083,7 @@ async function rd(cle){try{const {data}=await db.from('parametres').select('vale
 async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,valeur:JSON.stringify(o),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});if(error)throw error;}
 window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
+window.TERH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
 window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
 window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>({id:String(x.id),nom:x.n||x.nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||'',cnps:x.cnps||'',entree:x.entree||'',dane:x.dane||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||'',poste:x.p||'',convention:x.conv||'',etablissement:x.etab||'',...window.TERH_composantsFiche(x.n||x.nom)}));
@@ -9561,6 +9562,7 @@ hook();setInterval(hook,1500);
 <script src="paie-rubriques-sage.js"></script>
 <script src="paie-rubriques.js"></script>
 <script src="paie-modeles.js"></script>
+<script src="paie-grille.js"></script>
 <script src="paie-pointage-simulation.js"></script>
 <script src="paie-bulletin-sage.js"></script>
 <script src="paie-constantes.js"></script>
