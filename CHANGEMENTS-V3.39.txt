@@ -1,0 +1,11 @@
+VERSION 3.39 : EMPLOYEUR SELON LA STRUCTURE
+===========================================
+Règle d'employeur sur le bulletin :
+- Entreprise simple : elle-même.
+- Filiale d'un groupe (mise à disposition en mode auto ou « oui ») : la société mère.
+- Filiale avec mode « non » : elle-même.
+- Holding : elle-même.
+- Nom saisi dans l'identité du bulletin : utilisé seulement pour la société qui l'a saisi (repère societeCo).
+  Un ancien nom enregistré pour une autre société n'est plus repris. Enregistrez l'identité une fois
+  pour chaque société concernée.
+Service worker : terh-v42.

@@ -49,7 +49,7 @@
       '</tr>' +
       '<tr>' +
         '<td rowspan="3" style="border:1px solid #444;padding:4px 6px;vertical-align:top;line-height:1.35">' +
-          '<b>' + esc(b.societe || o.employeur || '') + '</b><br>' + esc(b.adresse || '') +
+          '<b>' + esc(o.employeur || b.societe || '') + '</b><br>' + esc(b.adresse || '') +
           (b.siret ? '<br>N° SIRET : ' + esc(b.siret) : '') + (b.cnps ? '<br>N° CNPS employeur : ' + esc(b.cnps) : '') + '</td>' +
         '<td style="border:1px solid #444;padding:0"><table style="width:100%;border-collapse:collapse"><tr>' +
           cellule('Matricule', s.matricule, '20%') + cellule('Niveau', s.niveau, '14%') + cellule('Coefficient', s.coefficient, '18%') +

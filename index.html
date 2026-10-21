@@ -5436,7 +5436,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     var inf = (typeof entInfo === 'function') ? entInfo() : { mad: false, mere: '' };
     var mad = !!(inf.mad && inf.mere);
     return Object.assign({}, lu, {
-      societe: mad ? (inf.mere || nomCo) : (lu.societe || nomCo || ''),
+      societe: mad ? (inf.mere || nomCo) : ((lu.societe && lu.societeCo && lu.societeCo === coAct.id) ? lu.societe : (nomCo || '')),
       adresse: mad ? (String(entGet('ent_mere_adr') || '').trim() || lu.adresse || '') : (lu.adresse || P.adresse || ''),
       tel: lu.tel || P.tel || ''
     });
@@ -5460,7 +5460,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
         if (!/^image\/(png|jpeg|svg\+xml)$/.test(fichier.type)) { toast('Format de logo non accepté (PNG, JPG ou SVG).'); return; }
         logo = await lire();
       }
-      const b = { societe: $('pb_soc').value.trim(), adresse: $('pb_adr').value.trim(), siret: $('pb_siret').value.trim(),
+      const b = { societeCo: ((typeof curCo === 'function' && curCo()) || {}).id || '', societe: $('pb_soc').value.trim(), adresse: $('pb_adr').value.trim(), siret: $('pb_siret').value.trim(),
         cnps: $('pb_cnps').value.trim(), couleur: $('pb_couleur').value || '#1f5fbf', logo: logo };
       PARAMS.bulletin = JSON.stringify(b);
       await saveParam('bulletin', PARAMS.bulletin);

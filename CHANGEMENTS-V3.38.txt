@@ -1,0 +1,7 @@
+VERSION 3.38 : EMPLOYEUR SUR LE BULLETIN
+========================================
+- L'en-tête du bulletin (modèle détaillé et modèle Sage) affiche désormais le champ Employeur du bulletin,
+  avant la société du bulletin. Une modification du champ apparaît donc à l'impression.
+- Le champ est renseigné automatiquement : société mère en mise à disposition, sinon société simple,
+  sinon société active ; complété au choix du salarié s'il est vide.
+- Service worker : terh-v41.
