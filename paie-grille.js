@@ -435,6 +435,13 @@
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';
       return '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' + metaMois +
         '<button type="button" data-g="export" style="' + BTN + '">📊 Exporter au format Excel</button></div>' +
+        (function () {
+          // Postes des salariés qu'aucun profil ne reconnaît (ajoutez le mot-clé dans « Postes concernés »)
+          var sans = {};
+          emps.forEach(function (e) { var s0 = st.saisies[e.id]; if (!(s0 && s0.profilManuel) && !profilAuto(st, e.poste) && String(e.poste || '').trim()) sans[String(e.poste).trim()] = true; });
+          var liste = Object.keys(sans);
+          return liste.length ? '<div style="margin:0 0 8px;padding:8px 10px;border-left:4px solid #d68910;background:#fdf6e3;font-size:12px">⚠ Postes sans profil : <b>' + liste.map(esc).join(' · ') + '</b> — ajoutez un mot-clé à un profil (Paramètres de la grille, « Postes concernés »).</div>' : '';
+        })() +
         '<p style="margin:0 0 8px;color:#555">Saisissez les jours <b>ou</b> les heures : l\'autre se calcule. Les heures supplémentaires suivent le cours : samedi et 8 premières heures à 120 %, 8 suivantes à 130 %, au-delà de 16 h à 140 %, dimanche 140 %, nuit 150 % (un seul taux si dimanche et nuit), férié 200 %. Taux horaire = salaire de base ÷ 173,33.</p>' +
         '<div style="max-height:62vh;overflow:auto;border:1px solid #cdd5e0;border-radius:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
         '<thead><tr style="position:sticky;top:0;background:#1f5fbf;color:#fff">' + colonnes.map(function (c) { return '<th style="padding:5px 6px;text-align:left;white-space:nowrap">' + c + '</th>'; }).join('') + '</tr></thead>' +

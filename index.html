@@ -84,7 +84,7 @@ tr:hover td{background:color-mix(in srgb,var(--ac) 4%,var(--card))}
 #lt.on{display:block}
 .ctl{max-width:800px;margin:0 auto 10px;background:var(--card);border-radius:12px;padding:12px;display:flex;gap:8px;flex-wrap:wrap}
 .paper{position:relative;width:210mm;min-height:297mm;margin:0 auto;background:#fff;color:#000;padding:150px 22mm 110px 22mm;font:13pt/1.42 'Times New Roman',Times,serif;box-sizing:border-box;box-shadow:0 6px 20px rgba(0,0,0,.15)}
-.pcover{position:absolute;top:8mm;left:0;right:0;text-align:center;pointer-events:none}.pcover img{max-width:80%;max-height:32mm;object-fit:contain}
+.pcover{position:absolute;top:8mm;left:0;right:0;text-align:center;pointer-events:none}.pcover img{max-width:80%;max-height:32mm;object-fit:contain}.pcover.pos-gauche{text-align:left;padding-left:14mm}.pcover.pos-gauche img{max-width:45%}.pcover.pos-droite{text-align:right;padding-right:14mm}.pcover.pos-droite img{max-width:45%}
 .paper h3{text-align:center;text-decoration:underline;text-underline-offset:8px;text-decoration-thickness:2px;margin:0 0 26px 0;font-size:19pt;font-weight:900;letter-spacing:2px}
 .paper p{margin:0 0 11px 0;text-align:justify;line-height:1.5}
 .paper.cert{font:14pt/1.15 'Times New Roman',Times,serif;letter-spacing:1pt}
@@ -421,7 +421,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   <h1>⚙️ Paramètres</h1>
   <div class="tabs" id="ptabs">
     <button data-t="soc" class="on">🏢 Société</button>
-    <button data-t="let">📝 Lettre</button><button data-t="ent">🖼️ En-tête lettres</button><button data-t="de">⚖️ Modèle DE</button><button data-t="san">🚫 Modèle Sanction</button><button data-t="doc">📎 Documents</button>
+    <button data-t="let">📝 Lettre</button><button data-t="ent">🖼️ En-tête lettres</button><button data-t="de">⚖️ Modèle DE</button><button data-t="san">🚫 Modèle Sanction</button><button data-t="ns">📋 Note de service</button><button data-t="fin">📤 Fin de contrat</button><button data-t="mp">🧩 Modules de la société</button><button data-t="doc">📎 Documents</button>
     <button data-t="cert">📜 Certificat</button>
     <button data-t="sig">✍️ Signatures</button><button data-t="gra">📊 Graphiques</button><button data-t="parp">🧮 Paie (taux)</button><button data-t="usr">👥 Utilisateurs</button>
   </div>
@@ -467,6 +467,20 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     <div class="vh"><b>Modèle de sanction disciplinaire</b> — généré à partir du modèle DE et adapté aux éléments du dossier. L’IA respecte ce modèle et n’invente pas de faits.</div>
     <div class="vh"><b>Variables :</b> <code>{{CIVILITE}}</code> <code>{{NOM}}</code> <code>{{NOM_COURT}}</code> <code>{{POSTE}}</code> <code>{{DATE_FAITS}}</code> <code>{{HEURE}}</code> <code>{{LIEU}}</code> <code>{{LIEU_FAITS}}</code> <code>{{MOTIF}}</code> <code>{{FAITS}}</code> <code>{{REPONSE}}</code> <code>{{SANCTION}}</code> <code>{{DUREE_SANCTION}}</code> <code>{{DATE_SANCTION}}</code> <code>{{VILLE}}</code> <code>{{DATE_DOC}}</code> <code>{{SOCIETE}}</code> <code>{{SIGNATAIRE}}</code></div>
     <div class="tg"><div><textarea id="ptsan" style="min-height:360px"></textarea></div><div><p class="muted">Aperçu avec un exemple</p><div class="pp" id="pv-san" style="white-space:normal"></div></div></div><p><button class="p" id="psv-san">💾 Enregistrer le modèle sanction</button><button class="s" id="prst-san">↺ Modèle standard</button></p>
+  </div>
+  <div class="pane" id="pane-ns" style="display:none">
+    <div class="vh"><b>Modèle de note de service</b> — utilisé pour rédiger les notes internes de la société. Téléversez un fichier ou modifiez le texte, puis enregistrez.</div>
+    <div class="vh"><b>Variables :</b> <code>{{NUMERO}}</code> <code>{{ANNEE}}</code> <code>{{OBJET}}</code> <code>{{DESTINATAIRES}}</code> <code>{{CORPS}}</code> <code>{{VILLE}}</code> <code>{{DATE_DOC}}</code> <code>{{SOCIETE}}</code> <code>{{SIGNATAIRE}}</code></div>
+    <textarea id="ptns" style="width:100%;min-height:320px"></textarea><p><button class="p" id="psv-ns">💾 Enregistrer le modèle note de service</button><button class="s" id="prst-ns">↺ Modèle standard</button></p>
+  </div>
+  <div class="pane" id="pane-fin" style="display:none">
+    <div class="vh"><b>Notification de fin de contrat</b> — modèle distinct de la lettre de démobilisation. Téléversez un fichier ou modifiez le texte, puis enregistrez.</div>
+    <div class="vh"><b>Variables :</b> <code>{{CIVILITE}}</code> <code>{{NOM}}</code> <code>{{POSTE}}</code> <code>{{DATE_FIN}}</code> <code>{{MOTIF_FIN}}</code> <code>{{VILLE}}</code> <code>{{DATE_DOC}}</code> <code>{{SOCIETE}}</code> <code>{{SIGNATAIRE}}</code></div>
+    <textarea id="ptfin" style="width:100%;min-height:320px"></textarea><p><button class="p" id="psv-fin">💾 Enregistrer la notification</button><button class="s" id="prst-fin">↺ Modèle standard</button></p>
+  </div>
+  <div class="pane" id="pane-mp" style="display:none">
+    <div class="vh"><b>Modules personnalisés de la société</b> — créez un module (ex. registre, suivi, liste de fiches) et saisissez ses fiches : date, titre, commentaire. Chaque société a les siens.</div>
+    <div id="mp_box"></div>
   </div>
   <div class="pane" id="pane-doc" style="display:none">
     <div class="vh"><b>📎 Journal des éléments importés / téléversés</b> — date, type, fichier, utilisateur et statut.</div>
@@ -1044,6 +1058,73 @@ function loadDocs(){try{const x=JSON.parse(PARAMS.documents_json||'[]');return A
 let DOCS=[];
 function saveDocs(){PARAMS.documents_json=JSON.stringify(DOCS);return saveParam('documents_json',PARAMS.documents_json);}
 function logDoc(type,name,status='Téléversé'){DOCS.unshift({id:'DOC'+Date.now()+Math.random().toString(36).slice(2,6),date:new Date().toISOString(),type,name,user:MY_USER?.email||'',status});DOCS=DOCS.slice(0,300);return saveDocs();}
+const TPL_NS_DEFAULT='NOTE DE SERVICE N° {{NUMERO}}/{{ANNEE}}\n\nObjet : {{OBJET}}\nDestinataires : {{DESTINATAIRES}}\n\n{{CORPS}}\n\nFait à {{VILLE}}, le {{DATE_DOC}}\n\n{{SIGNATAIRE}}';
+const TPL_FIN_DEFAUT='{{VILLE}}, le {{DATE_DOC}}\n\n{{CIVILITE}} {{NOM}}\n{{POSTE}}\n\nOBJET : NOTIFICATION DE FIN DE CONTRAT\n\nNous vous informons que votre contrat de travail prend fin le {{DATE_FIN}} pour le motif suivant : {{MOTIF_FIN}}.\n\nVous voudrez bien restituer les biens confiés par la société avant cette date.\n\nLA DIRECTION\n{{SIGNATAIRE}}';
+/* ===== Modules personnalisés par société (stockés dans parametres, clé modules_perso) ===== */
+let MP_SEL=null;
+function mpList(){try{const v=JSON.parse(PARAMS.modules_perso||'[]');return Array.isArray(v)?v:[];}catch(e){return [];}}
+async function mpWrite(l){if(typeof CAN!=='undefined'&&CAN.params&&!CAN.params()){toast('🔒 Permission refusée');return false;}try{await saveParam('modules_perso',JSON.stringify(l));return true;}catch(e){toast('Erreur : '+e.message);return false;}}
+function mpRender(){
+  const box=$('mp_box');if(!box)return;
+  const L=mpList(),sel=L.find(m=>m.id===MP_SEL)||null;
+  let h='<div class="f" style="margin-bottom:10px"><input id="mp_nom" placeholder="Nom du nouveau module (ex. Registre des visites)" style="flex:1;min-width:240px"><button class="p" id="mp_add">➕ Créer le module</button></div>';
+  h+='<div class="f" style="margin-bottom:10px">'+(L.length?L.map(m=>'<button class="s'+(sel&&m.id===sel.id?' on':'')+'" data-mp="'+esc(m.id)+'">'+esc(m.nom)+' ('+((m.fiches||[]).length)+')</button>').join(''):'<span class="muted">Aucun module personnalisé pour cette société.</span>')+'</div>';
+  if(sel){
+    const fiches=(sel.fiches||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    h+='<div class="c"><h3 style="margin:0 0 8px">'+esc(sel.nom)+'</h3>'+
+      '<div class="f"><input type="date" id="mp_date"><input id="mp_titre" placeholder="Titre" style="flex:1;min-width:180px"><input id="mp_com" placeholder="Commentaire" style="flex:2;min-width:220px"><button class="p" id="mp_fadd">➕ Ajouter la fiche</button></div>'+
+      '<div class="tw" style="margin-top:10px"><table><thead><tr><th>Date</th><th>Titre</th><th>Commentaire</th><th></th></tr></thead><tbody>'+
+      (fiches.map(f=>'<tr><td>'+esc(f.date||'')+'</td><td>'+esc(f.titre||'')+'</td><td>'+esc(f.com||'')+'</td><td><button class="s" data-mpdel="'+esc(f.id)+'">🗑</button></td></tr>').join('')||'<tr><td colspan="4" class="muted">Aucune fiche.</td></tr>')+
+      '</tbody></table></div><p style="margin-top:10px"><button class="s" id="mp_mdel">🗑 Supprimer ce module</button></p></div>';
+  }
+  box.innerHTML=h;
+  box.querySelector('#mp_add').onclick=async()=>{const n=box.querySelector('#mp_nom').value.trim();if(!n){toast('Donnez un nom au module');return;}
+    const l=mpList();const m={id:'m'+Date.now(),nom:n,fiches:[]};l.push(m);if(await mpWrite(l)){MP_SEL=m.id;toast('✅ Module créé');mpRender();}};
+  box.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{MP_SEL=b.dataset.mp;mpRender();});
+  if(sel){
+    box.querySelector('#mp_fadd').onclick=async()=>{const t=box.querySelector('#mp_titre').value.trim();if(!t){toast('Indiquez un titre');return;}
+      const l=mpList(),m=l.find(x=>x.id===MP_SEL);if(!m)return;m.fiches=m.fiches||[];m.fiches.push({id:'f'+Date.now(),date:box.querySelector('#mp_date').value||'',titre:t,com:box.querySelector('#mp_com').value.trim()});
+      if(await mpWrite(l)){toast('✅ Fiche ajoutée');mpRender();}};
+    box.querySelectorAll('[data-mpdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer cette fiche ?'))return;const l=mpList(),m=l.find(x=>x.id===MP_SEL);if(!m)return;m.fiches=(m.fiches||[]).filter(f=>f.id!==b.dataset.mpdel);if(await mpWrite(l))mpRender();});
+    box.querySelector('#mp_mdel').onclick=async()=>{if(!confirm('Supprimer le module « '+sel.nom+' » et toutes ses fiches ?'))return;const l=mpList().filter(x=>x.id!==MP_SEL);if(await mpWrite(l)){MP_SEL=null;mpRender();}};
+  }
+}
+/* ===== Génération : note de service et notification de fin de contrat pour un salarié ===== */
+function genFormHTML(kind){
+  const opts=EN().map(r=>'<option value="'+esc(String(r.id))+'">'+esc(r.n)+'</option>').join('');
+  const today=new Date().toISOString().slice(0,10);
+  if(kind==='ns') return '<div class="c" id="gen_box_ns"><h3 style="margin:0 0 6px">📄 Générer une note de service</h3>'+
+    '<div class="f"><label>N°<input id="gn_num" placeholder="ex. 012"></label><label>Destinataires<input id="gn_dest" placeholder="ex. Tout le personnel" style="min-width:220px"></label><label>Objet<input id="gn_obj" style="min-width:260px"></label></div>'+
+    '<label style="display:block;margin-top:6px">Corps de la note<textarea id="gn_corps" rows="4" style="width:100%"></textarea></label>'+
+    '<p style="margin:8px 0"><button class="p" id="gn_go">👁 Aperçu</button> <button class="s" id="gn_print">🖨️ Imprimer / PDF</button></p><div id="gn_out" class="pp" style="background:#fff;color:#000;padding:12px"></div></div>';
+  return '<div class="c" id="gen_box_fin"><h3 style="margin:0 0 6px">📄 Générer une notification de fin de contrat</h3>'+
+    '<div class="f"><label>Salarié<select id="gf_emp"><option value="">— choisir —</option>'+opts+'</select></label><label>Date de fin<input type="date" id="gf_date" value="'+today+'"></label><label>Motif<input id="gf_motif" placeholder="ex. fin de mission" style="min-width:220px"></label></div>'+
+    '<p style="margin:8px 0"><button class="p" id="gf_go">👁 Aperçu</button> <button class="s" id="gf_print">🖨️ Imprimer / PDF</button></p><div id="gf_out" class="pp" style="background:#fff;color:#000;padding:12px"></div></div>';
+}
+function genRemplir(tpl,v){return String(tpl||'').replace(/\{\{(\w+)\}\}/g,function(m,k){return v[k]!=null?v[k]:m;});}
+function genCorps(texte){return '<div style="font:12pt \'Times New Roman\',serif;line-height:1.5">'+esc(texte).replace(/\n/g,'<br>')+'</div>';}
+function genMonter(kind){
+  const pane=$('pane-'+kind);if(!pane||pane.querySelector('#gen_box_'+kind))return;
+  pane.insertAdjacentHTML('afterbegin',genFormHTML(kind));
+  const today=new Date().toISOString().slice(0,10),base={VILLE:PARAMS.lieu||'',DATE_DOC:FL(today),SOCIETE:PARAMS.soc||'',SIGNATAIRE:PARAMS.fn||''};
+  if(kind==='ns'){
+    const calc=()=>genRemplir(PARAMS.tpl_ns||TPL_NS_DEFAULT,Object.assign({},base,{NUMERO:$('gn_num').value,ANNEE:today.slice(0,4),OBJET:$('gn_obj').value,DESTINATAIRES:$('gn_dest').value||'Tout le personnel',CORPS:$('gn_corps').value}));
+    $('gn_go').onclick=()=>{$('gn_out').innerHTML=genCorps(calc());};
+    $('gn_print').onclick=()=>{printHTML('Note de service',genCorps(calc()));};
+  }else{
+    const calc=()=>{const r=EN().find(x=>String(x.id)===$('gf_emp').value);if(!r){toast('Choisissez un salarié');return null;}
+      return genRemplir(PARAMS.tpl_fin||TPL_FIN_DEFAUT,Object.assign({},base,{CIVILITE:r.g==='F'?'Madame':'Monsieur',NOM:r.n||'',POSTE:r.p||'',DATE_FIN:FL($('gf_date').value),MOTIF_FIN:$('gf_motif').value||'fin de contrat'}));};
+    $('gf_go').onclick=()=>{const t=calc();if(t!=null)$('gf_out').innerHTML=genCorps(t);};
+    $('gf_print').onclick=()=>{const t=calc();if(t!=null)printHTML('Notification de fin de contrat',genCorps(t));};
+  }
+}
+function modulesDepuisNav(){go('p');setTimeout(function(){const b=document.querySelector('#ptabs button[data-t="mp"]');if(b)b.click();},250);}
+(function(){
+  const nav=document.querySelector('nav');if(!nav||document.getElementById('nav_modules'))return;
+  const b=document.createElement('button');b.id='nav_modules';b.type='button';b.textContent='🧩 Modules';b.title='Modules personnalisés de la société';b.style.display='none';b.onclick=modulesDepuisNav;
+  const np=document.getElementById('np');(np?np:nav.lastChild).after(b);
+  setInterval(function(){const x=document.getElementById('nav_modules');if(x)x.style.display=(['admin','super_owner'].includes(ER())||isOwnerUser())?'':'none';},1500);
+})();
 function deTemplateDefault(){return TPL_DE_LETTRE;}
 function sanctionTemplateDefault(){return TPL_SANCTION_LETTRE;}
 
@@ -1241,7 +1322,7 @@ async function loadAll(){
   if(!PARAMS_DEF)PARAMS_DEF={...PARAMS};else Object.assign(PARAMS,PARAMS_DEF);
   {const c=curCo();if(c)Object.assign(PARAMS,{soc:c.nom,client:c.client||c.nom,lieu:c.ville||'',tel:c.tel||'',email:c.email||'',adresse:c.adresse||'',sig:'',fn:'Responsable des Ressources Humaines'});}
   (par.data||[]).forEach(r=>{if(r.cle in PARAMS&&r.valeur!=null)PARAMS[r.cle]=r.valeur;});
-  try{const _co=curCo();if(_co&&_co.groupe_id&&_co.type_entreprise!=='groupe'){const own=new Set((par.data||[]).filter(r=>r.valeur!=null&&String(r.valeur).trim()!=='').map(r=>r.cle));const mk=['tpl_let','tpl_cert','tpl_de','tpl_sanction'].filter(k=>k in PARAMS&&!own.has(k));if(mk.length){const pr=await db.from('parametres').select('cle,valeur').eq('entreprise_id',_co.groupe_id).in('cle',mk);(pr.data||[]).forEach(r=>{if(r.valeur!=null&&String(r.valeur).trim()!=='')PARAMS[r.cle]=r.valeur;});}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+  try{const _co=curCo();if(_co&&_co.groupe_id&&_co.type_entreprise!=='groupe'){const own=new Set((par.data||[]).filter(r=>r.valeur!=null&&String(r.valeur).trim()!=='').map(r=>r.cle));const mk=['tpl_let','tpl_cert','tpl_de','tpl_sanction','tpl_ns','tpl_fin'].filter(k=>k in PARAMS&&!own.has(k));if(mk.length){const pr=await db.from('parametres').select('cle,valeur').eq('entreprise_id',_co.groupe_id).in('cle',mk);(pr.data||[]).forEach(r=>{if(r.valeur!=null&&String(r.valeur).trim()!=='')PARAMS[r.cle]=r.valeur;});}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<h3>Objet : Notification de fin de contrat et démobilisation</h3>')&&!PARAMS.tpl_let.includes('<!--v2-->'))PARAMS.tpl_let=TPL_LET;
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<!--v2-->')&&!PARAMS.tpl_let.includes('<!--v3-->')&&PARAMS.tpl_let.includes('Nous faisons référence à votre {{TYPE_CONTRAT}}, à effet du'))PARAMS.tpl_let=TPL_LET;
   if(PARAMS.tpl_let)PARAMS.tpl_let=cutAfterDir(PARAMS.tpl_let);
@@ -1981,6 +2062,10 @@ $('prst-cert').onclick=()=>{if(confirm('Rétablir ?'))$('ptc').value=TPL_CERT;};
 $('ptde').value=PARAMS.tpl_de||deTemplateDefault();$('ptsan').value=PARAMS.tpl_sanction||sanctionTemplateDefault();
 $('psv-de').onclick=async()=>{if(!CAN.params())return;try{await saveParam('tpl_de',$('ptde').value);toast('Modèle DE enregistré');}catch(e){toast('Erreur : '+e.message);}};
 $('psv-san').onclick=async()=>{if(!CAN.params())return;try{await saveParam('tpl_sanction',$('ptsan').value);toast('Modèle sanction enregistré');}catch(e){toast('Erreur : '+e.message);}};
+$('psv-ns').onclick=async()=>{if(!CAN.params())return;try{await saveParam('tpl_ns',$('ptns').value);toast('✅ Modèle note de service enregistré');}catch(e){toast('Erreur : '+e.message);}};
+$('prst-ns').onclick=()=>{$('ptns').value=TPL_NS_DEFAULT;};
+$('psv-fin').onclick=async()=>{if(!CAN.params())return;try{await saveParam('tpl_fin',$('ptfin').value);toast('✅ Notification de fin de contrat enregistrée');}catch(e){toast('Erreur : '+e.message);}};
+$('prst-fin').onclick=()=>{$('ptfin').value=TPL_FIN_DEFAUT;};
 $('prst-san').onclick=()=>{$('ptsan').value=sanctionTemplateDefault();};
 $('prst-de').onclick=()=>{$('ptde').value=deTemplateDefault();};
 function renderDocLog(){if(!$('tdoc'))return;DOCS=loadDocs();$('tdoc').innerHTML=DOCS.length?DOCS.map(d=>`<tr><td>${DT(d.date)}</td><td>${esc(d.type)}</td><td>${esc(d.name)}</td><td>${esc(d.user||'—')}</td><td><span class="b VALIDE">${esc(d.status)}</span></td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--mu)">Aucun élément.</td></tr>';}
@@ -3854,11 +3939,14 @@ function sigInit(){sigRender();sigPrev();sigWarm(sigLoad()).then(sigRender);if(S
 document.querySelectorAll('#ptabs button').forEach(b=>b.addEventListener('click',()=>{
   if(!CAN.params()||(MY_ROLE!=='admin'&&MY_ROLE!=='super_owner')){toast('🔒 Réservé à l\'administrateur');return;}
   document.querySelectorAll('#ptabs button').forEach(x=>x.classList.toggle('on',x===b));
-  document.querySelectorAll('#pane-soc,#pane-let,#pane-cert,#pane-de,#pane-san,#pane-doc,#pane-usr,#pane-sig,#pane-ent,#pane-gra,#pane-parp').forEach(p=>p.style.display='none');
+  document.querySelectorAll('#pane-soc,#pane-let,#pane-cert,#pane-de,#pane-san,#pane-ns,#pane-fin,#pane-mp,#pane-doc,#pane-usr,#pane-sig,#pane-ent,#pane-gra,#pane-parp').forEach(p=>p.style.display='none');
   const id='pane-'+b.dataset.t;
   if($(id))$(id).style.display='';
   if(b.dataset.t==='de')$('ptde').value=PARAMS.tpl_de||deTemplateDefault();
   if(b.dataset.t==='san')$('ptsan').value=PARAMS.tpl_sanction||sanctionTemplateDefault();
+  if(b.dataset.t==='ns'){$('ptns').value=PARAMS.tpl_ns||TPL_NS_DEFAULT;genMonter('ns');}
+  if(b.dataset.t==='fin'){$('ptfin').value=PARAMS.tpl_fin||TPL_FIN_DEFAUT;genMonter('fin');}
+  if(b.dataset.t==='mp')mpRender();
   if(b.dataset.t==='ent')entMount('pane-ent','p_');
   if(b.dataset.t==='doc')renderDocLog();
   if(b.dataset.t==='usr')listUsers();
@@ -4401,6 +4489,16 @@ document.addEventListener('click',async e=>{
     f.scrollIntoView({behavior:'smooth',block:'center'});if($('own_nom'))$('own_nom').focus();
   }
 });
+
+/* V3.40 : éditeur des modèles de la société ouverte (même contenu que l'espace propriétaire, limité à la société courante) */
+async function modelesSociete(){
+  const w=win('<h2 style="margin:0 0 8px">🖼️ Papier à en-tête et modèles — '+H((curCo()||{}).nom||'—')+'</h2><p class="muted" style="font-size:12px">Ces modèles ne concernent que la société ouverte. Ils sont enregistrés pour elle seule.</p><div id="mod_soc_box">Chargement…</div>');
+  try{
+    const host=w.querySelector('#mod_soc_box');
+    host.innerHTML=await OWX.ent();
+    OWP.ent();
+  }catch(e){w.querySelector('#mod_soc_box').textContent='Erreur : '+(e&&e.message||e);}
+}
 async function renderOwner(){
   if(!isOwnerUser()){logErr('renderOwner bloqué');return;}
   const box=$('v-own');
@@ -4650,7 +4748,7 @@ document.addEventListener('change',e=>{
 const OWX={},OWP={};
 
 /* ============ TERH · EN-TÊTE DES LETTRES, IMPORT DE MODÈLES, ONGLETS ent / bib / mt ============ */
-const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',ent_risque_at:'moyen'};
+const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',ent_risque_at:'moyen',ent_logo_pos:'centre'};
 const ENT_KEYS=Object.keys(ENT_DEF);
 function _entLS(){try{return JSON.parse(localStorage.getItem('terh_ent_'+(CO||''))||'{}')||{};}catch(e){return {};}}
 function entGet(k){const o=_entLS(),v=PARAMS[k];if(k in o&&(v==null||v===ENT_DEF[k]))return o[k];return v==null?'':v;}
@@ -4691,7 +4789,7 @@ function coverUrl(){
     if(entInfo().mad&&c.groupe_id){const pool=(window.__ALLCOS&&window.__ALLCOS.length)?window.__ALLCOS:(typeof COS!=='undefined'?COS:[]);const p=pool.find(x=>x.id===c.groupe_id);if(p&&p.cover_url)return p.cover_url;}
   }catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return '';
 }
-function coverTag(){const u=coverUrl();return u?'<div class="pcover"><img src="'+esc(u)+'" alt=""></div>':'';}
+function coverTag(){const u=coverUrl();const pos=['gauche','centre','droite'].includes(entGet('ent_logo_pos'))?entGet('ent_logo_pos'):'centre';return u?'<div class="pcover pos-'+pos+'"><img src="'+esc(u)+'" alt=""></div>':'';}
 
 /* ---- Formulaire « En-tête des lettres » (partagé : Paramètres › Société et Centre de contrôle › Papier à en-tête) ---- */
 function entFormHTML(p){
@@ -4706,6 +4804,7 @@ ${f('email','Email',P.email)}${f('service','Service / direction',entGet('ent_ser
 <label>Mise à disposition<select id="${p}mode"><option value="auto">Automatique (si l'entreprise a une société mère)</option><option value="oui">Toujours afficher la société mère</option><option value="non">Jamais</option></select></label>
 ${f('mere','Société mère (nom)',entGet('ent_mere'),'ex. TOTAL EMPLOI RH (vide = société mère du groupe)')}
 ${f('mereadr','Adresse de la société mère',entGet('ent_mere_adr'),'vide = adresse ci-dessus')}${f('madlabel','Libellé de mise à disposition',entGet('ent_mad_label'),'Mis à disposition auprès de')}
+<label>Position du logo sur le papier à en-tête<select id="${p}logopos"><option value="gauche">À gauche</option><option value="centre">Au centre</option><option value="droite">À droite</option></select></label>
 <label>Risque accidents du travail (structure)<select id="${p}risque"><option value="faible">Faible (1,75 %)</option><option value="moyen">Moyen (2,5 %)</option><option value="eleve">Élevé (5 %)</option></select></label>
 <label style="grid-column:1/-1">Mentions légales (RCCM, NIU, BP… une ligne par mention)<textarea id="${p}mentions" rows="3">${v('ent_mentions')}</textarea></label>
 </div>
@@ -4713,7 +4812,7 @@ ${f('mereadr','Adresse de la société mère',entGet('ent_mere_adr'),'vide = adr
 <div id="${p}prev" style="border:1px dashed var(--bd,#bbb);border-radius:8px;padding:10px;font:11pt/1.5 'Times New Roman',serif;background:#fff;color:#000;max-width:420px"></div>
 <p style="margin-top:10px"><button class="p" type="button" id="${p}save">💾 Enregistrer l'en-tête</button> <button class="s" type="button" id="${p}reset">↺ Valeurs par défaut</button></p>`;
 }
-function entFormRead(p){const g=id=>{const x=document.getElementById(p+id);return x?x.value:'';};return {soc:g('soc').trim(),lieu:g('lieu').trim(),adresse:g('adresse').trim(),tel:g('tel').trim(),email:g('email').trim(),ent_service:g('service').trim(),ent_mode:g('mode')||'auto',ent_mere:g('mere').trim(),ent_mere_adr:g('mereadr').trim(),ent_mad_label:g('madlabel').trim(),ent_mentions:g('mentions'),ent_risque_at:g('risque')||'moyen'};}
+function entFormRead(p){const g=id=>{const x=document.getElementById(p+id);return x?x.value:'';};return {soc:g('soc').trim(),lieu:g('lieu').trim(),adresse:g('adresse').trim(),tel:g('tel').trim(),email:g('email').trim(),ent_service:g('service').trim(),ent_mode:g('mode')||'auto',ent_mere:g('mere').trim(),ent_mere_adr:g('mereadr').trim(),ent_mad_label:g('madlabel').trim(),ent_mentions:g('mentions'),ent_risque_at:g('risque')||'moyen',ent_logo_pos:g('logopos')||'centre'};}
 function entPreview(p){
   const el=document.getElementById(p+'prev');if(!el)return;
   const o=entFormRead(p),bak={};Object.keys(o).forEach(k=>{bak[k]=PARAMS[k];PARAMS[k]=o[k];});
@@ -4737,10 +4836,10 @@ function entImgMount(p){
 function entMount(id,p){
   const box=document.getElementById(id);if(!box)return;
   box.innerHTML=entImgHTML(p)+entFormHTML(p);entImgMount(p);
-  const set=(i,v)=>{const x=document.getElementById(p+i);if(x)x.value=v;};set('mode',entGet('ent_mode')||'auto');set('risque',entGet('ent_risque_at')||'moyen');
+  const set=(i,v)=>{const x=document.getElementById(p+i);if(x)x.value=v;};set('mode',entGet('ent_mode')||'auto');set('risque',entGet('ent_risque_at')||'moyen');set('logopos',entGet('ent_logo_pos')||'centre');
   box.querySelectorAll('input,select,textarea').forEach(x=>{x.oninput=x.onchange=()=>entPreview(p);});
   entPreview(p);
-  document.getElementById(p+'reset').onclick=()=>{set('service',ENT_DEF.ent_service);set('mode','auto');set('mere','');set('mereadr','');set('madlabel',ENT_DEF.ent_mad_label);set('mentions','');set('risque','moyen');entPreview(p);};
+  document.getElementById(p+'reset').onclick=()=>{set('service',ENT_DEF.ent_service);set('mode','auto');set('mere','');set('mereadr','');set('madlabel',ENT_DEF.ent_mad_label);set('mentions','');set('risque','moyen');set('logopos','centre');entPreview(p);};
   document.getElementById(p+'save').onclick=async()=>{
     if(typeof CAN!=='undefined'&&CAN.params&&!CAN.params()){toast('Permission refusée');return;}
     const o=entFormRead(p);let ko=null;
@@ -5013,7 +5112,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button[dat
   if(!confirm('Supprimer définitivement cette ligne ?\n'+JSON.stringify(pk)))return;try{const {error}=await db.from(DBX.t).delete().match(pk);if(error)throw error;toast('Ligne supprimée');renderOwner();}catch(err){toast('Erreur : '+err.message);}});
 
 /* --- Modèles de documents par entreprise --- */
-const TPLS={tpl_let:'Lettre de fin de contrat / démobilisation',tpl_cert:'Certificat de travail',tpl_de:'Demande d’explication (vide = modèle standard)',tpl_sanction:'Notification de sanction (vide = modèle standard)'};
+const TPLS={tpl_let:'Lettre de fin de contrat / démobilisation',tpl_cert:'Certificat de travail',tpl_de:'Demande d’explication (vide = modèle standard)',tpl_sanction:'Notification de sanction (vide = modèle standard)',tpl_ns:'Note de service',tpl_fin:'Notification de fin de contrat'};
 const SG='<p style="margin:34px 0 0 50%;text-align:center"><b>LA DIRECTION</b></p>';
 const MDV={tpl_let:{std:TPL_LET,
  court:'<!--v3--><p style="text-align:right">{{LIEU}}, le {{DATE_DOC}}</p><p style="margin:0 0 22px 50%"><b>{{CIVILITE}} {{NOM}}</b><br>{{POSTE}}</p><h3 style="font-size:15pt;font-weight:700;margin:0 0 20px">FIN DE CONTRAT</h3><p>{{CIVILITE}},</p><p>Nous vous informons que votre {{TYPE_CONTRAT}} (du <b>{{DATE_DEBUT}}</b> au <b>{{DATE_FIN}}</b>) prend fin le <b>{{DATE_DEMOBILISATION}}</b>. Motif : <b>{{MOTIF}}</b>.</p><p>Merci de restituer votre matériel et de vous rapprocher des Ressources Humaines pour les formalités de départ.</p><p>Cordialement.</p>'+SG,
@@ -6126,7 +6225,7 @@ if(box)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(()=>{if(!on)retu
 })();
 
 /* ===== Import d'un modèle de document (.txt / .html) par entreprise ===== */
-(function(){[['ptde','Demande d\'explication'],['ptsan','Notification de sanction'],['ptl','Lettre'],['ptc','Certificat']].forEach(([id,nom])=>{const t=$(id);if(!t||t.dataset.imp)return;t.dataset.imp=1;
+(function(){[['ptde','Demande d\'explication'],['ptsan','Notification de sanction'],['ptl','Lettre'],['ptc','Certificat'],['ptns','Note de service'],['ptfin','Notification de fin de contrat']].forEach(([id,nom])=>{const t=$(id);if(!t||t.dataset.imp)return;t.dataset.imp=1;
 const w=document.createElement('p');w.className='muted';w.style.cssText='margin:6px 0;font-size:12px';
 w.innerHTML='<label class="s" style="cursor:pointer;padding:6px 10px">📂 Importer un modèle ('+nom+')<input type="file" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf,.jpg,.jpeg,.png,.webp" hidden></label> <span>Word, PDF, .txt, .html, .rtf ou image, puis « Enregistrer ». Variables : {{NOM}}, {{SOCIETE}}…</span>';
 t.parentNode.insertBefore(w,t);
@@ -7487,6 +7586,8 @@ function mk(){const nav=q('nav');if(!nav)return;
  if(!q('#tx_lang')){const s=document.createElement('select');s.id='tx_lang';s.title='Langue / Language';s.innerHTML='<option value="fr">FR</option><option value="en">EN</option>';s.value=LANG;s.onchange=e=>setLang(e.target.value);nav.insertBefore(s,q('.sp')||null);}
  const pb=q('#npaie'),cb=q('#tx_cnps');if(pb&&cb)cb.style.display=pb.style.display;
  const p=q('#v-p');if(p&&!q('#tx_conf')){const b=document.createElement('button');b.id='tx_conf';b.className='p';b.textContent='🧩 Configuration : langue, widgets, pieds de page, base IA';b.style.margin='0 0 10px';b.onclick=conf;p.insertBefore(b,p.firstChild);}
+ /* V3.40 : modèles de la société (papier à en-tête, lettres, DE, sanction) accessibles à l'administrateur de la société ouverte */
+ if(p&&!q('#tx_modeles')&&(['admin','super_owner'].includes(ER())||isOwnerUser())){const b=document.createElement('button');b.id='tx_modeles';b.className='s';b.textContent='🖼️ Papier à en-tête et modèles de la société';b.style.margin='0 0 10px 6px';b.onclick=modelesSociete;p.insertBefore(b,p.firstChild.nextSibling);}
  wrapAI();wrapLocal();if(typeof CO!=='undefined'&&CO&&window.__kbCo!==CO){window.__kbCo=CO;loadX();}}
 setInterval(mk,1500);setTimeout(()=>{mk();applyLang();},2500);
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='cosel')setTimeout(loadX,800)});

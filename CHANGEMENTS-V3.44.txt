@@ -1,0 +1,7 @@
+VERSION 3.44 : GÉNÉRATION, LIEN NAVIGATION, POSTES SANS PROFIL
+==============================================================
+- Note de service et notification de fin de contrat : un formulaire (Paramètres > Note de service / Fin de contrat) génère le document à partir du modèle enregistré. Pour la fin de contrat : choix du salarié, date de fin, motif. Aperçu et impression / PDF.
+- Barre de navigation : bouton « 🧩 Modules » (admin) qui ouvre Paramètres > Modules de la société.
+- Grille de saisie : bandeau « Postes sans profil » listant les postes qu'aucun mot-clé ne reconnaît. Le profil n'est plus choisi au hasard.
+- Limite : les modèles de note de service et de fin de contrat ne contiennent pas encore les données de la société mère en mise à disposition.
+Service worker : terh-v47.

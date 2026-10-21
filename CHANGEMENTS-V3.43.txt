@@ -1,0 +1,8 @@
+VERSION 3.43 : PAS À PAS — ÉTAPE 5 : MODULES PERSONNALISÉS PAR SOCIÉTÉ
+=====================================================================
+- Paramètres > « 🧩 Modules de la société » : l'administrateur crée un module (nom), puis y ajoute des fiches (date, titre, commentaire) ; suppression de fiche et de module.
+- Stockage : paramètre modules_perso de la société (aucune table nouvelle, aucun SQL à exécuter).
+- Chaque société a ses propres modules.
+- Les modèles note de service et fin de contrat sont aussi hérités de la société mère en mise à disposition (comme les autres modèles).
+- Limite : le module n'apparaît pas encore dans la barre de navigation ; il est consulté depuis Paramètres. Pièces jointes non incluses.
+Service worker : terh-v46.

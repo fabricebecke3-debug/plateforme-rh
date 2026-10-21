@@ -1,0 +1,8 @@
+VERSION 3.40 : PAS À PAS — ÉTAPE 1 : MODÈLES DE LA SOCIÉTÉ POUR L'ADMINISTRATEUR
+==============================================================================
+- Constat : papier à en-tête, lettres de fin de contrat, demande d'explication et notification de sanction étaient réservés à l'espace Propriétaire (renderOwner, isOwnerUser). Un administrateur de société ne pouvait pas les modifier pour sa structure.
+- Ajout : bouton « 🖼️ Papier à en-tête et modèles de la société » dans Paramètres, visible pour admin et super_owner.
+- Il ouvre le même éditeur (OWX.ent / OWP.ent), limité à la société ouverte (curCo). L'enregistrement se fait par saveParam, avec entreprise_id.
+- À vérifier : la table parametres doit autoriser l'écriture à l'administrateur de la société (politique RLS). Sinon l'enregistrement échouera avec un message d'erreur.
+- Non traité ici (étapes suivantes) : position du logo sur le papier à en-tête, modèle de note de service, notification de fin de contrat séparée, création de modules par société.
+Service worker : terh-v43.

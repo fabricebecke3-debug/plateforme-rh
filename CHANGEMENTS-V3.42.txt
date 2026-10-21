@@ -1,0 +1,9 @@
+VERSION 3.42 : PAS À PAS — ÉTAPES 3 ET 4 : NOTE DE SERVICE ET NOTIFICATION DE FIN DE CONTRAT
+=============================================================================================
+- Paramètres : deux nouveaux onglets « 📋 Note de service » et « 📤 Fin de contrat ».
+  - Chacun a son modèle, enregistré par société (tpl_ns, tpl_fin), avec bouton « Modèle standard ».
+  - Import de fichier (Word, PDF, texte, image) comme pour la demande d'explication et la sanction.
+- Papier à en-tête : les deux nouveaux modèles figurent dans la liste à importer.
+- La notification de fin de contrat est distincte de la lettre de démobilisation (tpl_let).
+- Limite : les modèles sont enregistrés, mais aucun bouton ne génère encore une note de service ou une notification à partir d'un salarié. C'est la suite logique de l'étape 3.
+Service worker : terh-v45.

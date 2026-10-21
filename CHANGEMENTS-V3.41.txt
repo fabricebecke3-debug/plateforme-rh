@@ -1,0 +1,7 @@
+VERSION 3.41 : PAS À PAS — ÉTAPE 2 : POSITION DU LOGO SUR LE PAPIER À EN-TÊTE
+==============================================================================
+- Nouveau réglage « Position du logo sur le papier à en-tête » (gauche, centre, droite) dans l'éditeur de l'en-tête (Paramètres > Papier à en-tête et modèles).
+- Enregistré par société (paramètre ent_logo_pos). Défaut : centre (rendu inchangé).
+- Appliqué à toutes les lettres et documents qui affichent le bandeau (coverTag).
+- À vérifier : l'aperçu de l'en-tête ne montre pas encore le logo (texte seulement).
+Service worker : terh-v44.
