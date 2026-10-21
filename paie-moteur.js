@@ -148,7 +148,14 @@
     // Charges patronales (montants exacts)
     // CFC patronal : salaire taxable au sens du tableau du cours (charges patronales CFC) = brut, y compris avantages en nature
     // et indemnités de représentation, qui sont exclus de la base IRPP et du CFC salarial. Validé : août Fabrice, avril Nina, avril Hermine.
-    var baseCFPat = (typeof s.baseCFPat === 'number') ? s.baseCFPat : brut;
+    // Base CFC patronal, deux régimes observés sur les bulletins (règle empirique, mécanisme Sage non identifié) :
+    //  - sans avantage en nature électricité/eau : base imposable CFC (nettax) = brut moins l'excédent du plafond
+    //    du logement. Validé : avril NTSOH (2 938), août Lynda (3 158), août Tsanga (3 412), août Minye (2 040),
+    //    août Maurice (1 147), juillet (3 855, base = brut).
+    //  - avec électricité (1431) ou eau (1432) : brut. Validé : avril Nina (7 649), avril Cindy (6 541),
+    //    avril Hermine (commentaire d'en-tête).
+    var avantagesEauElec = (elec > 0 || eau > 0);
+    var baseCFPat = (typeof s.baseCFPat === 'number') ? s.baseCFPat : (avantagesEauElec ? brut : nettax);
     var patRaw = {
       cnps: netimpopl * T.cnps_pat / 100,
       at: netimpopl * T.at_pat / 100,   // Sage (rubrique 8110 : base NETIMPOPL) et bulletin août Fabrice (18 750 = 2,5 % × 750 000) : AT sur base plafonnée
