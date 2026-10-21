@@ -58,22 +58,23 @@
     fériés: ['01-01', '02-11', '05-01', '05-20', '08-15', '12-25'],
     paques_feries: true,
     mois: '',
-    profils: [
-      { id: 'standard', nom: 'Standard (tous postes)', postes: [], rubriques: rubs([
-        { code: '1000', lib: 'Salaire de base mensuel', nature: 'salaire', expr: 'base*fraction', fiche: false },
-        { code: '1040', lib: 'Sursalaire', nature: 'salaire', expr: 'm', fiche: true },
-        { code: '1430', lib: 'Indemnité de transport', nature: 'transport', expr: 'm*fraction', fiche: true },
-        { code: '1435', lib: 'Indemnité de logement', nature: 'logement_avantage', expr: 'm', fiche: true },
-        { code: '1442', lib: 'Indemnité de salissure', nature: 'remboursement', expr: 'm', fiche: true },
-        { code: '1310', lib: 'Prime de panier', nature: 'remboursement', expr: 'm', fiche: true },
-        { code: '1510', lib: "Prime d'assiduité", nature: 'salaire', expr: 'm', fiche: true },
-        { code: '1901', lib: 'Primes cotisables (fiche)', nature: 'salaire', expr: 'm', fiche: true },
-        { code: '1902', lib: 'Indemnités non cotisables (fiche)', nature: 'indemnite_non_cotisable', expr: 'm', fiche: true }
-      ]) }
-    ],
+    profils: [],
     saisies: {}
   };
 
+  // Profils pré-remplis d'anciennes versions : ils ne concernent que d'autres sociétés, on les retire partout
+  var PROFILS_RETIRES = ['Hôtesses et stewards', 'Machine operator'];
+  function nettoyer(st) {
+    if (!st || !Array.isArray(st.profils) || st.profils_nettoyes) return false;
+    st.profils = st.profils.filter(function (p) { return PROFILS_RETIRES.indexOf(p.nom) < 0; });
+    // Saisies qui pointaient vers un profil retiré : retour à la lecture automatique du poste
+    Object.keys(st.saisies || {}).forEach(function (id) {
+      var sv = st.saisies[id];
+      if (sv && sv.profilManuel && !st.profils.some(function (p) { return p.id === sv.profil; })) { sv.profilManuel = false; sv.profil = ''; }
+    });
+    st.profils_nettoyes = true;
+    return true;
+  }
   function charger() {
     var st = null;
     try {
@@ -82,6 +83,7 @@
     } catch (e) { st = null; }
     if (!st || !Array.isArray(st.profils)) st = copie(DEFAUT);
     st.saisies = st.saisies || {};
+    if (nettoyer(st)) enregistrerLocal(st);
     return st;
   }
   function enregistrerLocal(st) {
@@ -220,7 +222,8 @@
   function clePoste(t) {
     return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'").toUpperCase();
   }
-  function profilAuto(st, poste) {
+  // Correspondance par poste rattaché (cases à cocher) ou mot-clé, sans repli
+  function profilMots(st, poste) {
     var pz = clePoste(poste);
     var trouve = st.profils.filter(function (p) {
       return (p.postes || []).some(function (k) {
@@ -230,8 +233,10 @@
         return pz.split(/[^A-Z0-9]+/).some(function (w) { return w.indexOf(c) === 0; });
       });
     })[0];
-    // V3.32 : aucun repli silencieux. Un poste sans mot-clé correspondant n'a pas de profil.
     return trouve || null;
+  }
+  function profilAuto(st, poste) {
+    return profilMots(st, poste);
   }
   // Profil effectif d'un salarié : choix manuel, sinon profil automatique d'après le poste de la fiche
   function profilDe(st, s, fiche) {
@@ -311,7 +316,7 @@
       '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
       '<Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F5FBF" ss:Pattern="Solid"/><Alignment ss:WrapText="1"/></Style>' +
       '<Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style><Style ss:ID="b"><Font ss:Bold="1"/></Style></Styles>' +
-      feuilles + '</Workbook>';
+      (feuilles || '<Worksheet ss:Name="Vide"><Table/></Worksheet>') + '</Workbook>';
     var nomFichier = 'Simulation_salaires_' + (st.mois || moisCourant()) + '.xls';
     var blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
     var a = document.createElement('a');
@@ -335,6 +340,15 @@
     var emps = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).map(function (x) {
       return { id: String(x.id), nom: x.nom || '', sb: x.sb || '', poste: x.poste || '', fiche: x };
     });
+    // Chaque poste de la liste a son profil : créé automatiquement (vide) s'il n'existe pas, à remplir ensuite
+    function creerProfilsPostes() {
+      var n = 0;
+      [...new Set(emps.map(function (e) { return e.poste; }).filter(Boolean))].sort().forEach(function (po) {
+        if (!profilMots(st, po)) { st.profils.push({ id: nouvelId('p'), nom: po, postes: [po], rubriques: [] }); n++; }
+      });
+      return n;
+    }
+    if (creerProfilsPostes()) enregistrerLocal(st);
     var mode = 'grille';
 
     var ov = document.createElement('div');
@@ -440,12 +454,17 @@
         '<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-paq' + (st.paques_feries !== false ? ' checked' : '') + '> Fériés de Pâques (vendredi saint, lundi de Pâques) — à vérifier</label>' +
         '<label>Jours fériés fixes (MM-JJ, séparés par des virgules)<input data-feries value="' + esc((st.fériés || []).join(', ')) + '" style="' + IN + ';width:100%"></label></div>' +
         '<p style="color:#555;margin:0 0 10px">Variables des formules : <b>fraction</b> (jours ÷ jours du mois, ou heures ÷ heures du mois), <b>jours</b>, <b>heures</b>, <b>base</b>, <b>diviseur_hs</b>, <b>samedi</b>, <b>hs120</b>, <b>hs130</b>, <b>hs140</b>, <b>hs_dim</b>, <b>hs_nuit</b>, <b>hs_ferie</b>. Exemple : <code>12347*fraction</code> (prorata) ou <code>2804</code> (montant fixe).</p>';
+      bloc += '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:12px;background:#f7f9fc">' +
+        '<b>Profils automatiques par poste</b> : chaque salarié prend le profil de son poste (le mot-clé « Postes concernés » peut aussi servir). ' +
+        'Un profil créé automatiquement est vide : remplissez ses rubriques, ou copiez celles d\'un autre profil ci-dessous.</div>';
       bloc += st.profils.map(function (p, pi) {
         return '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:12px">' +
           '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b>Profil :</b>' +
           '<input data-pn="' + pi + '" value="' + esc(p.nom) + '" style="' + IN + ';flex:1">' +
           '<label>Postes concernés (mots-clés de la fiche, séparés par des virgules)<input data-pk="' + pi + '" value="' + esc((p.postes || []).join(', ')) + '" style="' + IN + ';width:300px"></label>' +
           '<button type="button" data-act="delprof" data-pi="' + pi + '" style="' + BTN + '">✕ Supprimer le profil</button></div>' +
+          '<div style="margin:6px 0"><b>Remplir ce profil :</b> <select data-copie="' + pi + '" style="' + IN + '"><option value="">— copier les rubriques depuis un autre profil… —</option>' +
+          st.profils.map(function (x, k) { return k === pi ? '' : '<option value="' + k + '">' + esc(x.nom) + '</option>'; }).join('') + '</select></div>' +
           '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eef2f8">' +
           '<th style="text-align:left;padding:4px">Code</th><th style="text-align:left">Libellé</th><th style="text-align:left">Nature</th><th style="text-align:left">Formule</th><th style="text-align:left">Colonne fiche (si montant fiche)</th><th style="text-align:left">Montant de la fiche</th><th></th></tr></thead><tbody>' +
           p.rubriques.map(function (r, ri) {
@@ -506,7 +525,6 @@
       touche = true;
       if (a === 'addprof') { st.profils.push({ id: nouvelId('p'), nom: 'Nouveau profil', postes: [], rubriques: rubs([]) }); rendre(); }
       else if (a === 'delprof') {
-        if (st.profils.length <= 1) { msg('Il faut garder au moins un profil.', true); return; }
         if (!confirm('Supprimer le profil « ' + st.profils[pi].nom + ' » ?')) return;
         st.profils.splice(pi, 1); rendre();
       } else if (a === 'addrub') {
@@ -559,6 +577,13 @@
         return;
       }
       if (mode === 'param') {
+        if (t.dataset.copie != null) {
+          if (t.value !== '') {
+            st.profils[+t.dataset.copie].rubriques = JSON.parse(JSON.stringify(st.profils[+t.value].rubriques || []));
+            touche = true; rendre();
+          }
+          return;
+        }
         if (t.dataset.hmeth != null) st.heures_methode = t.value;
         else if (t.dataset.paq != null) st.paques_feries = t.checked;
         else if (t.dataset.rf === 'nature') st.profils[+t.dataset.pi].rubriques[+t.dataset.ri].nature = t.value;
@@ -584,7 +609,7 @@
     if (pont && pont.load) {
       Promise.resolve(pont.load()).then(function (l) {
         // Ne remplace jamais une saisie faite pendant le chargement
-        if (!touche && l && Array.isArray(l.profils) && document.getElementById(id)) { st = l; st.saisies = st.saisies || {}; rendre(); }
+        if (!touche && l && Array.isArray(l.profils) && document.getElementById(id)) { st = l; st.saisies = st.saisies || {}; var net = nettoyer(st); if (creerProfilsPostes() || net) { enregistrerLocal(st); if (pont.save) Promise.resolve(pont.save(st)).catch(function () {}); } rendre(); }
       }).catch(function () {});
     }
   }

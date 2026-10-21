@@ -1,0 +1,11 @@
+VERSION 3.36 : PROFILS AUTOMATIQUES PAR POSTE (aucun profil par défaut)
+=========================================================================
+- Plus de profil « Standard » ni de profil par défaut : la liste des profils démarre vide.
+- Automatique : chaque poste de la liste des salariés a son profil. S'il n'existe pas, il est créé
+  automatiquement (nom = poste, vide). Aucune case à cocher à faire.
+- Remplissage : dans les paramètres, chaque profil peut recevoir les rubriques d'un autre profil
+  (« copier les rubriques depuis… »), puis être modifié (formules, rubriques).
+- Un profil vide donne un brut nul, mais ne bloque ni la grille ni le bulletin : c'est un avertissement.
+- Les profils existants (mots-clés) sont conservés. Les profils sans poste peuvent être supprimés.
+- Export Excel : fonctionne même sans profil.
+- Service worker : terh-v39.

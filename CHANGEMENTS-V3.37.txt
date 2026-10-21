@@ -1,0 +1,9 @@
+VERSION 3.37 : RETRAIT DES PROFILS D'AUTRES SOCIÉTÉS
+====================================================
+- Les profils « Hôtesses et stewards » et « Machine operator » (pré-remplis d'anciennes versions pour
+  d'autres sociétés) sont retirés de toutes les grilles, sur ce navigateur comme dans la base.
+- Retrait une seule fois par grille (repère profils_nettoyes) ; les saisies qui les utilisaient
+  reviennent à la lecture automatique du poste.
+- Aucun profil par défaut : chaque salarié prend le profil correspondant à son poste réel,
+  créé automatiquement s'il n'existe pas.
+- Service worker : terh-v40.

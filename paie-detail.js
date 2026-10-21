@@ -176,7 +176,8 @@
     // Une seule source pour tous les points d'entrée : fiche + matricule + CNPS (index.html)
     var employes = root.TERH_fichesPaie ? root.TERH_fichesPaie() : ((opts && opts.employes) || []);
     etat.bulletin = bulletinSociete;
-    if (!etat.employeur && bulletinSociete && bulletinSociete.societe) etat.employeur = bulletinSociete.societe;
+    // Employeur : société mère (mise à disposition) ou société simple, à défaut le nom de la société active
+    if (!etat.employeur) etat.employeur = (bulletinSociete && bulletinSociete.societe) || (opts && opts.employeur) || '';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483400;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
     var cadre = document.createElement('div');
@@ -334,6 +335,8 @@
         var fiche = employes[+e.target.value];
         if (fiche) {
           etat.nom = fiche.nom; etat.mat = fiche.mat || ''; etat.cnps = fiche.cnps || ''; etat.lieu = fiche.lieu || ''; etat.fiche = fiche;
+          if (!etat.employeur) etat.employeur = (bulletinSociete && bulletinSociete.societe) || '';
+          var ie = cadre.querySelector('[data-f="employeur"]'); if (ie && !ie.value) ie.value = etat.employeur;
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
           appliquerFiche(fiche);
           // Grille de saisie (jours ou heures) : remplace les lignes générées à partir de la fiche pour ce salarié

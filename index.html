@@ -5431,11 +5431,12 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     var lu = {};
     try { lu = JSON.parse((typeof PARAMS !== 'undefined' && PARAMS.bulletin) || 'null') || {}; } catch (e) { lu = {}; }
     var P = (typeof PARAMS !== 'undefined' && PARAMS) || {};
-    var nomCo = P.soc || (typeof activeCoName === 'function' ? activeCoName() : '') || '';
+    var coAct = (typeof curCo === 'function' && curCo()) || {};
+    var nomCo = P.soc || coAct.nom || (typeof activeCoName === 'function' ? activeCoName() : '') || P.client || '';
     var inf = (typeof entInfo === 'function') ? entInfo() : { mad: false, mere: '' };
     var mad = !!(inf.mad && inf.mere);
     return Object.assign({}, lu, {
-      societe: mad ? inf.mere : (lu.societe || nomCo || ''),
+      societe: mad ? (inf.mere || nomCo) : (lu.societe || nomCo || ''),
       adresse: mad ? (String(entGet('ent_mere_adr') || '').trim() || lu.adresse || '') : (lu.adresse || P.adresse || ''),
       tel: lu.tel || P.tel || ''
     });
