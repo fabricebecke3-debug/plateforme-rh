@@ -24,7 +24,7 @@
     cfc_sal: 1, cfc_pat: 1.5, cac: 10, plafond_cnps: 750000, cnps_plafond_mode: 'sage'
   };
   var PLAFOND_CNPS = 750000;
-  var TRANSPORT = '1430', LOGEMENT = '1435';
+  var TRANSPORT = '1430', LOGEMENT = '1435', ELEC = '1431', EAU = '1432';
   var HORAIRE_MENSUEL = 173.33;
   // Majorations (cours de paie Cameroun, « Calcul de la paie ») : 120/130/140 %, nuit 150 %, férié 200 %
   var HS_TAUX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 200, '1444': 200 };
@@ -91,7 +91,9 @@
         cnps: (typeof l.cnps === 'boolean') ? l.cnps : undefined,
         retenue: !!l.retenue,
         transport: !!l.transport || String(l.code) === TRANSPORT,
-        logement: !!l.logement || String(l.code) === LOGEMENT
+        logement: !!l.logement || String(l.code) === LOGEMENT,
+        elec: !!l.elec || String(l.code) === ELEC,
+        eau: !!l.eau || String(l.code) === EAU
       };
     });
 
@@ -102,13 +104,19 @@
     var netimpo = rub.filter(function (r) { return r.irpp; }).reduce(function (t, r) { return t + r.gain; }, 0);
     var transport = tous.filter(function (r) { return r.transport; }).reduce(function (t, r) { return t + r.gain; }, 0);
     var logement = tous.filter(function (r) { return r.logement; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    var elecLigne = tous.filter(function (r) { return r.elec; }).reduce(function (t, r) { return t + r.gain; }, 0);
+    var eauLigne = tous.filter(function (r) { return r.eau; }).reduce(function (t, r) { return t + r.gain; }, 0);
 
     // Chaîne Sage : NETIMPOL → logement final (IL) → électricité (ELEF) → véhicule/eau → NETTAX → SALTAXF
-    var elec = nb(s.elec), veeu = nb(s.veeu), veau = nb(s.veau);
-    var netimpol = netimpo - logement - elec - veeu;
+    // Avantages : électricité (1431) et eau (1432) sont retirés de la base puis réintégrés par plafonds Sage
+    // (15 % du net imposable pour le logement, 4 % pour l'électricité, 2 % pour l'eau), validé sur les bulletins avril, août, avril Nina et avril Hermine
+    var elec = (typeof s.elec === 'number') ? s.elec : elecLigne, eau = (typeof s.eau === 'number') ? s.eau : eauLigne;
+    var veeu = nb(s.veeu), veau = nb(s.veau);
+    var netimpol = netimpo - logement - elec - eau - veeu;
     var il = Math.min(netimpol * 15 / 100, logement);
     var elecn = netimpol * 4 / 100, elef = elec < elecn ? elec : elecn;
-    var nettax = netimpol + il + elef + veau;
+    var eaun = netimpol * 2 / 100, eauRe = eau < eaun ? eau : eaun;
+    var nettax = netimpol + il + elef + eauRe + veau;
     var saltaxfCalc = nettax < 52000 ? 0 : nettax;
     var saltaxf = (typeof s.baseCFC === 'number') ? s.baseCFC : saltaxfCalc;
 
@@ -138,10 +146,12 @@
     var retenuesRaw = arr(cnpsSalRaw) + arr(cfcSalRaw) + arr(irppRaw) + arr(cacRaw) + arr(redevanceRaw) + arr(taxeComRaw) + arr(taxeDevRaw) + arr(taxePropRaw) + retenuesDiv;
 
     // Charges patronales (montants exacts)
-    var baseCFPat = (typeof s.plafondCFPat === 'number') ? Math.min(saltaxf, s.plafondCFPat) : saltaxf;
+    // CFC patronal : salaire taxable au sens du tableau du cours (charges patronales CFC) = brut, y compris avantages en nature
+    // et indemnités de représentation, qui sont exclus de la base IRPP et du CFC salarial. Validé : août Fabrice, avril Nina, avril Hermine.
+    var baseCFPat = (typeof s.baseCFPat === 'number') ? s.baseCFPat : brut;
     var patRaw = {
       cnps: netimpopl * T.cnps_pat / 100,
-      at: basecot * T.at_pat / 100,   // cours V.2 : accidents du travail sur le salaire NON plafonné
+      at: netimpopl * T.at_pat / 100,   // Sage (rubrique 8110 : base NETIMPOPL) et bulletin août Fabrice (18 750 = 2,5 % × 750 000) : AT sur base plafonnée
       pf: netimpopl * T.pf_pat / 100,
       // FNE employeur = masse salariale assujettie NON plafonnée × 1 % (avantages en nature inclus, sans plafond CNPS)
       fne: basecot * T.fne_pat / 100,
@@ -172,7 +182,8 @@
       // Sage additionne les lignes patronales arrondies (et non le total brut arrondi)
       totalPatronales: arr(patRaw.cnps) + arr(patRaw.at) + arr(patRaw.pf) + arr(patRaw.fne) + arr(patRaw.cfc),
       net: net,
-      coutEmployeur: Math.round(brut + totPatRaw),
+      // Coût = brut arrondi + lignes patronales arrondies (cohérent avec le détail affiché)
+      coutEmployeur: brutArr + (arr(patRaw.cnps) + arr(patRaw.at) + arr(patRaw.pf) + arr(patRaw.fne) + arr(patRaw.cfc)),
       retenuesDiverses: arr(retenuesDiv),
       rubriques: tous.map(function (r) { return { code: r.code, lib: r.lib, gain: r.gain, retenue: r.retenue }; }),
       detail: {

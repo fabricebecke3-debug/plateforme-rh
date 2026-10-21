@@ -199,7 +199,7 @@
         '<td style="border:2px solid #444;padding:8px 10px;font-size:15px;font-weight:700;background:' + couleur + ';width:45%">NET À PAYER</td>' +
         '<td style="border:2px solid #444;padding:8px 10px;font-size:18px;font-weight:700;text-align:right">' + fmt(R.net) + ' FCFA</td></tr></table>' +
       (o._sansPied ? '' : '<p style="font-size:10px;color:#333;margin:8px 0 0">Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. ' + esc(o._pied || '') + '</p>') +
-      (o._sansPatronales ? '' : '<p style="font-size:10px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
+      (o._sansCout ? '' : '<p style="font-size:10px;color:#333;margin:4px 0 0">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA.</p>');
   }
 
   function html(o) {
@@ -209,6 +209,7 @@
     var couleur = teinte(mod.couleur || (o.bulletin || {}).couleur);
     if (mod.afficherPatronales === false) o = Object.assign({}, o, { _sansPatronales: true });
     if (mod.afficherPied === false) o = Object.assign({}, o, { _sansPied: true });
+    if (mod.afficherCout !== true) o = Object.assign({}, o, { _sansCout: true });
     o = Object.assign({}, o, { _pied: mod.pied || '' });
     var blocs = (mod.blocs && mod.blocs.length) ? mod.blocs : ['entete', 'salarie', 'rubriques', 'pied'];
     var rendu = {

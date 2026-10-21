@@ -30,7 +30,7 @@
   // Mise en page inspirée de Sage : en-tête, rubriques, cotisations, net
   function bulletinHTML(o) {
     var R = o.resultat, lignes = o.lignes || [], s = o.saisies || {};
-    var M = Object.assign({ afficherPatronales: true, afficherPied: true, pied: '', couleur: '', blocs: ['entete', 'salarie', 'rubriques', 'pied'], colonnes: {}, logo: '', logoPos: 'gauche', rubriques: [] }, o.modele || {});
+    var M = Object.assign({ afficherPatronales: true, afficherPied: true, afficherCout: false, pied: '', couleur: '', blocs: ['entete', 'salarie', 'rubriques', 'pied'], colonnes: {}, logo: '', logoPos: 'gauche', rubriques: [] }, o.modele || {});
     var C = Object.assign({ nombre: true, base: true, taux: true, retenuePatronale: true }, M.colonnes || {});
     var T = Object.assign({ cnps_sal: 4.2, cnps_pat: 4.2, at_pat: 2.5, pf_pat: 7, fne_pat: 1, cfc_sal: 1, cfc_pat: 1.5, cac: 10, plafond_cnps: 750000 }, s.taux || {});
     var b = o.bulletin || {}, couleur = M.couleur || b.couleur || '#1f5fbf';
@@ -98,7 +98,7 @@
       thB('Net imposable') + thB('Base CNPS') + thB('Base taxable') + thB('Total retenues') + thB('Charges patronales') + '</tr><tr>' +
       tdB(fmt(R.netImposable)) + tdB(fmt(R.baseCNPS)) + tdB(fmt(R.saltaxf)) + tdB(fmt(R.totalRetenues)) + tdB(fmt(R.totalPatronales)) + '</tr></table>';
     var net = '<p style="font-size:20px;font-weight:700;margin:10px 0 4px;color:' + echapper(couleur) + '">NET À PAYER : ' + fmt(R.net) + ' FCFA</p>' +
-      '<p style="margin:0 0 6px">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA</p>';
+      (M.afficherCout !== true ? '' : '<p style="margin:0 0 6px">Coût total employeur : ' + fmt(R.coutEmployeur) + ' FCFA</p>');
     var legal = M.afficherPied
       ? '<div style="font-size:10px;color:#444;margin-top:10px;border-top:1px solid #ccc;padding-top:6px"><b>Pour lire ce bulletin :</b> ' +
         'CNPS pension : ' + pc(T.cnps_sal) + ' de la base, plafonnée à ' + fmt(T.plafond_cnps) + '. IRPP : impôt progressif retenu à la source par l\'employeur. ' +

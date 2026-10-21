@@ -1,0 +1,12 @@
+const M=require((process.argv[2]||require('path').join(__dirname,'..','paie-moteur.js')));
+const C={
+ avril:{L:[{code:'1000',gain:156222,cnps:true,irpp:true},{code:'1040',gain:593,cnps:true,irpp:true},{code:'1430',gain:13500,cnps:false,irpp:true,transport:true},{code:'1435',gain:27500,cnps:true,irpp:true,logement:true}],o:{baseCFC:undefined,redevance:1950,taxeCommunale:1270},exp:{saltaxf:195862.25,irpp:8995,cfc:1959,net:175000}},
+ aout:{L:[{code:'1000',gain:156222,cnps:true,irpp:true},{code:'1040',gain:9756,cnps:true,irpp:true},{code:'1425',gain:50000,cnps:true,irpp:true},{code:'1430',gain:13500,cnps:false,irpp:true,transport:true},{code:'1435',gain:27500,cnps:true,irpp:true,logement:true},{code:'4100',gain:118816,cnps:true,irpp:true}],o:{redevance:4550,taxeCommunale:2020},exp:{saltaxf:375794,irpp:23601,cfc:3758,net:308005}},
+ nina:{L:[{code:'1000',gain:245736,cnps:true,irpp:true},{code:'1040',gain:2260,cnps:true,irpp:true},{code:'1330',gain:10000,cnps:true,irpp:true},{code:'1351',gain:10000,cnps:true,irpp:true},{code:'1395',gain:25000,cnps:true,irpp:true},{code:'1420',gain:50000,cnps:false,irpp:false},{code:'1430',gain:50000,cnps:false,irpp:true,transport:true},{code:'1431',gain:31965,cnps:true,irpp:true},{code:'1432',gain:10000,cnps:true,irpp:true},{code:'1435',gain:75000,cnps:true,irpp:true,logement:true}],o:{redevance:5850,taxeDevLocal:true,taxeCommunale:0,taxeProp:false,taux:{at_pat:1.75}},exp:{saltaxf:415025.16,irpp:27721,cfc:4150,net:450000}},
+ hermine:{L:[{code:'1000',gain:290270,cnps:true,irpp:true},{code:'1040',gain:1585,cnps:true,irpp:true},{code:'1320',gain:10000,cnps:true,irpp:true},{code:'1330',gain:10000,cnps:true,irpp:true},{code:'1395',gain:30000,cnps:true,irpp:true},{code:'1420',gain:50000,cnps:false,irpp:false},{code:'1430',gain:60000,cnps:false,irpp:true,transport:true},{code:'1431',gain:33791,cnps:true,irpp:true},{code:'1432',gain:10000,cnps:true,irpp:true},{code:'1435',gain:80000,cnps:true,irpp:true,logement:true}],o:{redevance:5850,taxeDevLocal:true,taxeCommunale:0,taxeProp:false,taux:{at_pat:1.75}},exp:{saltaxf:486244.55,irpp:39206,cfc:4862,net:500000}}
+};
+for(const [k,c] of Object.entries(C)){
+ const o=Object.assign({},c.o); if(!o.baseCFC) delete o.baseCFC;
+ const r=M.calculer(c.L,o);
+ console.log(k,'saltaxf',r.saltaxf,'(S',c.exp.saltaxf+')','irpp',r.salariales.irpp,'(S',c.exp.irpp+')','cfc',r.salariales.cfc,'(S',c.exp.cfc+')','net',r.net,'(S',c.exp.net+')','baseCNPS',r.baseCNPS,'cnps',r.salariales.cnps);
+}

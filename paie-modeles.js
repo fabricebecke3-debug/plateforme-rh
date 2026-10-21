@@ -60,6 +60,7 @@
       couleur: /^#[0-9a-fA-F]{6}$/.test(m.couleur || '') ? m.couleur : '',
       afficherPatronales: m.afficherPatronales !== false,
       afficherPied: m.afficherPied !== false,
+      afficherCout: m.afficherCout === true,
       pied: String(m.pied || ''),
       defaut: !!m.defaut,
       blocs: (Array.isArray(m.blocs) && m.blocs.length)
@@ -316,6 +317,7 @@
       m.logoPos = g('logopos').value;
       m.afficherPatronales = g('patr').checked;
       m.afficherPied = g('pied-on').checked;
+      m.afficherCout = g('cout-on').checked;
       m.pied = g('pied').value;
       var dispo = g('dispo').value;
       if (DISPOSITIONS[dispo]) m.blocs = DISPOSITIONS[dispo].slice();
@@ -359,6 +361,7 @@
           '</div></div>' +
           '<label style="display:flex;gap:6px;align-items:center"><input data-f="patr" type="checkbox"' + (m.afficherPatronales ? ' checked' : '') + '> Afficher les charges patronales</label>' +
           '<label style="display:flex;gap:6px;align-items:center"><input data-f="pied-on" type="checkbox"' + (m.afficherPied ? ' checked' : '') + '> Afficher la mention légale</label>' +
+          '<label style="display:flex;gap:6px;align-items:center"><input data-f="cout-on" type="checkbox"' + (m.afficherCout === true ? ' checked' : '') + '> Afficher le coût total employeur <small>(copie interne seulement)</small></label>' +
           '<label>Disposition des blocs<select data-f="dispo">' + Object.keys(LIBELLE_DISPO).map(function (k) { return '<option value="' + k + '"' + (dispo === k ? ' selected' : '') + '>' + LIBELLE_DISPO[k] + '</option>'; }).join('') + '</select></label>' +
           '<label>Texte complémentaire du pied<textarea data-f="pied" rows="2" style="width:100%">' + esc(m.pied) + '</textarea></label>' +
           '<div style="grid-column:1/3;display:flex;gap:16px;flex-wrap:wrap;align-items:center"><b>Colonnes du tableau :</b>' +

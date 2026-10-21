@@ -127,3 +127,34 @@ VERSION 3.24 : POSTES REGROUPÉS
 - Fautes de frappe détectées (distance d'édition 1 pour les mots courts, 2 sinon) et rattachées au poste déjà existant ; préfixes uniques acceptés (VIDEU → VIDEUR).
 - Appliqué à l'import Excel, à la saisie manuelle, à la liste, aux filtres, à la liste déroulante et aux fiches de paie.
 - Accents et casse : affichage en majuscules avec accents conservés.
+
+VERSION 3.25 : OPTION COÛT EMPLOYEUR
+- Nouvelle case par modèle de bulletin : « Afficher le coût total employeur (copie interne seulement) ». Activée par défaut pour garder le rendu Sage.
+- Découplée de « Afficher les charges patronales » : décocher les charges patronales ne masque plus le coût total.
+- Appliqué au rendu détaillé et au rendu Sage.
+
+VERSION 3.26 : COÛT EMPLOYEUR ALIGNÉ
+- Coût total employeur = brut arrondi + somme des lignes patronales arrondies affichées (au lieu d'un seul arrondi du total non arrondi). Plus d'écart d'1 FCFA avec le détail.
+
+VERSION 3.27 : COÛT EMPLOYEUR DÉSACTIVÉ PAR DÉFAUT
+- Le bulletin Sage (avril 2026) n'affiche pas le coût total employeur : la case « Afficher le coût total employeur » est désormais décochée par défaut. Pour l'afficher, la cocher dans le modèle.
+- Vérification avril 2026 (matricule 2033) : brut 197 815, net 175 000, base CNPS 184 315, retenues 22 815, charges salariales (cumul) 35 241, charges patronales 30 032 : tous conformes.
+
+VERSION 3.28 : BASE IRPP / CFC SALARIAL — AVANTAGES EN NATURE
+- Électricité (1431) et eau (1432) sont désormais lues dans les lignes de paie (plus besoin de saisie séparée).
+- Règle Sage vérifiée sur 4 bulletins (avril Fabrice, août Fabrice, avril Nina, avril Hermine) : net imposable − logement − électricité − eau = NETIMPOL ; on réintègre logement à 15 %, électricité à 4 % et eau à 2 % de NETIMPOL (plafonnés au montant de l'avantage).
+- Résultat : SALTAXF, IRPP, CAC, CFC salarial et net exacts sur ces 4 bulletins (Nina et Hermine : net 450 000 et 500 000 exacts).
+- Ouvert : CFC patronal. Sage l'applique sur le salaire taxable pour avril Fabrice, mais sur le brut pour avril Nina et avril Hermine. Règle non identifiée, non modifiée.
+- Ouvert : base CNPS de 750 000 sur août Fabrice (règle du seuil 300 000 à trancher).
+- Tests : tests/paie-verif-bulletins.js (à lancer avec node).
+
+VERSION 3.29 : CFC PATRONAL SUR LE SALAIRE TAXABLE (TABLEAU DU COURS)
+- CFC patronal calculé sur le brut (salaire taxable au sens du tableau du cours : avantages en nature et indemnités de représentation inclus). Les bases IRPP et CFC salarial restent sur SALTAXF.
+- Vérifié : CFC patronal exact sur août Fabrice (5 637), avril Nina (7 649) et avril Hermine (8 635). Avril Fabrice : 2 967 au lieu de 2 938 (écart de 29 FCFA, non expliqué).
+- CNPS : plafond de 750 000 appliqué comme plafond (min(base, 750 000)), conformément au cours et au droit. Le bulletin d'août Fabrice (base 750 000 pour une base réelle de 362 294) est en désaccord : à vérifier dans Sage.
+
+VERSION 3.30 : CONFIGURATION SAGE (RUBRIQUES ET CONSTANTES)
+- Source : listes Sage fournies (rubriques et constantes, TOTAL EMPLOI RH).
+- CFC patronal (8140) : base BRUT, confirmé par Sage. Le bulletin d'avril Fabrice (2 938) ne correspond pas à cette configuration (2 967) : bulletin probablement recalculé ou modifié à la main.
+- Accident du travail (8110) : base NETIMPOPL (plafonnée), comme Sage. Le moteur applique désormais la base plafonnée.
+- NETIMPOPL dans Sage = BASECOT si BASECOT < 300 000, sinon 750 000 : ce seuil crée un saut (299 999 → 299 999 ; 300 000 → 750 000). Ce n'est pas la règle du cours ni du droit (plafond = min(base, 750 000)). Non modifié, à trancher.
