@@ -1,0 +1,19 @@
+TERH PAIE - VERSION 3.5 (risque AT et base FNE dans les parametres de l'entreprise)
+==============================================================================
+
+PARAMETRES DE L'ENTREPRISE (index.html, section en-tete / parametres)
+- Risque accidents du travail (structure) : faible 1,75 % ; moyen 2,5 % ; eleve 5 %. Valeur par defaut : moyen.
+- Base du FNE employeur :
+    * Salaire cotisable (comme Sage) : valeur par defaut ;
+    * Salaire taxable (cours).
+- Ces reglages sont transmis au calcul de la paie. La liste du risque AT a ete retiree de l'onglet Taux.
+
+CFC PATRONAL
+- Deja calcule sur le salaire taxable (1,5 %) : inchange, conforme au cours et au bulletin d'avril (2 938).
+
+FNE
+- Formule : FNE employeur = masse salariale assujettie NON plafonnee x 1 %.
+- La masse assujettie inclut les avantages en nature evalues a leur montant reel ; elle n'est pas plafonnee a 750 000 (le plafond ne s'applique qu'a la base CNPS).
+- Exemple : 900 000 de salaire assujetti -> FNE 9 000 (et non 7 500 sur base plafonnee).
+- Avril 2026 (salaire inferieur a 300 000, donc sans plafond) : FNE 1 843, total patronal 30 032, comme le bulletin.
+- Pas de parametre a choisir : la formule est fixe. A confirmer avec le centre des impots pour les elements particuliers de remuneration.

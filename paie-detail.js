@@ -138,18 +138,7 @@
     var tauxSage = Object.assign({}, (opts && opts.taux) || {}, (root.TERH_tauxEntreprise ? root.TERH_tauxEntreprise() : {}));
     var perso = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques.slice() : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
     var catalogue = fusionCatalogue(perso);
-    if (root.PaiePointage) root.PaiePointage.synchroniser();
     if (root.PaieModeles) root.PaieModeles.synchroniser();
-    function appliquerPointage(h) {
-      var HS = ['1110', '1130', '1140', '1150', '1160'], TX = { '1110': 120, '1130': 130, '1140': 140, '1150': 150, '1160': 200 };
-      etat.lignes = etat.lignes.filter(function (l) { return HS.indexOf(String(l.code)) < 0; });
-      HS.forEach(function (c) {
-        var n = +h[c] || 0; if (n <= 0) return;
-        var cat = (root.PaiePointage.CATS.filter(function (x) { return x[0] === c; })[0] || [c, 'Heures sup.'])[1];
-        etat.lignes.push({ code: c, lib: cat, nombre: n, base: null, taux: TX[c], gain: null, cnps: true, cfc: true, irpp: true, retenue: false, heures_sup: true });
-      });
-      rendre();
-    }
     function refreshCat() { var dl = cadre.querySelector('#pd-cat-list'); if (!dl) return; dl.innerHTML = '';
       catalogue.forEach(function (r) { var o = document.createElement('option'); o.value = r.code + ' — ' + (r.libelle || ''); dl.appendChild(o); }); }
     function reconstruireCatalogue() { catalogue.splice(0, catalogue.length); fusionCatalogue(perso).forEach(function (r) { catalogue.push(r); }); root.PAIE_RUB_CACHE = perso; refreshCat(); }
@@ -200,7 +189,7 @@
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
         '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
-      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="pointage">⏱ Pointage</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
+      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
       '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
       '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
@@ -372,11 +361,6 @@
       else if (x === 'saveEcart') { enregistrerEcarts(b); }
       else if (x === 'fiche') { if (etat.fiche) { appliquerFiche(etat.fiche); rendre(); } else alert('Choisissez d\'abord le salarié.'); }
       else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
-      else if (x === 'pointage') {
-        if (!root.PaiePointage) { alert('paie-pointage-simulation.js n\'est pas chargé.'); }
-        else { var fiche = employes.filter(function (f) { return f.nom === etat.nom; })[0];
-          root.PaiePointage.ouvrir({ employes: employes, periode: etat.periode, courant: fiche ? (fiche.mat || fiche.nom) : '', onApply: appliquerPointage }); }
-      }
       else if (x === 'simul') { if (root.PaieSimulation) root.PaieSimulation.ouvrir({ lignes: etat.lignes, saisies: { taux: tauxSage || {} }, nom: etat.nom }); else alert('paie-pointage-simulation.js n\'est pas chargé.'); }
       else if (x === 'mod') { if (root.PaieModeles) root.PaieModeles.ouvrir(); else alert('paie-modeles.js n\'est pas chargé.'); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
@@ -436,7 +420,20 @@
   root.addEventListener('paie-grille-maj', function (ev) {
     if (ACTIF && ev.detail && ACTIF.id() === String(ev.detail.id)) ACTIF.maj();
   });
-  var API = { periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
+  // Montants de la fiche par code de rubrique (mêmes règles que le bulletin ; utilisé par la grille de saisie)
+  function montantsFiche(f) {
+    var out = {};
+    if (!f) return out;
+    var col = f.colonnes || {};
+    var n = function (v) { var x = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isFinite(x) ? x : 0; };
+    ELEMENTS_FICHE.forEach(function (e) {
+      var cle = Object.keys(col).filter(function (k) { return e.cle.test(k) && n(col[k]) !== 0; })[0];
+      if (cle) out[e.code] = n(col[cle]);
+    });
+    out['1000'] = n(f.sbImp) || n(f.sb);
+    return out;
+  }
+  var API = { montantsFiche: montantsFiche, periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -95,3 +95,28 @@ VERSION 3.19 : NET A PAYER
 - Le net est calculé à partir des retenues arrondies ligne par ligne (comme sur le bulletin Sage). Avant, la somme
   non arrondie donnait 1 FCFA d'écart (bulletin Cédric septembre 2026 : 70 687 attendu, 70 686 obtenu).
 - Vérifié sur trois bulletins : avril 2026 (175 000), août 2026 Tsanga (200 000), septembre 2026 Cédric (70 687, avec cantine 3 000).
+
+VERSION 3.20 : GRILLE DE SAISIE GENERIQUE
+- Le profil se choisit automatiquement d'après le POSTE de la fiche : chaque profil porte des mots-clés (champ « Postes concernés »).
+  Un profil sans mot-clé sert de défaut (« Standard »). Le choix manuel reste possible dans la grille.
+- Le salaire de base vient de la fiche (modifiable dans la grille). Les montants fixes ou prorata (logement, transport, primes…)
+  viennent de la fiche : la rubrique est « Montant de la fiche » ; la colonne de la fiche se précise si le libellé diffère.
+- Plus de montants propres à un type de société : le profil par défaut ne contient que les rubriques du bulletin
+  (1000, 1040, 1430, 1435, 1442, 1310, 1510, 1901, 1902) et les heures sup. du cours.
+- Rubriques : elles se définissent dans les paramètres de la grille (profil). Les montants par salarié se saisissent dans la fiche
+  (colonnes importées). Les éléments qui changent chaque mois (jours, heures, heures sup.) restent dans la grille.
+- Vérification de formule : la variable m (montant de la fiche) est reconnue.
+- Limites : pas de relecture navigateur. Le montant de la fiche suit les règles d'import du bulletin ; une prime propre à la société
+  doit avoir sa colonne dans la fiche (ou un nom de colonne précisé dans la rubrique).
+
+VERSION 3.21 : INTITULE
+- Le menu, le titre et les renvois « Paie & droit » deviennent « Paie » : le module ne contient pas de contenu de droit du travail.
+- Libellé anglais : « Payroll ».
+- Pointage : à confirmer (doublon avec la grille de saisie).
+
+VERSION 3.22 : SUPPRESSION POINTAGE
+- Suppression du Pointage : bouton "⏱ Pointage" retiré de la barre Paie, onglet "Pointage" retiré du menu, fonction appliquerPointage supprimée. Le module Simulation (paie-pointage-simulation.js) reste en place.
+
+VERSION 3.23 : NETTOYAGE ONGLET PAIE
+- Droits d'accès : retrait du reste de l'onglet Pointage (liste des onglets autorisés pour les non-administrateurs).
+- Rappel : l'écran affiché dans le retour de test (« Paie & droit », onglet Pointage, « Paie & droit du travail ») correspond à une ancienne version déployée ; la version actuelle affiche « Paie ».

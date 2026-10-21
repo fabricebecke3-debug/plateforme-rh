@@ -59,19 +59,16 @@
     paques_feries: true,
     mois: '',
     profils: [
-      { id: 'hotesse', nom: 'Hôtesses et stewards', rubriques: rubs([
-        { code: '1000', lib: 'Salaire de base mensuel', nature: 'salaire', expr: '82311*fraction' },
-        { code: '1040', lib: 'Sursalaire', nature: 'salaire', expr: '2804' },
-        { code: '1435', lib: 'Indemnité de logement', nature: 'logement_avantage', expr: '24693' },
-        { code: '1430', lib: 'Indemnité de transport', nature: 'transport', expr: '12347*fraction' },
-        { code: '1442', lib: 'Indemnité de salissure', nature: 'remboursement', expr: '10000' },
-        { code: '1310', lib: 'Prime de panier', nature: 'remboursement', expr: '10000' }
-      ]) },
-      { id: 'operator', nom: 'Machine operator', rubriques: rubs([
-        { code: '1000', lib: 'Salaire de base mensuel', nature: 'salaire', expr: '45227*fraction' },
-        { code: '1435', lib: 'Indemnité de logement', nature: 'logement_avantage', expr: '11000' },
-        { code: '1430', lib: 'Indemnité de transport', nature: 'transport', expr: '7500*fraction' },
-        { code: '1442', lib: 'Indemnité de salissure', nature: 'remboursement', expr: '5000' }
+      { id: 'standard', nom: 'Standard (tous postes)', postes: [], rubriques: rubs([
+        { code: '1000', lib: 'Salaire de base mensuel', nature: 'salaire', expr: 'base*fraction', fiche: false },
+        { code: '1040', lib: 'Sursalaire', nature: 'salaire', expr: 'm', fiche: true },
+        { code: '1430', lib: 'Indemnité de transport', nature: 'transport', expr: 'm*fraction', fiche: true },
+        { code: '1435', lib: 'Indemnité de logement', nature: 'logement_avantage', expr: 'm', fiche: true },
+        { code: '1442', lib: 'Indemnité de salissure', nature: 'remboursement', expr: 'm', fiche: true },
+        { code: '1310', lib: 'Prime de panier', nature: 'remboursement', expr: 'm', fiche: true },
+        { code: '1510', lib: "Prime d'assiduité", nature: 'salaire', expr: 'm', fiche: true },
+        { code: '1901', lib: 'Primes cotisables (fiche)', nature: 'salaire', expr: 'm', fiche: true },
+        { code: '1902', lib: 'Indemnités non cotisables (fiche)', nature: 'indemnite_non_cotisable', expr: 'm', fiche: true }
       ]) }
     ],
     saisies: {}
@@ -207,13 +204,38 @@
   }
 
   // Lignes de rubriques d'un salarié (montants arrondis au franc)
-  function lignesDe(st, s) {
+  function nombreF(v) { var x = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isFinite(x) ? x : 0; }
+  // Montant de la fiche pour une rubrique : colonne précisée, sinon la rubrique correspondante de la fiche
+  function montantFiche(fiche, r) {
+    if (!fiche) return 0;
+    var col = fiche.colonnes || {};
+    if (r.colonne) {
+      var k = Object.keys(col).filter(function (x) { return x.toLowerCase().indexOf(String(r.colonne).toLowerCase()) >= 0; })[0];
+      return k ? nombreF(col[k]) : 0;
+    }
+    var mf = (root.PaieDetail && PaieDetail.montantsFiche) ? PaieDetail.montantsFiche(fiche) : {};
+    return mf[String(r.code)] || 0;
+  }
+  // Profil automatique : celui dont un mot-clé figure dans le poste de la fiche ; sinon le profil « sans mot-clé »
+  function profilAuto(st, poste) {
+    var pz = String(poste || '').toUpperCase();
+    var trouve = st.profils.filter(function (p) {
+      return (p.postes || []).some(function (k) { return k && pz.indexOf(String(k).toUpperCase()) >= 0; });
+    })[0];
+    return trouve || st.profils.filter(function (p) { return !(p.postes || []).length; })[0] || st.profils[0] || null;
+  }
+  function lignesDe(st, s, fiche) {
     if (!saisieValide(s)) return [];
-    var p = profil(st, s.profil);
+    var p = (s.profil && st.profils.filter(function (x) { return x.id === s.profil; })[0]) || profilAuto(st, fiche ? fiche.poste : '');
     if (!p) return [];
-    var vars = variables(st, s), out = [];
+    // Salaire de base : celui saisi, à défaut celui de la fiche
+    var s2 = Object.assign({}, s, { base: (s.base !== '' && s.base != null) ? s.base : (fiche ? nombreF(fiche.sb) : 0) });
+    var vars0 = variables(st, s2), out = [];
     p.rubriques.forEach(function (r) {
       if (!r.code) return;
+      var m = montantFiche(fiche, r);
+      if (r.fiche && !m) return;          // rubrique issue de la fiche sans montant pour ce salarié
+      var vars = Object.assign({}, vars0, { m: m });
       var montant = 0, erreur = null;
       try { montant = evaluer(r.expr, vars); } catch (e) { erreur = e.message; }
       var nature = r.nature || 'salaire';
@@ -227,7 +249,8 @@
   // Appelé par le bulletin détaillé à la sélection d'un salarié (et à chaque modification)
   function lignesPour(id) {
     var st = charger();
-    return lignesDe(st, st.saisies[String(id)]).filter(function (l) { return !l.erreur; });
+    var fiche = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).filter(function (x) { return String(x.id) === String(id); })[0] || null;
+    return lignesDe(st, st.saisies[String(id)], fiche).filter(function (l) { return !l.erreur; });
   }
 
   // Export au format Excel (SpreadsheetML) : une feuille par profil, formules SUM pour les totaux
@@ -246,7 +269,7 @@
       lignesEmp.forEach(function (e) {
         var s = st.saisies[e.id];
         var vars = variables(st, s);
-        var ls = lignesDe(st, s);
+        var ls = lignesDe(st, s, e.fiche);
         var valeurs = {};
         ls.forEach(function (l) { valeurs[l.code + ' ' + (l.lib || '')] = l.gain; });
         var cels = [e.nom, s.mois || '', arrondi2(vars.jours), arrondi2(vars.heures), Number(s.samedi) || 0, Number(s.hs120) || 0, Number(s.hs130) || 0, Number(s.hs140) || 0, Number(s.hs_dim) || 0, Number(s.hs_nuit) || 0, Number(s.hs_ferie) || 0, Number(s.base) || 0];
@@ -295,7 +318,7 @@
     var st = charger();
     var touche = false;
     var emps = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).map(function (x) {
-      return { id: String(x.id), nom: x.nom || '', sb: x.sb || '' };
+      return { id: String(x.id), nom: x.nom || '', sb: x.sb || '', poste: x.poste || '', fiche: x };
     });
     var mode = 'grille';
 
@@ -316,7 +339,7 @@
       if (e) { e.textContent = t; e.style.color = err ? '#c0392b' : '#1e8449'; }
     }
     function sEmp(e) {
-      return st.saisies[e.id] || { profil: st.profils[0] ? st.profils[0].id : '', unite: 'jours', valeur: '', samedi: '', hs120: '', hs130: '', hs140: '', hs_dim: '', hs_nuit: '', hs_ferie: '', base: e.sb, mois: st.mois || moisCourant() };
+      return st.saisies[e.id] || { profil: '', unite: 'jours', valeur: '', samedi: '', hs120: '', hs130: '', hs140: '', hs_dim: '', hs_nuit: '', hs_ferie: '', base: e.sb, mois: st.mois || moisCourant() };
     }
     function ensure(e) {
       if (!st.saisies[e.id]) st.saisies[e.id] = sEmp(e);
@@ -325,7 +348,7 @@
     function brutDe(e) {
       var s = st.saisies[e.id];
       if (!saisieValide(s)) return '';
-      return fmt(lignesDe(st, s).filter(function (l) { return !l.erreur; }).reduce(function (t, l) { return t + (Number(l.gain) || 0); }, 0));
+      return fmt(lignesDe(st, s, e.fiche).filter(function (l) { return !l.erreur; }).reduce(function (t, l) { return t + (Number(l.gain) || 0); }, 0));
     }
     function derives(e) {
       var s = sEmp(e);
@@ -345,7 +368,7 @@
       var tot = emps.reduce(function (t, e) {
         var s = st.saisies[e.id];
         if (!saisieValide(s)) return t;
-        return t + lignesDe(st, s).filter(function (l) { return !l.erreur; }).reduce(function (a, l) { return a + (Number(l.gain) || 0); }, 0);
+        return t + lignesDe(st, s, e.fiche).filter(function (l) { return !l.erreur; }).reduce(function (a, l) { return a + (Number(l.gain) || 0); }, 0);
       }, 0);
       var el = cadre.querySelector('[data-total]');
       if (el) el.textContent = fmt(tot);
@@ -367,7 +390,8 @@
         return '<tr data-emp="' + esc(e.id) + '" style="background:' + bg + '">' +
           '<td style="padding:3px 6px;white-space:nowrap">' + esc(e.nom) + '</td>' +
           '<td><select data-p style="' + IN + ';width:160px">' + st.profils.map(function (p) {
-            return '<option value="' + esc(p.id) + '"' + (p.id === s.profil ? ' selected' : '') + '>' + esc(p.nom) + '</option>';
+            var actif = s.profil ? s.profil : (profilAuto(st, e.poste) || {}).id;
+            return '<option value="' + esc(p.id) + '"' + (p.id === actif ? ' selected' : '') + '>' + esc(p.nom) + '</option>';
           }).join('') + '</select></td>' +
           '<td><select data-u style="' + IN + '"><option value="jours"' + (s.unite !== 'heures' ? ' selected' : '') + '>Jours</option><option value="heures"' + (s.unite === 'heures' ? ' selected' : '') + '>Heures</option></select></td>' +
           '<td><input data-v type="number" step="any" value="' + esc(s.valeur) + '" style="' + IN + ';width:70px;text-align:right"></td>' +
@@ -404,9 +428,10 @@
         return '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:12px">' +
           '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b>Profil :</b>' +
           '<input data-pn="' + pi + '" value="' + esc(p.nom) + '" style="' + IN + ';flex:1">' +
+          '<label>Postes concernés (mots-clés de la fiche, séparés par des virgules)<input data-pk="' + pi + '" value="' + esc((p.postes || []).join(', ')) + '" style="' + IN + ';width:300px"></label>' +
           '<button type="button" data-act="delprof" data-pi="' + pi + '" style="' + BTN + '">✕ Supprimer le profil</button></div>' +
           '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eef2f8">' +
-          '<th style="text-align:left;padding:4px">Code</th><th style="text-align:left">Libellé</th><th style="text-align:left">Nature</th><th style="text-align:left">Formule</th><th></th></tr></thead><tbody>' +
+          '<th style="text-align:left;padding:4px">Code</th><th style="text-align:left">Libellé</th><th style="text-align:left">Nature</th><th style="text-align:left">Formule</th><th style="text-align:left">Colonne fiche (si montant fiche)</th><th style="text-align:left">Montant de la fiche</th><th></th></tr></thead><tbody>' +
           p.rubriques.map(function (r, ri) {
             return '<tr>' +
               '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="code" value="' + esc(r.code) + '" style="' + IN + ';width:70px"></td>' +
@@ -414,7 +439,9 @@
               '<td><select data-pi="' + pi + '" data-ri="' + ri + '" data-rf="nature" style="' + IN + '">' + Object.keys(NATURES).map(function (k) {
                 return '<option value="' + k + '"' + (r.nature === k ? ' selected' : '') + '>' + NATURES[k] + '</option>';
               }).join('') + '</select></td>' +
-              '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="expr" value="' + esc(r.expr) + '" style="' + IN + ';width:260px;font-family:monospace"></td>' +
+              '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="expr" value="' + esc(r.expr) + '" style="' + IN + ';width:200px;font-family:monospace"></td>' +
+              '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="colonne" value="' + esc(r.colonne || '') + '" placeholder="auto (code)" style="' + IN + ';width:150px"></td>' +
+              '<td style="text-align:center"><input type="checkbox" data-pi="' + pi + '" data-ri="' + ri + '" data-rf="fiche"' + (r.fiche ? ' checked' : '') + '></td>' +
               '<td><button type="button" data-act="delrub" data-pi="' + pi + '" data-ri="' + ri + '" style="' + BTN + '">✕</button></td></tr>';
           }).join('') + '</tbody></table>' +
           '<div style="margin-top:6px"><button type="button" data-act="addrub" data-pi="' + pi + '" style="' + BTN + '">+ Ajouter une rubrique à ce profil</button></div></div>';
@@ -434,7 +461,7 @@
     }
 
     function verifier() {
-      var exemple = { fraction: 1, jours: 30, heures: 173.33, base: 1000, diviseur_hs: 173.33, samedi: 1, hs120: 1, hs130: 1, hs140: 1, hs_dim: 1, hs_nuit: 1, hs_ferie: 1 };
+      var exemple = { fraction: 1, jours: 30, heures: 173.33, base: 1000, m: 1, diviseur_hs: 173.33, samedi: 1, hs120: 1, hs130: 1, hs140: 1, hs_dim: 1, hs_nuit: 1, hs_ferie: 1 };
       for (var i = 0; i < st.profils.length; i++) {
         var p = st.profils[i];
         for (var j = 0; j < p.rubriques.length; j++) {
@@ -461,13 +488,13 @@
       }
       var a = b.dataset.act, pi = +b.dataset.pi, ri = +b.dataset.ri;
       touche = true;
-      if (a === 'addprof') { st.profils.push({ id: nouvelId('p'), nom: 'Nouveau profil', rubriques: rubs([]) }); rendre(); }
+      if (a === 'addprof') { st.profils.push({ id: nouvelId('p'), nom: 'Nouveau profil', postes: [], rubriques: rubs([]) }); rendre(); }
       else if (a === 'delprof') {
         if (st.profils.length <= 1) { msg('Il faut garder au moins un profil.', true); return; }
         if (!confirm('Supprimer le profil « ' + st.profils[pi].nom + ' » ?')) return;
         st.profils.splice(pi, 1); rendre();
       } else if (a === 'addrub') {
-        st.profils[pi].rubriques.push({ code: '', lib: '', nature: 'salaire', expr: '0' }); rendre();
+        st.profils[pi].rubriques.push({ code: '', lib: '', nature: 'salaire', expr: '0', fiche: false }); rendre();
       } else if (a === 'delrub') {
         st.profils[pi].rubriques.splice(ri, 1); rendre();
       }
@@ -495,7 +522,8 @@
         else if (t.dataset.dhs != null) st.diviseur_hs = t.value;
         else if (t.dataset.feries != null) st.fériés = t.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
         else if (t.dataset.pn != null) st.profils[+t.dataset.pn].nom = t.value;
-        else if (t.dataset.rf && t.dataset.rf !== 'nature') st.profils[+t.dataset.pi].rubriques[+t.dataset.ri][t.dataset.rf] = t.value;
+        else if (t.dataset.pk != null) st.profils[+t.dataset.pk].postes = t.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        else if (t.dataset.rf && t.dataset.rf !== 'nature' && t.dataset.rf !== 'fiche') st.profils[+t.dataset.pi].rubriques[+t.dataset.ri][t.dataset.rf] = t.value;
         touche = true;
       }
     });
@@ -518,6 +546,7 @@
         if (t.dataset.hmeth != null) st.heures_methode = t.value;
         else if (t.dataset.paq != null) st.paques_feries = t.checked;
         else if (t.dataset.rf === 'nature') st.profils[+t.dataset.pi].rubriques[+t.dataset.ri].nature = t.value;
+        else if (t.dataset.rf === 'fiche') st.profils[+t.dataset.pi].rubriques[+t.dataset.ri].fiche = t.checked;
         else if (t.dataset.rf === 'code') {
           // Libellé proposé depuis le catalogue si la case est vide
           var r = st.profils[+t.dataset.pi].rubriques[+t.dataset.ri];
