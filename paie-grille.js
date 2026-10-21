@@ -217,16 +217,24 @@
     return mf[String(r.code)] || 0;
   }
   // Profil automatique : celui dont un mot-clé figure dans le poste de la fiche ; sinon le profil « sans mot-clé »
+  function clePoste(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'").toUpperCase();
+  }
   function profilAuto(st, poste) {
-    var pz = String(poste || '').toUpperCase();
+    var pz = clePoste(poste);
     var trouve = st.profils.filter(function (p) {
-      return (p.postes || []).some(function (k) { return k && pz.indexOf(String(k).toUpperCase()) >= 0; });
+      return (p.postes || []).some(function (k) {
+        var c = clePoste(k).trim();
+        if (!c) return false;
+        if (c.indexOf(' ') >= 0) return pz.indexOf(c) >= 0;
+        return pz.split(/[^A-Z0-9]+/).some(function (w) { return w.indexOf(c) === 0; });
+      });
     })[0];
     return trouve || st.profils.filter(function (p) { return !(p.postes || []).length; })[0] || st.profils[0] || null;
   }
   function lignesDe(st, s, fiche) {
     if (!saisieValide(s)) return [];
-    var p = (s.profil && st.profils.filter(function (x) { return x.id === s.profil; })[0]) || profilAuto(st, fiche ? fiche.poste : '');
+    var p = (s.profilManuel && s.profil && st.profils.filter(function (x) { return x.id === s.profil; })[0]) || profilAuto(st, fiche ? fiche.poste : '');
     if (!p) return [];
     // Salaire de base : celui saisi, à défaut celui de la fiche
     var s2 = Object.assign({}, s, { base: (s.base !== '' && s.base != null) ? s.base : (fiche ? nombreF(fiche.sb) : 0) });
@@ -390,7 +398,7 @@
         return '<tr data-emp="' + esc(e.id) + '" style="background:' + bg + '">' +
           '<td style="padding:3px 6px;white-space:nowrap">' + esc(e.nom) + '</td>' +
           '<td><select data-p style="' + IN + ';width:160px">' + st.profils.map(function (p) {
-            var actif = s.profil ? s.profil : (profilAuto(st, e.poste) || {}).id;
+            var actif = (s.profilManuel && s.profil) ? s.profil : (profilAuto(st, e.poste) || {}).id;
             return '<option value="' + esc(p.id) + '"' + (p.id === actif ? ' selected' : '') + '>' + esc(p.nom) + '</option>';
           }).join('') + '</select></td>' +
           '<td><select data-u style="' + IN + '"><option value="jours"' + (s.unite !== 'heures' ? ' selected' : '') + '>Jours</option><option value="heures"' + (s.unite === 'heures' ? ' selected' : '') + '>Heures</option></select></td>' +
@@ -536,7 +544,7 @@
         var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0];
         if (!e) return;
         var s = ensure(e);
-        if (t.dataset.p != null) s.profil = t.value;
+        if (t.dataset.p != null) { s.profil = t.value; s.profilManuel = true; }
         else if (t.dataset.u != null) s.unite = t.value;
         else return;
         majLigne(e); totaux(); modifie(e);
