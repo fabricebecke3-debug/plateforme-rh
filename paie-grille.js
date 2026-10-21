@@ -230,11 +230,11 @@
         return pz.split(/[^A-Z0-9]+/).some(function (w) { return w.indexOf(c) === 0; });
       });
     })[0];
-    return trouve || st.profils.filter(function (p) { return !(p.postes || []).length; })[0] || st.profils[0] || null;
+    return trouve || st.profils.filter(function (p) { return !(p.postes || []).length; })[0] || null;
   }
   function lignesDe(st, s, fiche) {
     if (!saisieValide(s)) return [];
-    var p = (s.profilManuel && s.profil && st.profils.filter(function (x) { return x.id === s.profil; })[0]) || profilAuto(st, fiche ? fiche.poste : '');
+    var p = s.profilManuel ? (st.profils.filter(function (x) { return x.id === s.profil; })[0] || null) : profilAuto(st, fiche ? fiche.poste : '');
     if (!p) return [];
     // Salaire de base : celui saisi, à défaut celui de la fiche
     var s2 = Object.assign({}, s, { base: (s.base !== '' && s.base != null) ? s.base : (fiche ? nombreF(fiche.sb) : 0) });
@@ -397,10 +397,11 @@
         var champ = function (k, w) { return '<td><input data-hs="' + k + '" type="number" step="any" value="' + esc(s[k]) + '" style="' + IN + ';width:' + w + 'px;text-align:right"></td>'; };
         return '<tr data-emp="' + esc(e.id) + '" style="background:' + bg + '">' +
           '<td style="padding:3px 6px;white-space:nowrap">' + esc(e.nom) + '</td>' +
-          '<td><select data-p style="' + IN + ';width:160px">' + st.profils.map(function (p) {
-            var actif = (s.profilManuel && s.profil) ? s.profil : (profilAuto(st, e.poste) || {}).id;
-            return '<option value="' + esc(p.id) + '"' + (p.id === actif ? ' selected' : '') + '>' + esc(p.nom) + '</option>';
-          }).join('') + '</select></td>' +
+          '<td><select data-p style="' + IN + ';width:160px"' + (s.profilManuel ? '' : ' title="Choisi d\'après le poste : ' + esc(e.poste || 'non renseigné') + '"') + '>' + (function () {
+            var auto = profilAuto(st, e.poste), actif = s.profilManuel ? s.profil : (auto ? auto.id : '');
+            return '<option value=""' + (actif ? '' : ' selected') + '>— aucun profil (poste : ' + esc(e.poste || 'non renseigné') + ') —</option>' +
+              st.profils.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === actif ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('');
+          })() + '</select></td>' +
           '<td><select data-u style="' + IN + '"><option value="jours"' + (s.unite !== 'heures' ? ' selected' : '') + '>Jours</option><option value="heures"' + (s.unite === 'heures' ? ' selected' : '') + '>Heures</option></select></td>' +
           '<td><input data-v type="number" step="any" value="' + esc(s.valeur) + '" style="' + IN + ';width:70px;text-align:right"></td>' +
           '<td data-jours style="text-align:right;color:#555">' + (d.j === '' ? '' : d.j) + '</td>' +

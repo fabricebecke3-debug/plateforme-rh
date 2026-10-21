@@ -162,3 +162,7 @@ VERSION 3.30 : CONFIGURATION SAGE (RUBRIQUES ET CONSTANTES)
 VERSION 3.31 : PROFIL DE LA GRILLE LU SUR LA FICHE
 - Le profil affiché dans la grille suit désormais le poste de la fiche. Une ancienne sélection automatique enregistrée ne l'écrase plus : seul un choix fait à la main (menu déroulant) est conservé.
 - Recherche de mot-clé par début de mot (« OP » ne retrouve plus « COPIEUR »), insensible aux accents et à la casse.
+
+VERSION 3.32 : PLUS DE PROFIL PAR DÉFAUT SILENCIEUX
+- Un salarié dont le poste ne correspond à aucun profil n'est plus affecté au premier profil de la liste. Le menu affiche « aucun profil (poste : ... ) » et son calcul est vide jusqu'au choix d'un profil.
+- Pour rattacher ces postes : ajouter le mot-clé dans les « Postes concernés » du profil (Paramètres de la grille).
