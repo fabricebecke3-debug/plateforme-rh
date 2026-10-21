@@ -2117,13 +2117,14 @@ function pdate(v){
   const dt=new Date(+y,mo-1,d);
   return dt.getMonth()===mo-1?LD(dt):'';
 }
-function normPoste(p){
+function posteFautes(p){
   let x=String(p??'').replace(/\s+/g,' ').replace(/’/g,"'").trim().toUpperCase();
   x=x.replace(/^0PERATEUR/,'OPERATEUR').replace(/CONDITIONEMENT/g,'CONDITIONNEMENT').replace(/^OP /,'OPERATEUR ')
      .replace(/^OPERATEUR LABO$/,'OPERATEUR LABORATOIRE').replace(/^AGENT D'?ENTRETIEN$/,"AGENT D'ENTRETIEN")
      .replace(/^AGENT (DE )?PROXIMIT[EÉ]$/,'AGENT DE PROXIMITÉ').replace(/^OPRATEUR/,'OPERATEUR').replace(/ELECTROMECANIEN/,'ELECTROMECANICIEN');
-  return posteCanon(x);
+  return x;
 }
+function normPoste(p){return posteCanon(posteFautes(p));}
 /* ===== Postes : un seul intitulé par poste (fautes de frappe, abréviations, accents, casse) ===== */
 const POSTE_ABR={OP:'OPERATEUR',OPR:'OPERATEUR',OPERAT:'OPERATEUR',VDR:'VIDEUR',ELEC:'ELECTRICIEN',MECA:'MECANICIEN',ELECTRO:'ELECTROMECANICIEN',AGT:'AGENT',RESP:'RESPONSABLE',CHF:'CHEF',ADJ:'ADJOINT',COMPTA:'COMPTABLE',TECH:'TECHNICIEN',LABO:'LABORATOIRE',SECU:'SECURITE',MAG:'MAGASINIER',CHAUFF:'CHAUFFEUR',ENTRET:'ENTRETIEN',PROD:'PRODUCTION'};
 const POSTE_REF=new Map();
@@ -2138,21 +2139,47 @@ function posteDist(a,b){
   for(let i=1;i<=a.length;i++){cur[0]=i;for(j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));}prev=cur.slice();}
   return prev[b.length];
 }
+/* Regroupement déterministe : la forme la plus fréquente de la liste devient l'intitulé unique.
+   Pluriel (VIDEURS -> VIDEUR), fautes de frappe proches (VIDEUR / VIDEUUR) et préfixes uniques (VIDEU -> VIDEUR) sont rattachés. */
+const POSTE_TETES=[];
+function posteSingulier(k){return (k.length>4&&/S$/.test(k))?k.slice(0,-1):k;}
+function posteProche(a,b){
+  if(a===b)return true;
+  const sa=posteSingulier(a),sb=posteSingulier(b);
+  if(sa===sb)return true;
+  const lim=Math.max(sa.length,sb.length)<=10?1:2;
+  return posteDist(sa,sb)<=lim;
+}
+function posteTeteProche(k){
+  let meilleure=null,dm=99;
+  POSTE_TETES.forEach(function(t){
+    if(!posteProche(k,t.k))return;
+    const d=posteDist(posteSingulier(k),posteSingulier(t.k));
+    if(d<dm){dm=d;meilleure=t;}
+  });
+  if(!meilleure&&k.length>=4&&k.indexOf(' ')<0){const m=POSTE_TETES.filter(function(t){return t.k.indexOf(' ')<0&&t.k.indexOf(k)===0;});if(m.length===1)meilleure=m[0];}
+  return meilleure;
+}
 function posteCanon(p){
+  p=posteFautes(p);
   const k=posteKey(p);if(!k)return '';
   if(POSTE_REF.has(k))return POSTE_REF.get(k);
-  let best=null,bd=99;
-  POSTE_REF.forEach(function(canon,rk){const d=posteDist(k,rk),lim=k.length<=5?1:2;if(d<=lim&&d<bd){bd=d;best=canon;}});
-  if(!best&&k.length>=4){const m=[];POSTE_REF.forEach(function(canon,rk){if(rk.indexOf(k)===0)m.push(canon);});if(m.length===1)best=m[0];}
-  const disp=best||posteDisplay(p);
-  POSTE_REF.set(k,disp);
+  const t=posteTeteProche(k);
+  if(t){POSTE_REF.set(k,t.canon);return t.canon;}
+  const disp=posteDisplay(p);
+  POSTE_TETES.push({k:k,canon:disp});POSTE_REF.set(k,disp);
   return disp;
 }
 function posteSeed(list){
   const cnt=new Map(),disp=new Map();
-  list.forEach(function(p){const k=posteKey(p);if(!k)return;cnt.set(k,(cnt.get(k)||0)+1);if(!disp.has(k))disp.set(k,posteDisplay(p));});
-  POSTE_REF.clear();
-  [...cnt.keys()].sort(function(a,b){return cnt.get(b)-cnt.get(a);}).forEach(function(k){POSTE_REF.set(k,disp.get(k));});
+  list.forEach(function(p){p=posteFautes(p);const k=posteKey(p);if(!k)return;cnt.set(k,(cnt.get(k)||0)+1);if(!disp.has(k))disp.set(k,posteDisplay(p));});
+  POSTE_REF.clear();POSTE_TETES.length=0;
+  // Les plus fréquents d'abord ; à égalité, la forme la plus courte (singulier), puis alphabétique : résultat identique quel que soit l'ordre des lignes
+  [...cnt.keys()].sort(function(a,b){return (cnt.get(b)-cnt.get(a))||(a.length-b.length)||(a<b?-1:a>b?1:0);}).forEach(function(k){
+    const t=posteTeteProche(k);
+    if(t){POSTE_REF.set(k,t.canon);}
+    else{POSTE_TETES.push({k:k,canon:disp.get(k)});POSTE_REF.set(k,disp.get(k));}
+  });
 }
 function parseEffectif(rows){
   const isName=c=>{const t=nA(c).replace(/\(.*?\)/g,' ').replace(/[^A-Z& ]/g,' ').replace(/\s+/g,' ').trim();return /^(NOMS?( (ET|&))? ?PRENOMS?|NOMS?( COMPLETS?)?|NOM PRENOM|EMPLOYES?|AGENTS?|SALARIES?|PERSONNEL|IDENTITE)$/.test(t);};

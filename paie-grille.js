@@ -230,11 +230,18 @@
         return pz.split(/[^A-Z0-9]+/).some(function (w) { return w.indexOf(c) === 0; });
       });
     })[0];
-    return trouve || st.profils.filter(function (p) { return !(p.postes || []).length; })[0] || null;
+    // V3.32 : aucun repli silencieux. Un poste sans mot-clé correspondant n'a pas de profil.
+    return trouve || null;
+  }
+  // Profil effectif d'un salarié : choix manuel, sinon profil automatique d'après le poste de la fiche
+  function profilDe(st, s, fiche) {
+    if (!s) return null;
+    if (s.profilManuel) return st.profils.filter(function (x) { return x.id === s.profil; })[0] || null;
+    return profilAuto(st, fiche ? fiche.poste : '');
   }
   function lignesDe(st, s, fiche) {
     if (!saisieValide(s)) return [];
-    var p = s.profilManuel ? (st.profils.filter(function (x) { return x.id === s.profil; })[0] || null) : profilAuto(st, fiche ? fiche.poste : '');
+    var p = profilDe(st, s, fiche);
     if (!p) return [];
     // Salaire de base : celui saisi, à défaut celui de la fiche
     var s2 = Object.assign({}, s, { base: (s.base !== '' && s.base != null) ? s.base : (fiche ? nombreF(fiche.sb) : 0) });
@@ -273,7 +280,7 @@
       var ruKeys = p.rubriques.map(function (r) { return r.code + ' ' + (r.lib || ''); });
       var titres = entete.concat(ruKeys, ['Brut total']);
       var rows = ['<Row>' + titres.map(function (t) { return cellule(t, 'h'); }).join('') + '</Row>'];
-      var lignesEmp = emps.filter(function (e) { var s = st.saisies[e.id]; return s && s.profil === p.id; });
+      var lignesEmp = emps.filter(function (e) { var s = st.saisies[e.id]; var pe = s && profilDe(st, s, e.fiche); return pe && pe.id === p.id; });
       lignesEmp.forEach(function (e) {
         var s = st.saisies[e.id];
         var vars = variables(st, s);

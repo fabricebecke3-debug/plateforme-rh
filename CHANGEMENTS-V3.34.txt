@@ -1,0 +1,17 @@
+VERSION 3.34 : POSTES REGROUPÉS (un seul intitulé par poste)
+=========================================================
+Cause : la normalisation était incrémentale (dépendante de l'ordre des lignes). Les pluriels (VIDEURS), les
+fautes proches (Vidéuur) et les préfixes (VIDEU) ne se rattachaient pas toujours à l'intitulé existant ; la
+correction CONDITIONEMENT n'était appliquée qu'à l'import.
+
+Correction :
+- Regroupement sur la liste complète des postes : la forme la plus fréquente devient l'intitulé unique ; à égalité,
+  la forme la plus courte (singulier), puis l'ordre alphabétique. Résultat identique quel que soit l'ordre des lignes.
+- Pluriel rattaché au singulier (VIDEURS -> VIDEUR, AGENTS -> AGENT).
+- Fautes de frappe proches rattachées (distance 1 pour les intitulés courts ou moyens, 2 pour les longs).
+- Préfixe unique d'un mot simple rattaché (VIDEU -> VIDEUR). Jamais pour un intitulé à plusieurs mots.
+- Corrections orthographiques (CONDITIONEMENT, OP, LABO...) appliquées partout : import, saisie, liste, filtres, grille, bulletins.
+- Les données déjà enregistrées sont corrigées à l'affichage : aucune migration nécessaire.
+
+A vérifier : la forme la plus fréquente est retenue ; en cas d'égalité, la forme la plus courte (ex. BILLE plutôt
+que BILLES si les deux sont en même nombre). Pour imposer une forme, la mettre en nombre supérieur ou me le demander.

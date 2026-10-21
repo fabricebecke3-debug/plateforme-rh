@@ -1,4 +1,4 @@
-/* TERH — service worker v5
+/* TERH — service worker v6
  * Rôle : ouvrir l'application même sans connexion.
  * - index.html et les fichiers statiques du site sont gardés sur l'appareil.
  * - Le code (js, css, html, json, md…) est d'abord demandé au réseau, pour recevoir les mises à jour ;
@@ -7,7 +7,7 @@
  * - Les clés de cache ignorent les paramètres (?t=…), pour que le cache ne grossisse pas à chaque chargement.
  * Pour forcer la mise à jour des utilisateurs, augmentez le numéro de VERSION.
  */
-const VERSION = 'terh-v35';
+const VERSION = 'terh-v37';
 const BASE = new URL('./', self.location.href).href;      // dossier de l'application
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 const CODE_RE = /\.(js|css|html|json|webmanifest|md|txt)$/i;
