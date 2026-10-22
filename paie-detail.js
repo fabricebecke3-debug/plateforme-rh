@@ -201,7 +201,7 @@
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<input data-catq list="pd-cat-list" placeholder="+ Rechercher une rubrique (code ou nom)…" style="width:340px"><datalist id="pd-cat-list"></datalist></div>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="s" data-x="grille">🧮 Grille de saisie (jours / heures)</button>' + '' + (root.PaieModeles && root.PaieModeles.options ? '<label style="font-size:12px">Modèle de bulletin de la société : <select data-modele-societe style="font-size:12px">' + root.PaieModeles.options() + '</select></label>' : '') + '<button type="button" class="s" data-x="hokp" style="font-size:12px">⚙ Paramètres Hôtel Océan</button><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
+      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="s" data-x="grille">🧮 Grille de saisie (jours / heures)</button>' + '' + '<button type="button" class="s" data-x="hokp" style="font-size:12px">⚙ Paramètres Hôtel Océan</button><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
     // Écarts entre le bulletin (N° CNPS, matricule saisis ou lus) et la fiche : proposer l'enregistrement
     function ecartsFiche() {
@@ -386,8 +386,6 @@
         perso = liste; reconstruireCatalogue();
       });
     }
-    var selSoc = cadre.querySelector('[data-modele-societe]');
-    if (selSoc) selSoc.addEventListener('change', function () { if (root.PaieModeles) root.PaieModeles.definirDefaut(selSoc.value); });
     refreshCat();
     cadre.querySelector('[data-catq]').addEventListener('change', function (e) {
       var v = e.target.value.trim(), code = v.split(' — ')[0].trim();

@@ -1,0 +1,6 @@
+VERSION 3.51 : MODÈLE DE BULLETIN DANS LES PARAMÈTRES DE LA SOCIÉTÉ
+===================================================================
+- Paramètres de la société : liste « 📄 Modèle de bulletin de paie » avec les noms des modèles.
+  Le modèle choisi est utilisé pour tous les bulletins des employés de la société.
+- Le bouton « Modèles de bulletin de paie » reste disponible pour modifier ou créer des modèles.
+- Service worker : terh-v54.

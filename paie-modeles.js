@@ -275,7 +275,7 @@
     })();
   }
 
-  function ouvrir(onChange) {
+  function ouvrir(onChange, idCourant) {
     var id = 'pm-overlay';
     if (document.getElementById(id)) return;
     if (!document.getElementById('pm-style')) {
@@ -293,7 +293,7 @@
     }
 
     var liste = charger();
-    var courant = liste.filter(function (m) { return m.defaut; })[0].id;
+    var courant = (idCourant && liste.some(function (m) { return m.id === idCourant; })) ? idCourant : liste.filter(function (m) { return m.defaut; })[0].id;
     var ordreEdit = null, cochesEdit = null, ordreDe = null;
     var cat = catalogue();
 
@@ -543,5 +543,52 @@
     sauver(l);
     return l;
   }
-  root.PaieModeles = { definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
+  // Liste des modèles de la société, par nom, avec choix du modèle utilisé pour ses bulletins
+  function panneau(nomSociete) {
+    var idPanneau = 'pm-panneau';
+    var ex = document.getElementById(idPanneau); if (ex) ex.remove();
+    var ov = document.createElement('div');
+    ov.id = idPanneau;
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;box-sizing:border-box;overflow:auto';
+    function dessiner() {
+      var liste = charger();
+      var lignes = liste.map(function (m) {
+        var ocean = m.gabarit === 'ocean';
+        return '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+          '<div style="flex:1;min-width:220px"><b style="font-size:14px">' + esc(m.nom) + '</b>' +
+          (m.defaut ? ' <span style="background:#1e8449;color:#fff;border-radius:4px;padding:1px 6px;font-size:11px">utilisé pour cette société</span>' : '') +
+          (ocean ? ' <span style="background:#eef2f8;border-radius:4px;padding:1px 6px;font-size:11px">calcul Hôtel Océan</span>' : '') +
+          '<div style="color:#555;font-size:12px">' + (ocean ? 'Gabarit officiel de l\'Hôtel Océan, calcul selon les paramètres HOK' : 'Mise en page standard') + '</div></div>' +
+          (m.defaut ? '' : '<button type="button" data-p="defaut" data-id="' + esc(m.id) + '">Utiliser pour cette société</button>') +
+          '<button type="button" data-p="modifier" data-id="' + esc(m.id) + '">✏️ Modifier</button>' +
+          (ocean && window.PaieHok ? '<button type="button" data-p="hok">⚙ Paramètres Hôtel Océan</button>' : '') +
+          '</div>';
+      }).join('');
+      var ajout = liste.some(function (m) { return m.id === OCEAN.id; }) ? '' : '<button type="button" data-p="ocean">🏨 Ajouter le gabarit Hôtel Océan</button>';
+      ov.innerHTML = '<div style="background:#fff;color:#1a1a1a;width:min(760px,100%);border-radius:10px;padding:16px;font:13px Arial,sans-serif">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="flex:1;font-size:16px">📄 Modèles de bulletin de paie</b><button type="button" data-p="fermer">✕ Fermer</button></div>' +
+        '<div style="color:#555;margin-bottom:12px">Société : <b>' + esc(nomSociete || '—') + '</b>. Le modèle utilisé s\'applique à tous les bulletins de la société.</div>' +
+        lignes +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" data-p="nouveau">➕ Nouveau modèle</button>' + ajout + '</div></div>';
+    }
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) { ov.remove(); return; }
+      var b = e.target.closest('[data-p]'); if (!b) return;
+      var a = b.getAttribute('data-p'), mid = b.getAttribute('data-id');
+      if (a === 'fermer') { ov.remove(); }
+      else if (a === 'defaut') { definirDefaut(mid); dessiner(); }
+      else if (a === 'modifier') { ov.remove(); ouvrir(null, mid); }
+      else if (a === 'nouveau') { ov.remove(); ouvrir(null); }
+      else if (a === 'ocean') {
+        var l = charger();
+        if (!l.some(function (m) { return m.id === OCEAN.id; })) l.push(copie(OCEAN));
+        sauver(l); dessiner();
+      }
+      else if (a === 'hok') { if (root.PaieHok) root.PaieHok.ouvrir(); }
+    });
+    document.body.appendChild(ov);
+    dessiner();
+  }
+
+  root.PaieModeles = { panneau: panneau, definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
 })(typeof window !== 'undefined' ? window : globalThis);

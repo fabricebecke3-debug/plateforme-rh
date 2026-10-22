@@ -1,0 +1,8 @@
+VERSION 3.50 : MODÈLES DE BULLETIN DANS LES PARAMÈTRES DE LA SOCIÉTÉ
+====================================================================
+- Paramètres de la société : nouveau bouton « 📄 Modèles de bulletin de paie ».
+  Il liste les modèles de la société par nom, indique celui utilisé pour ses bulletins, et permet de :
+  choisir le modèle de la société (« Utiliser pour cette société »), le modifier, en créer un,
+  ajouter le gabarit Hôtel Océan, ouvrir ses paramètres de calcul.
+- Le choix du modèle n'apparaît plus dans l'écran du bulletin de paie.
+- Service worker : terh-v53.
