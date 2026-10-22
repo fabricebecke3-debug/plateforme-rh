@@ -87,6 +87,9 @@
     });
     lignes += '<tr>' + cell('') + cell('<b>Total Cotisations</b>') + cell('') + cell('') + cell('') +
       cell('') + cell('<b>' + fmt(H.totalRetenues) + '</b>', droite) + '</tr>';
+    // Rappels et avances : lignes du bulletin papier, hors total cotisations
+    lignes += '<tr>' + cell('29') + cell('Rappels') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.rappel || 0), droite) + '</tr>';
+    lignes += '<tr>' + cell('26') + cell('Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
     return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
       entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px">' + t + '</th>'; }).join('') +
       '</tr></thead><tbody>' + lignes + '</tbody></table>';

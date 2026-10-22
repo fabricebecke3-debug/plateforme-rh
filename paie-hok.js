@@ -15,7 +15,7 @@
     entreprise: { tel: '695364392 /670471563', niu: 'M042318119342F', cnps: '392-0100140- A' },
     logement: { taux: 0.25 },
     assiduite: { taux: 0.05 },
-    anciennete: { taux: 0.06, seuil_ans: 1 },
+    anciennete: { taux: 0.06, seuil_ans: 2, tiers: [{ depuis: 2, taux: 0.06 }, { depuis: 5, taux: 0.10 }] },
     transport: { montant: 15000, exclu_cnps: 1 },
     cnps: { taux: 0.042, plafond: null },
     abattement: { taux: 0.7 },
@@ -34,6 +34,7 @@
       au_dela: 13000
     },
     tc: {
+      regle: 'tranche', pas: 25000, montant: 250, decalage: 1, plafond: 2250,
       tranches: [[15000, 0], [25000, 83], [50000, 170], [52000, 270], [75000, 270], [100000, 520], [125000, 770],
         [150000, 1020], [200000, 1270], [330000, 1520], [400000, 2020], [500000, 2270]],
       au_dela: 2520
@@ -101,10 +102,17 @@
       var a = root.PaieMoteur.ancienneteDepuis(o.dateAnciennete);
       ans = a ? a.ans : 0;
     }
-    var ancMontant = ans >= nb(p.anciennete.seuil_ans) ? Math.round(p.anciennete.taux * sb) : 0;
-    var logement = Math.round(p.logement.taux * (sb + ancMontant));
-    var assiduite = Math.round(p.assiduite.taux * sb);
-    var transport = nb(p.transport.montant);
+    // Ancienneté et logement : calculés sur le salaire mensuel complet ; l'assiduité sur la base du mois (proratisée)
+    var smens = (o.salaireMensuel !== undefined && o.salaireMensuel !== null && o.salaireMensuel !== '') ? nb(o.salaireMensuel) : sb;
+    var tauxAnc = 0;
+    (p.anciennete.tiers || [{ depuis: p.anciennete.seuil_ans, taux: p.anciennete.taux }]).forEach(function (t) {
+      if (ans >= nb(t.depuis)) tauxAnc = nb(t.taux);
+    });
+    var ancMontant = tauxAnc * smens;
+    var logement = (o.logement !== undefined && o.logement !== null && o.logement !== '') ? nb(o.logement) : p.logement.taux * (smens + ancMontant);
+    // Prime d'assiduité : 5 % de la base du mois ; 0 en cas d'absence (saisie possible par le paramètre assiduite)
+    var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : p.assiduite.taux * sb;
+    var transport = (o.transport !== undefined && o.transport !== null && o.transport !== '') ? nb(o.transport) : nb(p.transport.montant);
 
     var gains = [
       { code: '1', lib: 'Salaire de Base', nombre: 30, base: sb / 30, taux: null, gain: sb },
@@ -114,7 +122,7 @@
       { code: '5', lib: "Prime d'Ancienneté", nombre: null, base: null, taux: p.anciennete.taux, gain: ancMontant }
     ];
     var tauxC = o.congePris ? tauxConge(ans, p) : 0;
-    gains.push({ code: '6', lib: 'Indemnité de Congé', nombre: null, base: null, taux: tauxC || null, gain: Math.round(tauxC * sb) });
+    gains.push({ code: '6', lib: 'Indemnité de Congé', nombre: null, base: null, taux: tauxC || null, gain: tauxC * sb });
     (o.manuels || []).forEach(function (m, i) {
       gains.push({ code: m.code || String(7 + i), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) });
     });
@@ -123,28 +131,42 @@
     // Base CNPS (colonne K) : brut sans transport, plafond si défini
     var K = brut - transport * nb(p.transport.exclu_cnps);
     if (p.cnps.plafond) K = Math.min(K, nb(p.cnps.plafond));
-    var cnps = Math.round(p.cnps.taux * K);
+    var cnps = p.cnps.taux * K;
     // Base imposable (colonne L) : brut × abattement − CNPS
     var L = brut * p.abattement.taux - cnps;
-    var irppMontant = irpp(L, p);
+    // Base IRPP arrondie au multiple de 250 le plus proche ; IRPP arrondi à l'unité ; CAC = 10 % de l'IRPP arrondi
+    var Lirpp = Math.round(L / 250) * 250;
+    var irppMontant = Math.round(irpp(Lirpp, p));
     var cac = p.cac.taux * irppMontant;
-    var cfc = Math.floor(p.cfc.taux * L);
+    var cfc = L <= p.irpp.seuils[0] ? 0 : Math.floor(p.cfc.taux * L);
     var rav = tranche(p.rav.tranches, L, p.rav.au_dela);
-    var tc = tranche(p.tc.tranches, L, p.tc.au_dela);
+    var tc = (p.tc.regle === 'tranche')
+      ? Math.min(nb(p.tc.plafond), nb(p.tc.montant) * Math.max(0, Math.floor(L / nb(p.tc.pas)) - nb(p.tc.decalage)))
+      : tranche(p.tc.tranches, L, p.tc.au_dela);
+    // Salarié non assujetti aux retenues fiscales (bulletin sans IRPP, CAC, CFC, RAV, TC)
+    if (o.exonere) { irppMontant = 0; cac = 0; cfc = 0; rav = 0; tc = 0; }
 
+    // Ordre et libellés du bulletin papier Hôtel Océan (lignes fixes à 0 incluses)
     var retenues = [
       { code: '10', lib: 'IRPP', base: L, taux: null, ret: irppMontant },
       { code: '11', lib: 'CAC', base: null, taux: null, ret: cac },
       { code: '12', lib: 'Crédit Foncier du Cameroun', base: L, taux: p.cfc.taux, ret: cfc },
+      { code: '17', lib: "Fonds National de l'Emploi", base: null, taux: null, ret: nb(o.fne) },
       { code: '13', lib: 'CNPS', base: K, taux: p.cnps.taux, ret: cnps },
       { code: '14', lib: 'RAV', base: null, taux: null, ret: rav },
-      { code: '15', lib: 'Taxe Communale/TDL', base: null, taux: null, ret: tc }
+      { code: '15', lib: 'Taxe Communale/TDL', base: null, taux: null, ret: tc },
+      { code: '22', lib: 'Dettes Internes', base: null, taux: null, ret: nb(o.dettes) },
+      { code: '27', lib: 'Prestation Familiale', base: null, taux: null, ret: nb(o.prestation) },
+      { code: '28', lib: 'Communard', base: null, taux: null, ret: nb(o.communard) }
     ];
     (o.retenuesManuelles || []).forEach(function (r, i) {
       retenues.push({ code: r.code || String(20 + i), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
     });
 
     var sommeRet = retenues.reduce(function (t, r) { return t + r.ret; }, 0);
+    // Rappels (s'ajoutent au net) et avances (se déduisent du net), hors brut et hors retenues
+    var rappel = nb(o.rappel), avance = nb(o.avance);
+    var netCalc = brut + rappel - sommeRet - avance;
     return {
       entreprise: p.entreprise,
       gains: gains,
@@ -154,9 +176,10 @@
       baseImposable: Math.round(L),
       ansAnciennete: ans,
       congePris: !!o.congePris,
-      totalRetenues: Math.round(sommeRet),
-      net: Math.round(brut - sommeRet),
-      exact: { brut: brut, retenues: sommeRet, net: brut - sommeRet, irpp: irppMontant, cac: cac, cnps: cnps, cfc: cfc, rav: rav, tc: tc }
+      totalRetenues: sommeRet,
+      rappel: rappel, avance: avance,
+      net: netCalc,
+      exact: { brut: brut, retenues: sommeRet, net: netCalc, irpp: irppMontant, cac: cac, cnps: cnps, cfc: cfc, rav: rav, tc: tc }
     };
   }
 
@@ -185,13 +208,28 @@
     var l1000 = lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
     var sb = nb(f.sb) || (l1000 ? (nb(l1000.gain) || nb(l1000.nombre) * nb(l1000.base)) : 0);
     var gain = function (l) { return root.PaieMoteur && root.PaieMoteur.gainLigne ? root.PaieMoteur.gainLigne(l) : nb(l.gain); };
-    var manuels = lignes.filter(function (l) { return !l.auto && !l.retenue && String(l.code) !== '1000'; })
+    var CODES_FIXES = ['1000', '26', '29', '17', '22', '27', '28'];
+    var lig = function (code) { return lignes.filter(function (l) { return String(l.code) === code; })[0]; };
+    var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
+    var manuels = lignes.filter(function (l) { return !l.auto && !l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l) }; });
-    var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue; })
+    var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
     return calculer({
       salaireBase: sb,
+      ansAnciennete: (f.ans !== undefined && f.ans !== '') ? nb(f.ans) : undefined,
+      salaireMensuel: (f.smens !== undefined && f.smens !== '') ? f.smens : undefined,
+      logement: (f.logement !== undefined && f.logement !== '') ? f.logement : undefined,
+      exonere: !!f.exonere,
+      rappel: (f.rappel !== undefined && f.rappel !== '') ? f.rappel : montantLig('29'),
+      avance: (f.avance !== undefined && f.avance !== '') ? f.avance : montantLig('26'),
+      fne: (f.fne !== undefined && f.fne !== '') ? f.fne : montantLig('17'),
+      dettes: (f.dettes !== undefined && f.dettes !== '') ? f.dettes : montantLig('22'),
+      prestation: (f.prestation !== undefined && f.prestation !== '') ? f.prestation : montantLig('27'),
+      communard: (f.communard !== undefined && f.communard !== '') ? f.communard : montantLig('28'),
+      assiduite: (f.assiduite !== undefined && f.assiduite !== '') ? f.assiduite : undefined,
       dateAnciennete: f.dane || f.entree || '',
+      transport: (f.transport !== undefined && f.transport !== '') ? f.transport : undefined,
       congePris: congePrisSurPeriode(o.conges, o.periode),
       manuels: manuels,
       retenuesManuelles: retenuesManuelles,

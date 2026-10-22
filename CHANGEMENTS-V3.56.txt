@@ -1,0 +1,35 @@
+VERSION 3.56 : ANCIENNETÉ, MODÈLE DE BULLETIN PAR SOCIÉTÉ, MATRICULE DU FICHIER
+===============================================================================
+Corrections trouvées avant mise en production (contrôle du fichier du personnel de septembre 2026).
+
+1. ANCIENNETÉ (paie-moteur.js)
+- Calcul à la date exacte (anniversaire). Avant : comptage en mois calendaires, donc un salarié entré
+  le 15/10/2021 était compté 5 ans le 14/10/2026 (seuil de 10 % atteint un mois trop tôt).
+- Nouvelle fonction ancienneteFiche(fiche) : date d'ancienneté, sinon date d'entrée, sinon le texte
+  « X an(s) Y mois » de la colonne ANCIENNETÉ du fichier du personnel.
+- Avant : sans date saisie, l'ancienneté valait 0 : la prime d'ancienneté (6 % ou 10 %) disparaissait
+  des bulletins de l'Hôtel de l'Océan et l'ancienneté n'apparaissait pas sur les bulletins Sage.
+
+2. FICHE DE PAIE (index.html, TERH_fichesPaie)
+- Date d'entrée : si la fiche n'en a pas, la colonne « DATE D'EMBAUCHE » du fichier importé est utilisée
+  (elle était lue mais jamais reprise).
+- Matricule : si la plateforme n'a pas attribué de matricule, celui du fichier est utilisé.
+- Catégorie : repli sur la colonne CATÉGORIE du fichier.
+- Le modèle de bulletin du salarié (modele_bulletin) est transmis à la fiche.
+- Bulletin rapide : l'ancienneté est calculée à la fin de la période imprimée, à partir de la date
+  d'ancienneté ou d'entrée. Avant, la date de début de CONTRAT servait de date d'embauche (faux pour un CDD ou CTT).
+
+3. MODÈLE DE BULLETIN PAR SOCIÉTÉ (paie-modeles.js, paie-detail.js)
+- Avant : le bulletin détaillé utilisait toujours le modèle par défaut, quelle que soit la société.
+- Ordre de choix : 1) modèle propre au salarié, 2) modèle dont le champ « Société qui utilise ce modèle »
+  correspond à l'employeur, 3) modèle par défaut.
+- Le gabarit Hôtel Océan reçoit par défaut la société « Hôtel de l'Océan » (les copies existantes en reçoivent aussi la valeur).
+- Nouveau champ « Société qui utilise ce modèle » dans l'éditeur de modèles.
+
+4. TESTS
+- tests/paie-anciennete-modeles.js : 12 tests (dates exactes, texte du fichier, priorités, choix du modèle).
+- tests/paie-hok-bulletins.js : inchangé, 24/38 bulletins exacts (écarts connus : CFC ±2 FCFA, TC de FOMO N., 1,11 FCFA).
+- tests/paie-verif-bulletins.js : inchangé ; l'écart du cas « août » (net 324 289 au lieu de 308 005) existe depuis la V3.55 et n'est PAS corrigé.
+
+Service worker : terh-v59.
+Aucune migration SQL nécessaire.

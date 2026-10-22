@@ -152,8 +152,8 @@
     }
     // Prime d'ancienneté (rubrique 1202) : taux selon les années révolues, base = salaire catégoriel (rubrique 1000)
     function ajouterAnciennete() {
-      var f = etat.fiche || {}, an = (root.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(f.entree, new Date()) : null;
-      if (!an) { alert('Date d\'entrée absente de la fiche : ancienneté impossible à calculer.'); return; }
+      var f = etat.fiche || {}, an = (root.PaieMoteur && PaieMoteur.ancienneteFiche) ? PaieMoteur.ancienneteFiche(f, new Date()) : null;
+      if (!an) { alert('Date d\'entrée ou d\'ancienneté absente de la fiche (et aucune ancienneté dans le fichier du personnel) : ancienneté impossible à calculer.'); return; }
       var b1000 = etat.lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
       if (!b1000) { alert('Pas de salaire de base (rubrique 1000).'); return; }
       var salaire = PaieMoteur.gainLigne(b1000), taux = PaieMoteur.tauxAnciennete(an.ans);
@@ -344,7 +344,7 @@
             var gl = root.PaieGrille.lignesPour(fiche.id);
             if (gl.length) etat.lignes = etat.lignes.filter(function (l) { return !l.auto; }).concat(gl);
           }
-          var an = (window.PaieMoteur && PaieMoteur.ancienneteDepuis) ? PaieMoteur.ancienneteDepuis(fiche.entree, new Date()) : null; etat.anciennete = an ? an.texte : '';
+          var an = (window.PaieMoteur && PaieMoteur.ancienneteFiche) ? PaieMoteur.ancienneteFiche(fiche, new Date()) : null; etat.anciennete = an ? an.texte : '';
           cadre.querySelector('[data-f="nom"]').value = etat.nom;
           cadre.querySelector('[data-f="cnps"]').value = etat.cnps;
           var mi = cadre.querySelector('[data-f="mat"]'); if (mi) mi.value = etat.mat;
@@ -371,8 +371,7 @@
       else if (x === 'grille') { if (root.PaieGrille) root.PaieGrille.ouvrir(); else alert('paie-grille.js n\'est pas chargé.'); }
       else if (x === 'print') {
         var R = calcul();
-        var selM = null;
-        var modele = (root.PaieModeles && root.PaieModeles.parId && selM) ? root.PaieModeles.parId(selM.value) : ((root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null), html;
+        var modele = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : ((root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null), html;
         var rendreBulletin = (modele && modele.gabarit === 'ocean' && root.PaieBulletinOcean) ? root.PaieBulletinOcean : root.PaieBulletinSage;
         if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: etat.lignes, conges: etat.conges, periode: etat.periode }) : null });
         else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });

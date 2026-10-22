@@ -1,0 +1,17 @@
+VERSION 3.55 : GABARIT HÔTEL OCÉAN CONFORME AU BULLETIN PAPIER
+==============================================================
+Gabarit Hôtel Océan (paie-bulletin-ocean.js) et calcul (paie-hok.js) :
+- Lignes fixes du bulletin papier affichées dans l'ordre : IRPP, CAC, CFC, Fonds National de l'Emploi (17),
+  CNPS (13), RAV, TC, Dettes internes (22), Prestation familiale (27), Communard (28).
+- Rappels (29) et avance sur salaire (26) affichés sous le total cotisations.
+- Net à payer = brut + rappels − retenues − avances (comme le bulletin).
+- Rappels, avances, FNE, dettes, prestation et communard sont lus depuis la fiche (rappel, avance, fne, dettes,
+  prestation, communard) ou depuis les lignes de codes 29, 26, 17, 22, 27, 28.
+- Paramètres par salarié lus depuis la fiche : smens (salaire mensuel complet), ans (ancienneté en années),
+  transport, logement, assiduite (0 en cas d'absence), exonere.
+
+Test : tests/paie-hok-bulletins.js (38 bulletins de septembre 2026).
+Net exact pour 24 bulletins sur 38 ; écarts restants : CFC (±2 FCFA), TC non renseignée sur FOMO N., et 1,11 FCFA
+sur BAMBOK et NGAH BOLO.
+
+Service worker : terh-v58.

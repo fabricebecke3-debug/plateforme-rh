@@ -213,14 +213,35 @@
   }
 
   // Ancienneté à partir de la date d'entrée (AAAA-MM-JJ), au mois près
+  // V3.56 : calcul à la date exacte (anniversaire). Avant, on comptait les mois calendaires :
+  // un salarié entré le 15/10/2021 était compté 5 ans au 14/10/2026 (seuil de 10 % atteint un mois trop tôt).
   function ancienneteDepuis(dateEntree, ref) {
     if (!dateEntree) return null;
     var d = new Date(String(dateEntree).slice(0, 10) + 'T00:00:00'), r = ref || new Date();
-    if (isNaN(d.getTime())) return null;
-    var m = (r.getFullYear() - d.getFullYear()) * 12 + (r.getMonth() - d.getMonth());
-    if (m < 0) return null;
-    var ans = Math.floor(m / 12), mois = m % 12;
-    return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois' };
+    if (isNaN(d.getTime()) || isNaN(r.getTime())) return null;
+    var rj = new Date(r.getFullYear(), r.getMonth(), r.getDate());
+    if (rj < d) return null;
+    var ans = rj.getFullYear() - d.getFullYear();
+    var mois = rj.getMonth() - d.getMonth();
+    if (rj.getDate() < d.getDate()) mois -= 1;
+    if (mois < 0) { mois += 12; ans -= 1; }
+    return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois', source: 'date' };
+  }
+
+  // Ancienneté lue dans le fichier du personnel (texte « 3 an(s) 3 mois », colonne ANCIENNETÉ).
+  // Valeur figée à la date de l'export : elle sert seulement quand aucune date n'est renseignée.
+  function ancienneteDepuisTexte(texte) {
+    var t = String(texte || '');
+    var m = /(\d+)\s*an/i.exec(t), mo = /(\d+)\s*mois/i.exec(t);
+    if (!m && !mo) return null;
+    var ans = m ? +m[1] : 0, mois = mo ? +mo[1] : 0;
+    return { ans: ans, mois: mois, texte: ans + ' an(s) et ' + mois + ' mois', source: 'fichier' };
+  }
+
+  // Ancienneté d'une fiche : date d'ancienneté (si renseignée), sinon date d'entrée, sinon texte du fichier.
+  function ancienneteFiche(f, ref) {
+    f = f || {};
+    return ancienneteDepuis(f.dane || f.entree, ref || new Date()) || ancienneteDepuisTexte(f.ancTexte) || null;
   }
 
   // Prime d'ancienneté (barème de référence du cours) : 0 % avant 2 ans révolus, 4 % à 2 ans, puis +2 % par année
@@ -256,6 +277,8 @@
     drapeaux: drapeaux,
     gainLigne: gainLigne,
     ancienneteDepuis: ancienneteDepuis,
+    ancienneteDepuisTexte: ancienneteDepuisTexte,
+    ancienneteFiche: ancienneteFiche,
     tauxAnciennete: tauxAnciennete,
     primeAnciennete: primeAnciennete,
     tauxEnVigueur: tauxEnVigueur,

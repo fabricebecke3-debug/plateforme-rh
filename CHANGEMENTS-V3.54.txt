@@ -1,0 +1,17 @@
+VERSION 3.54 : CALCUL HÔTEL OCÉAN CONFORME AUX BULLETINS DE SEPTEMBRE 2026
+=====================================================================
+Calcul (paie-hok.js), vérifié sur 38 bulletins (tests/paie-hok-bulletins.js) :
+- IRPP : base arrondie au multiple de 250 le plus proche, puis IRPP arrondi à l'unité ; CAC = 10 % de cet IRPP.
+- CNPS : 4,2 % de la base CNPS, non arrondi (comme le bulletin).
+- Logement et ancienneté : calculés sur le salaire mensuel complet (et non sur la base proratisée) ; l'assiduité sur la base du mois.
+- Ancienneté : 6 % à partir de 2 ans, 10 % à partir de 5 ans (paliers à confirmer).
+- TC : 250 FCFA par tranche entière de 25 000 FCFA de base L, moins une tranche, plafonnée à 2 250.
+- CFC : 0 si L ≤ 62 000 ; sinon 1 % de L (arrondi inférieur).
+- Saisies par salarié (fiche) : smens (salaire mensuel), ans, transport, logement, assiduite, exonere.
+- Salarié exonéré (exonere = true) : pas d'IRPP, CAC, CFC, RAV ni TC.
+
+Résultat : 23 bulletins sur 38 exacts à 1 FCFA près sur tous les postes (brut, CNPS, IRPP, CAC, RAV, TC).
+Restent : CFC (±2 FCFA sur une dizaine de bulletins, règle non trouvée) ; TC non renseignée sur FOMO N.
+Les écarts de net restants viennent des rappels et avances, hors calcul.
+
+Service worker : terh-v57.

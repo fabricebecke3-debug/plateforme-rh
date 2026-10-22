@@ -48,7 +48,7 @@
 
   // Gabarit « Hôtel Océan » : proposé en plus du modèle Sage, jamais par défaut
   var OCEAN = {
-    id: 'ocean', nom: 'Hôtel Océan', gabarit: 'ocean', couleur: '', afficherPatronales: false, afficherPied: true,
+    id: 'ocean', nom: 'Hôtel Océan', gabarit: 'ocean', societe: 'Hôtel de l\'Océan', couleur: '', afficherPatronales: false, afficherPied: true,
     afficherCout: false, pied: '', defaut: false, blocs: DISPOSITIONS.standard.slice(),
     colonnes: { nombre: true, base: true, taux: true, retenuePatronale: false }, logo: '', logoPos: 'centre', rubriques: []
   };
@@ -65,6 +65,7 @@
       id: String(m.id || nouvelId()),
       gabarit: m.gabarit === 'ocean' ? 'ocean' : 'sage',
       nom: String(m.nom || '').trim() || 'Modèle sans nom',
+      societe: String(m.societe || (m.gabarit === 'ocean' ? OCEAN.societe : '') || '').trim(),
       couleur: /^#[0-9a-fA-F]{6}$/.test(m.couleur || '') ? m.couleur : '',
       afficherPatronales: m.afficherPatronales !== false,
       afficherPied: m.afficherPied !== false,
@@ -126,6 +127,28 @@
   function actif() {
     var l = charger();
     return l.filter(function (m) { return m.defaut; })[0] || l[0];
+  }
+  // Nom de société comparable : sans accents, sans articles ni mots courants (« Hôtel de l'Océan » = « HOTEL L'OCEAN »)
+  var MOTS_VIDES = ['de', 'du', 'des', 'la', 'le', 'l', 'd', 'et', 'hotel', 'sarl', 'sa', 'societe'];
+  function cleSociete(nom) {
+    return String(nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .split(/[^a-z0-9]+/).filter(function (t) { return t && MOTS_VIDES.indexOf(t) < 0; }).join('');
+  }
+  // Modèle d'un bulletin : 1) modèle propre au salarié (fiche.mod), 2) modèle de la société employeur,
+  // 3) modèle par défaut. Avant V3.56, seul le modèle par défaut était utilisé : toutes les sociétés
+  // recevaient le même gabarit.
+  function pourSalarie(fiche, employeur) {
+    var l = charger(), f = fiche || {};
+    if (f.mod) {
+      var par = l.filter(function (m) { return m.id === String(f.mod); })[0];
+      if (par) return par;
+    }
+    var cle = cleSociete(employeur);
+    if (cle) {
+      var soc = l.filter(function (m) { return cleSociete(m.societe) === cle; })[0];
+      if (soc) return soc;
+    }
+    return actif();
   }
 
   // Catalogue de rubriques de la société (paie-rubriques.js)
@@ -392,6 +415,7 @@
       var m = trouve(); if (!m || !cadre.querySelector('[data-f="nom"]')) return;
       var g = function (f) { return cadre.querySelector('[data-f="' + f + '"]'); };
       m.nom = g('nom').value;
+      if (g('societe')) m.societe = g('societe').value.trim();
       m.couleur = g('couleur').value;
       m.afficherPatronales = g('patr').checked;
       m.afficherPied = g('pied-on').checked;
@@ -431,6 +455,7 @@
       cadre.innerHTML = entete + barre +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
           '<label>Nom du modèle<input data-f="nom" value="' + esc(m.nom) + '" style="width:100%"></label>' +
+          '<label>Société qui utilise ce modèle<input data-f="societe" value="' + esc(m.societe || '') + '" placeholder="ex. Hôtel de l\'Océan" style="width:100%"></label>' +
           '<label>Couleur d\'en-tête<input data-f="couleur" type="color" value="' + (m.couleur || '#1f5fbf') + '"></label>' +
           '<div style="grid-column:1/3;border:1px solid #cdd5e0;border-radius:8px;padding:10px"><b>Logo</b><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">' + logoAff +
             '<label>Importer (PNG, JPG, WebP, GIF, BMP, SVG : redimensionné automatiquement)<input type="file" accept="' + FORMATS_LOGO + '" data-logo-file></label>' +
@@ -651,5 +676,5 @@
     dessiner();
   }
 
-  root.PaieModeles = { logoHtml: logoHtml, positionLogo: positionLogo, panneau: panneau, definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
+  root.PaieModeles = { logoHtml: logoHtml, positionLogo: positionLogo, panneau: panneau, definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, pourSalarie: pourSalarie, cleSociete: cleSociete, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
 })(typeof window !== 'undefined' ? window : globalThis);
