@@ -46,6 +46,13 @@
     logo: '', logoPos: 'gauche', rubriques: []
   }];
 
+  // Gabarit « Hôtel Océan » : proposé en plus du modèle Sage, jamais par défaut
+  var OCEAN = {
+    id: 'ocean', nom: 'Hôtel Océan', gabarit: 'ocean', couleur: '', afficherPatronales: false, afficherPied: true,
+    afficherCout: false, pied: '', defaut: false, blocs: DISPOSITIONS.standard.slice(),
+    colonnes: { nombre: true, base: true, taux: true, retenuePatronale: false }, logo: '', logoPos: 'centre', rubriques: []
+  };
+
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -56,6 +63,7 @@
   function copie(m) {
     return {
       id: String(m.id || nouvelId()),
+      gabarit: m.gabarit === 'ocean' ? 'ocean' : 'sage',
       nom: String(m.nom || '').trim() || 'Modèle sans nom',
       couleur: /^#[0-9a-fA-F]{6}$/.test(m.couleur || '') ? m.couleur : '',
       afficherPatronales: m.afficherPatronales !== false,
@@ -102,6 +110,15 @@
       try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(n)); } catch (e) {}
       return n;
     }).catch(function () { return null; });
+  }
+  function parId(id) {
+    var l = charger();
+    return l.filter(function (m) { return m.id === String(id); })[0] || actif();
+  }
+  function options() {
+    return charger().map(function (m) {
+      return '<option value="' + esc(m.id) + '"' + (m.defaut ? ' selected' : '') + '>' + esc(m.nom) + '</option>';
+    }).join('');
   }
   function actif() {
     var l = charger();
@@ -335,7 +352,7 @@
       var entete = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="fermer">✕ Fermer</button></div>';
       var barre = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label>Modèle <select data-act="choisir">' + options + '</select></label>' +
         '<button type="button" data-act="nouveau">➕ Nouveau</button><button type="button" data-act="dupliquer">⧉ Dupliquer</button>' +
-        '<button type="button" data-act="defaut">★ Définir par défaut</button><button type="button" data-act="supprimer">✕ Supprimer</button>' +
+        '<button type="button" data-act="defaut">★ Définir par défaut</button><button type="button" data-act="ocean">🏨 Ajouter le gabarit Hôtel Océan</button><button type="button" data-act="supprimer">✕ Supprimer</button>' +
         '<label style="margin-left:auto"><button type="button" data-act="importer-pdf">📥 Créer depuis un bulletin PDF</button><input type="file" accept="application/pdf,.pdf" data-pdf-file style="display:none"></label></div>';
       if (!m) { cadre.innerHTML = entete + barre; return; }
 
@@ -381,7 +398,10 @@
       if (a === 'fermer') { ov.remove(); return; }
       lireForm();
       var m = trouve();
-      if (a === 'nouveau') {
+      if (a === 'ocean') {
+        if (!liste.some(function (x) { return x.id === OCEAN.id; })) liste.push(copie(OCEAN));
+        courant = OCEAN.id; reinitialiserEdition(); sauver(liste);
+      } else if (a === 'nouveau') {
         var n = copie({ nom: 'Nouveau modèle', afficherPatronales: true, afficherPied: true });
         liste.push(n); courant = n.id; reinitialiserEdition();
       } else if (a === 'dupliquer' && m) {
@@ -516,5 +536,5 @@
     });
   }
 
-  root.PaieModeles = { ouvrir: ouvrir, charger: charger, actif: actif, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
+  root.PaieModeles = { ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
 })(typeof window !== 'undefined' ? window : globalThis);

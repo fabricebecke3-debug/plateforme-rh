@@ -1,0 +1,15 @@
+VERSION 3.46 : CALCUL HÔTEL OCÉAN (règles du fichier Salaires_HOK_utiliser.xlsx)
+=================================================================================
+- Nouveau fichier paie-hok.js : calcul du gabarit « Hôtel Océan » selon les formules de la feuille Salaires
+  (logement 25 % de base + ancienneté, assiduité 5 %, ancienneté 6 %, transport 15 000, CNPS 4,2 % sur brut hors transport,
+  abattement 70 %, IRPP par barème, CAC 10 % de l'IRPP, crédit foncier 1 % (arrondi inférieur), RAV et TC par barèmes).
+- Vérification : les 38 lignes de la feuille Salaires sont reproduites exactement (brut, retenues, net).
+- Remplissage automatique depuis la fiche employé : salaire de base, date d'ancienneté, matricule, poste, échelon,
+  catégorie, N° CNPS. Les éléments complémentaires (prime de caisse, indemnité de congé, retenues) se saisissent
+  comme lignes manuelles sur le bulletin.
+- Paramètres modifiables : bouton « ⚙ Paramètres Hôtel Océan » à côté du choix du modèle. Taux, barèmes, coordonnées
+  de l'entreprise, et ajout de nouveaux paramètres (format JSON). Enregistrés sur cet appareil (localStorage).
+- Hypothèses à confirmer : seuil d'ancienneté (1 an), barème TC au-delà de 500 000, plafond CNPS (vide).
+- Écarts connus avec le bulletin de référence (SOUADATOU) : IRPP 4 037 contre 4 032 ; CAC 404 contre 403 ;
+  TC 770 contre 750 ; total des retenues 15 502 contre 15 477 ; net 169 063 contre 169 088.
+- Service worker : terh-v49.

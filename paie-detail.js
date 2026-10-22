@@ -201,7 +201,7 @@
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<input data-catq list="pd-cat-list" placeholder="+ Rechercher une rubrique (code ou nom)…" style="width:340px"><datalist id="pd-cat-list"></datalist></div>' +
       '<div data-res style="border-top:1px solid #d6dbe3;padding-top:10px"></div>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="s" data-x="grille">🧮 Grille de saisie (jours / heures)</button><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
+      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="s" data-x="grille">🧮 Grille de saisie (jours / heures)</button>' + '' + '<button type="button" class="s" data-x="hokp" style="font-size:12px">⚙ Paramètres Hôtel Océan</button><button type="button" class="p" data-x="print">🖨️ Aperçu / imprimer</button></div>';
     ov.appendChild(cadre); document.body.appendChild(ov);
     // Écarts entre le bulletin (N° CNPS, matricule saisis ou lus) et la fiche : proposer l'enregistrement
     function ecartsFiche() {
@@ -365,13 +365,16 @@
       else if (x === 'fiche') { if (etat.fiche) { appliquerFiche(etat.fiche); rendre(); } else alert('Choisissez d\'abord le salarié.'); }
       else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
       else if (x === 'simul') { if (root.PaieSimulation) root.PaieSimulation.ouvrir({ lignes: etat.lignes, saisies: { taux: tauxSage || {} }, nom: etat.nom }); else alert('paie-pointage-simulation.js n\'est pas chargé.'); }
+      else if (x === 'hokp') { if (root.PaieHok) root.PaieHok.ouvrir(); else alert('paie-hok.js n\'est pas chargé.'); }
       else if (x === 'mod') { if (root.PaieModeles) root.PaieModeles.ouvrir(); else alert('paie-modeles.js n\'est pas chargé.'); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'grille') { if (root.PaieGrille) root.PaieGrille.ouvrir(); else alert('paie-grille.js n\'est pas chargé.'); }
       else if (x === 'print') {
         var R = calcul();
-        var modele = (root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null, html;
-        if (root.PaieBulletinSage) html = root.PaieBulletinSage.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage() });
+        var selM = null;
+        var modele = (root.PaieModeles && root.PaieModeles.parId && selM) ? root.PaieModeles.parId(selM.value) : ((root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null), html;
+        var rendreBulletin = (modele && modele.gabarit === 'ocean' && root.PaieBulletinOcean) ? root.PaieBulletinOcean : root.PaieBulletinSage;
+        if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: etat.lignes, conges: etat.conges, periode: etat.periode }) : null });
         else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
         var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
         if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }), { apercu: true });

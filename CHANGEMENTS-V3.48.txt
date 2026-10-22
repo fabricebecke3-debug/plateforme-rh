@@ -1,0 +1,8 @@
+VERSION 3.48 : MODÈLES LIÉS À L'ENTREPRISE
+==========================================
+- Le modèle de bulletin est défini par entreprise (Modèles de la société, modèle par défaut). Il n'est plus choisi par salarié.
+- Fiche employé : le champ « Modèle de bulletin » est retiré. Les anciennes valeurs enregistrées ne sont plus utilisées.
+- Impression : le menu de choix du modèle à chaque impression est retiré ; le bulletin utilise le modèle par défaut de l'entreprise.
+- Le gabarit « Hôtel Océan » n'est plus ajouté automatiquement à toutes les entreprises : il s'ajoute à la demande avec le bouton « 🏨 Ajouter le gabarit Hôtel Océan » dans Modèles.
+- Paramètres Hôtel Océan : enregistrés par entreprise.
+- Service worker : terh-v51.

@@ -1,0 +1,8 @@
+VERSION 3.45 : GABARIT DE BULLETIN « HÔTEL OCÉAN »
+=================================================
+- Nouveau gabarit de bulletin « Hôtel Océan » (en-tête bilingue, logo, bloc salarié, tableau N° / Désignation / Nombre jour / Base unitaire / Taux / Gain / Retenue, total brut, total cotisations, net à payer, cadres de signature).
+- Il est proposé en plus du modèle « Sage standard », qui reste inchangé et par défaut.
+- Impression : un menu « Modèle » à côté du bouton Aperçu / imprimer permet de choisir le gabarit.
+- Les formules propres au gabarit Hôtel Océan seront ajoutées ultérieurement (fichier paie-bulletin-ocean.js). Les montants affichés proviennent pour l'instant du moteur de calcul commun.
+- Le logo de l'Hôtel Océan se règle dans Paramètres > Modèles (Importer), en sélectionnant le modèle « Hôtel Océan ».
+- Service worker : terh-v48.

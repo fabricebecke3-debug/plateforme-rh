@@ -1,0 +1,10 @@
+VERSION 3.47 : ANCIENNETÉ ET CONGÉS AUTOMATIQUES (Hôtel Océan et fichier du personnel)
+=====================================================================================
+- Fichier du personnel : nouvelles colonnes « Ancienneté » (ans et mois, calculés depuis la date d'ancienneté,
+  sinon la date d'entrée, sinon le début du contrat) et « Congé annuel (j) » (18 jours + 2 jours par tranche de 5 ans).
+- Gabarit Hôtel Océan : l'indemnité de congé est calculée automatiquement quand les dates de congé saisies
+  sur le bulletin chevauchent la période du bulletin. Son taux dépend de l'ancienneté de la fiche :
+  moins d'un an 0 %, 1 an révolu 4 %, 2 ans et plus 2 %. Base : salaire de base (à confirmer).
+- Les paramètres du congé (paliers, taux, base) sont modifiables dans « ⚙ Paramètres Hôtel Océan », clé « conge ».
+- Ancienneté du bulletin = même date que le fichier du personnel.
+- Service worker : terh-v50.

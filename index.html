@@ -371,7 +371,6 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label>Salaire de base<input type="number" step="any" id="f_sb"></label>
       <label>Horaire (h/mois)<input type="number" step="any" id="f_hor" placeholder="173.33"></label>
       <label>Périodicité<select id="f_per"><option value="mois">Mois</option><option value="quinzaine">Quinzaine</option><option value="semaine">Semaine</option></select></label>
-      <label>Modèle de bulletin<input id="f_mod" placeholder="vide = modèle de la société"></label>
     </fieldset>
     <fieldset class="fs"><legend>Classification</legend>
       <label>Convention collective<input id="f_conv"></label>
@@ -1274,13 +1273,18 @@ const CAN={
 const toApp=r=>({id:String(r.id),entree:r.date_entree||'',lieu:r.lieu_travail||'',sb:r.salaire_base??'',hor:r.horaire??'',per:r.periodicite||'mois',mod:r.modele_bulletin||'',conv:r.convention||'',cat:r.categorie||'',niv:r.niveau||'',ind:r.indice||'',coef:r.coefficient||'',dane:r.date_anciennete||'',dep:r.date_entree_profession||'',tent:r.type_entree||'',etab:r.etablissement||'',n:r.nom||'',p:r.poste||'',g:r.genre||'M',dn:r.date_naissance||'',t:r.type_contrat||'TEMPORAIRE',deb:r.debut||'',fin:r.fin||'',tel:r.telephone||'',cnps:r.cnps||'',dv:r.date_visite||'',darret:r.date_arret||'',marret:r.motif_arret||'',comarret:r.commentaire_arret||'',contrat_url:r.contrat_url||'',contrat_nom:r.contrat_nom||'',scnpsSafe:cnpsStatut(r.cnps)});
 const toDb=o=>({...(o.entree?{date_entree:o.entree}:{}),...(o.lieu?{lieu_travail:o.lieu}:{}),
   ...(o.sb?{salaire_base:Number(o.sb)}:{}),...(o.hor?{horaire:Number(o.hor)}:{}),...(o.per?{periodicite:o.per}:{}),
-  ...(o.mod?{modele_bulletin:o.mod}:{}),...(o.conv?{convention:o.conv}:{}),...(o.cat?{categorie:o.cat}:{}),
+  ...(o.conv?{convention:o.conv}:{}),...(o.cat?{categorie:o.cat}:{}),
   ...(o.niv?{niveau:o.niv}:{}),...(o.ind?{indice:o.ind}:{}),...(o.coef?{coefficient:o.coef}:{}),
   ...(o.dane?{date_anciennete:o.dane}:{}),...(o.dep?{date_entree_profession:o.dep}:{}),
   ...(o.tent?{type_entree:o.tent}:{}),...(o.etab?{etablissement:o.etab}:{}),nom:(o.n||'').trim(),poste:(o.p||'').trim(),genre:o.g==='F'?'F':'M',date_naissance:o.dn||null,type_contrat:['CDI','CDD','TEMPORAIRE','OCCASIONNEL'].includes(o.t)?o.t:'TEMPORAIRE',debut:o.deb||null,fin:o.fin||null,telephone:(o.tel||'').trim(),cnps:(o.cnps||'').trim(),date_visite:o.dv||null,date_arret:o.darret||null,motif_arret:(o.marret||'').trim()||null,commentaire_arret:(o.comarret||'').trim()||null,contrat_url:o.contrat_url||null,contrat_nom:o.contrat_nom||null,...(MULTI&&CO?{entreprise_id:CO}:{})});
 function statC(d){if(!d)return 'INCONNU';const dt=d instanceof Date?d:P(d);if(!dt)return 'INCONNU';if(dt<T)return 'EXPIRÉ';return dt<=new Date(+T+90*day)?'BIENTÔT':'VALIDE';}
 function statV(d){if(!d)return 'INCONNUE';const p=P(d);if(!p)return 'INCONNUE';if(p>T)return 'PLANIFIÉE';const s=statC(addM(p,12));return s==='EXPIRÉ'?'EXPIRÉE':s;}
-function en(r){const _p=posteCanon(r.p);const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,p:_p,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||''};}
+function ancMois(d){if(!d)return null;const x=new Date(String(d).slice(0,10)+'T00:00:00'),t=new Date();if(isNaN(x))return null;const m=(t.getFullYear()-x.getFullYear())*12+(t.getMonth()-x.getMonth());return m<0?null:m;}
+function ancTexte(d){const m=ancMois(d);return m==null?'':Math.floor(m/12)+' an(s) '+(m%12)+' mois';}
+function ancAns(d){const m=ancMois(d);return m==null?null:Math.floor(m/12);}
+/* Droit au congé annuel (Code du travail) : 1,5 jour par mois travaillé = 18 jours, +2 jours par tranche entière de 5 ans */
+function congeAnnuel(d){const a=ancAns(d);return a==null?null:18+2*Math.floor(a/5);}
+function en(r){const _p=posteCanon(r.p);const fe=r.darret||r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):null);const f=P(fe),isA=!!r.darret,s=cnpsStatut(r.cnps);return {...r,p:_p,finEffective:fe,scnpsSafe:s,age:ageOf(r.dn),sc:r.t==='CDI'&&!isA?'CDI':isA?'ARRÊT':statC(f),jr:(r.t==='CDI'&&!isA)||!f?null:Math.round((f-T)/day),sv:statV(r.dv),dvn:r.dv?LD(addM(P(r.dv),12)):'',annee:(r.deb||'').slice(0,4),finC:r.fin||(r.t!=='CDI'&&r.deb?calcFin(r.deb):''),cnpsRetard:cnpsRetard({...r,scnpsSafe:s}),tLabel:r.t==='CDD'?'CDD':r.t==='CDI'?'CDI':(r.t==='TEMPORAIRE'||r.t==='TEMPORAIRE3')?'CTT':r.t==='OCCASIONNEL'?'OCC.':r.t,hasDoc:!!r.contrat_url,docNom:r.contrat_nom||'',anc:ancTexte(r.dane||r.entree||r.deb),ansAnc:ancAns(r.dane||r.entree||r.deb),dc:congeAnnuel(r.dane||r.entree||r.deb)};}
 const cnt=(a,k)=>a.reduce((o,r)=>(o[r[k]]=(o[r[k]]||0)+1,o),{});
 const bd=s=>{const safe=esc(String(s??''));return `<span class="b ${safe.replace(/\s/g,'')}">${safe}</span>`;};
 function bars(id,o,limit){let e=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(limit)e=e.slice(0,limit);if(!e.length){$(id).textContent='—';return;}const m=e[0][1];$(id).innerHTML=e.map(([k,v],i)=>`<div class="br"><span>${esc(k)}</span><i style="width:${v/m*100}%"></i><em>${v}</em></div>`).join('');}
@@ -1600,7 +1604,7 @@ async function alertDiag(){
 }
 
 /* ============ LISTE ============ */
-const C=[['n','Nom'],['p','Poste'],['lieu','Lieu de travail'],['g','Sexe'],['age','Âge'],['tLabel','Type'],['annee','Année contrat'],['deb','Début'],['finC','Fin'],['darret','Arrêt'],['jr','J.'],['sc','Statut'],['scnpsSafe','CNPS'],['cnps','N° CNPS'],['dv','Dernière visite'],['dvn','Prochaine visite'],['sv','Visite'],['tel','Tél'],['hasDoc','📁 Dossier en ligne'],['','']];
+const C=[['n','Nom'],['p','Poste'],['lieu','Lieu de travail'],['g','Sexe'],['age','Âge'],['tLabel','Type'],['annee','Année contrat'],['anc','Ancienneté'],['dc','Congé annuel (j)'],['deb','Début'],['finC','Fin'],['darret','Arrêt'],['jr','J.'],['sc','Statut'],['scnpsSafe','CNPS'],['cnps','N° CNPS'],['dv','Dernière visite'],['dvn','Prochaine visite'],['sv','Visite'],['tel','Tél'],['hasDoc','📁 Dossier en ligne'],['','']];
 $('th').innerHTML='<tr>'+C.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]?' ↕':''}</th>`).join('')+'</tr>';
 function filt(){
   const opt=(id,t,a)=>{const v=$(id).value;$(id).innerHTML=`<option value="">${t}</option>`+a.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('');};
@@ -1621,7 +1625,7 @@ function list(){
   cur.sort((a,b)=>{const x=a[sk]??'',y=b[sk]??'';return(x>y?1:x<y?-1:0)*sd;});
   const avecDoc=cur.filter(r=>r.hasDoc).length;
   $('ct').textContent=cur.length+' agent(s) sur '+E.length+' · '+avecDoc+' dossier(s) en ligne · '+(cur.length-avecDoc)+' absent(s)';
-  $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${esc(r.lieu)||'—'}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
+  $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${esc(r.lieu)||'—'}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${esc(r.anc)||'—'}</td><td>${r.dc??'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
   try{xListCols(cur);}catch(e){console.warn('xListCols',e);}
   essaiSync().catch(()=>{});
   applyPerms();
@@ -1833,7 +1837,7 @@ $('tmf').onsubmit=async e=>{
 };
 
 /* ============ FORMULAIRE ============ */
-const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu','f_sb','f_hor','f_per','f_mod','f_conv','f_cat','f_niv','f_ind','f_coef','f_dane','f_dep','f_tent','f_etab'];
+const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu','f_sb','f_hor','f_per','f_conv','f_cat','f_niv','f_ind','f_coef','f_dane','f_dep','f_tent','f_etab'];
 const FLK=['n','p','g','dn','t','deb','fin','tel','cnps','dv','entree','lieu','sb','hor','per','mod','conv','cat','niv','ind','coef','dane','dep','tent','etab'];
 function edit(r){
   go('n');clearScan();
@@ -9723,6 +9727,8 @@ hook();setInterval(hook,1500);
 <script src="paie-grille.js"></script>
 <script src="paie-pointage-simulation.js"></script>
 <script src="paie-bulletin-sage.js"></script>
+<script src="paie-bulletin-ocean.js"></script>
+<script src="paie-hok.js"></script>
 <script src="paie-constantes.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
