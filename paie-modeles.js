@@ -536,5 +536,12 @@
     });
   }
 
-  root.PaieModeles = { ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
+  // Modèle par défaut de l'entreprise (utilisé pour tous ses bulletins)
+  function definirDefaut(id) {
+    var l = charger();
+    l.forEach(function (m) { m.defaut = (m.id === String(id)); });
+    sauver(l);
+    return l;
+  }
+  root.PaieModeles = { definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
 })(typeof window !== 'undefined' ? window : globalThis);
