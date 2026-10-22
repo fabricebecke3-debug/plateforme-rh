@@ -218,7 +218,7 @@
       rubriques: function () { return tableau(o, R, couleur); },
       pied: function () { return pied(o, R, couleur); }
     };
-    return '<div class="bs-bulletin" style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + (root.PaieModeles && root.PaieModeles.logoHtml ? root.PaieModeles.logoHtml(mod) : '') +
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 

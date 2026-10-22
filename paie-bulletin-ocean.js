@@ -39,9 +39,7 @@
       return '<td style="width:36%;vertical-align:top;text-align:center;font-size:8.5px;line-height:1.35">' +
         lignes.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</td>';
     };
-    var centre = mod.logo
-      ? '<img src="' + mod.logo + '" alt="" style="max-height:70px;max-width:180px">'
-      : '<div style="font-weight:700;font-size:15px">' + esc(o.employeur || '') + '</div>';
+    var centre = '<div style="font-weight:700;font-size:15px">' + esc(o.employeur || '') + '</div>';
     return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><tr>' +
       colonne(ENTETE_FR) +
       '<td style="width:28%;text-align:center;vertical-align:middle">' + centre + '</td>' +
@@ -118,7 +116,7 @@
       rubriques: function () { return tableau(o); },
       pied: function () { return pied(o, mod); }
     };
-    return '<div class="bs-bulletin" style="font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' +
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + (root.PaieModeles && root.PaieModeles.logoHtml ? root.PaieModeles.logoHtml(mod) : '') +
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 

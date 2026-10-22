@@ -1,0 +1,7 @@
+VERSION 3.52 : CORRECTIONS D'AFFICHAGE ET DE CONTRÔLE
+====================================================
+- Module congés : le texte d'information écrit dans le bouton « Rapport global RH » (même identifiant) est
+  désormais affiché dans sa propre zone (identifiant pgr_info). Le bouton garde son libellé.
+- Calcul de paie : le bouton « Calculer avec les formules Sage » avait le même identifiant que la grille
+  de saisie, et ne réagissait pas. Il a maintenant un identifiant distinct (sgg_btn).
+- Service worker : terh-v55.

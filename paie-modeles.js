@@ -77,6 +77,9 @@
       colonnes: Object.assign({ nombre: true, base: true, taux: true, retenuePatronale: true }, m.colonnes || {}),
       logo: /^data:image\/(png|jpe?g|gif|webp);base64,/.test(m.logo || '') ? m.logo : '',
       logoPos: POS_LOGO[m.logoPos] ? m.logoPos : 'gauche',
+      logoX: (m.logoX === undefined || m.logoX === null || m.logoX === '') ? undefined : Math.max(0, Number(m.logoX) || 0),
+      logoY: (m.logoY === undefined || m.logoY === null || m.logoY === '') ? undefined : Math.max(0, Number(m.logoY) || 0),
+      logoH: (m.logoH === undefined || m.logoH === null || m.logoH === '') ? undefined : Math.max(3, Number(m.logoH) || 15),
       rubriques: Array.isArray(m.rubriques) ? m.rubriques.map(String) : []
     };
   }
@@ -275,6 +278,20 @@
     })();
   }
 
+  // Position libre du logo, en mm depuis le coin haut-gauche du bulletin (défaut selon l'ancienne position)
+  var LOGO_DEFAUT = { gauche: [0, 0], centre: [75, 0], droite: [150, 0], aucun: [0, 0] };
+  function valeurLogo(v, d) { return (v === undefined || v === null || v === '' || !isFinite(Number(v))) ? d : Number(v); }
+  function positionLogo(m) {
+    var d = LOGO_DEFAUT[(m && m.logoPos) || 'gauche'] || [0, 0];
+    return { x: Math.max(0, valeurLogo(m && m.logoX, d[0])), y: Math.max(0, valeurLogo(m && m.logoY, d[1])), h: Math.max(3, valeurLogo(m && m.logoH, 15)) };
+  }
+  // Balise du logo à insérer dans le bulletin (positionnée en absolu, donc placée librement)
+  function logoHtml(m) {
+    if (!m || !m.logo || m.logoPos === 'aucun') return '';
+    var p = positionLogo(m);
+    return '<img src="' + m.logo + '" alt="" style="position:absolute;left:' + p.x + 'mm;top:' + p.y + 'mm;height:' + p.h + 'mm;width:auto">';
+  }
+
   function ouvrir(onChange, idCourant) {
     var id = 'pm-overlay';
     if (document.getElementById(id)) return;
@@ -306,6 +323,51 @@
     ov.appendChild(cadre);
     document.body.appendChild(ov);
 
+    // Aperçu du logo : zone = 190 mm x 60 mm affichée à 2 px par mm ; glisser le logo ou saisir X, Y, hauteur
+    function logoBloc(m) {
+      var p = positionLogo(m);
+      var apercu = m.logo
+        ? '<img data-logo-drag src="' + m.logo + '" alt="" style="position:absolute;left:' + (p.x * 2) + 'px;top:' + (p.y * 2) + 'px;height:' + (p.h * 2) + 'px;width:auto;cursor:move;touch-action:none;user-select:none">'
+        : '<div style="position:absolute;left:8px;top:8px;color:#777">Importez un logo pour le placer</div>';
+      return '<div style="grid-column:1/3;border:1px solid #cdd5e0;border-radius:8px;padding:10px"><b>Position du logo</b> <span style="color:#555">(glissez le logo dans le cadre, ou saisissez les valeurs en mm)</span>' +
+        '<div data-logo-zone style="position:relative;width:380px;height:120px;margin:8px 0;border:1px dashed #888;background:#fff;overflow:hidden">' + apercu + '</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">' +
+        '<label>X (mm) <input type="number" min="0" step="1" data-logo-n="logoX" value="' + p.x + '" style="width:80px"></label>' +
+        '<label>Y (mm) <input type="number" min="0" step="1" data-logo-n="logoY" value="' + p.y + '" style="width:80px"></label>' +
+        '<label>Hauteur (mm) <input type="number" min="3" step="1" data-logo-n="logoH" value="' + p.h + '" style="width:80px"></label>' +
+        '</div></div>';
+    }
+    function majApercu() {
+      var m = trouve(); if (!m) return;
+      var p = positionLogo(m), img = cadre.querySelector('[data-logo-drag]');
+      if (img) { img.style.left = (p.x * 2) + 'px'; img.style.top = (p.y * 2) + 'px'; img.style.height = (p.h * 2) + 'px'; }
+      var champs = { logoX: p.x, logoY: p.y, logoH: p.h };
+      Object.keys(champs).forEach(function (k) {
+        var el = cadre.querySelector('[data-logo-n="' + k + '"]');
+        if (el && el !== document.activeElement) el.value = champs[k];
+      });
+    }
+    cadre.addEventListener('input', function (e) {
+      var f = e.target.getAttribute && e.target.getAttribute('data-logo-n'); if (!f) return;
+      var m = trouve(); if (!m) return;
+      m[f] = Math.max(0, Number(e.target.value) || 0);
+      majApercu();
+    });
+    cadre.addEventListener('pointerdown', function (e) {
+      var img = e.target.closest && e.target.closest('[data-logo-drag]'); if (!img) return;
+      var m = trouve(); if (!m) return;
+      e.preventDefault();
+      var p0 = positionLogo(m), x0 = e.clientX, y0 = e.clientY;
+      function bouge(ev) {
+        m.logoX = Math.max(0, Math.round(p0.x + (ev.clientX - x0) / 2));
+        m.logoY = Math.max(0, Math.round(p0.y + (ev.clientY - y0) / 2));
+        majApercu();
+      }
+      function lache() { document.removeEventListener('pointermove', bouge); document.removeEventListener('pointerup', lache); majApercu(); }
+      document.addEventListener('pointermove', bouge);
+      document.addEventListener('pointerup', lache);
+    });
+
     function trouve() { return liste.filter(function (m) { return m.id === courant; })[0]; }
     function msg(t, err) { var e = cadre.querySelector('[data-msg]'); if (e) { e.textContent = t; e.style.color = err ? '#c0392b' : '#1e8449'; } }
 
@@ -331,7 +393,6 @@
       var g = function (f) { return cadre.querySelector('[data-f="' + f + '"]'); };
       m.nom = g('nom').value;
       m.couleur = g('couleur').value;
-      m.logoPos = g('logopos').value;
       m.afficherPatronales = g('patr').checked;
       m.afficherPied = g('pied-on').checked;
       m.afficherCout = g('cout-on').checked;
@@ -373,7 +434,7 @@
           '<label>Couleur d\'en-tête<input data-f="couleur" type="color" value="' + (m.couleur || '#1f5fbf') + '"></label>' +
           '<div style="grid-column:1/3;border:1px solid #cdd5e0;border-radius:8px;padding:10px"><b>Logo</b><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">' + logoAff +
             '<label>Importer (PNG, JPG, WebP, GIF, BMP, SVG : redimensionné automatiquement)<input type="file" accept="' + FORMATS_LOGO + '" data-logo-file></label>' +
-            '<label>Position<select data-f="logopos">' + Object.keys(POS_LOGO).map(function (k) { return '<option value="' + k + '"' + (m.logoPos === k ? ' selected' : '') + '>' + POS_LOGO[k] + '</option>'; }).join('') + '</select></label>' +
+            logoBloc(m) +
             (m.logo ? '<button type="button" data-act="logo-retirer">Retirer le logo</button>' : '') +
           '</div></div>' +
           '<label style="display:flex;gap:6px;align-items:center"><input data-f="patr" type="checkbox"' + (m.afficherPatronales ? ' checked' : '') + '> Afficher les charges patronales</label>' +
@@ -590,5 +651,5 @@
     dessiner();
   }
 
-  root.PaieModeles = { panneau: panneau, definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
+  root.PaieModeles = { logoHtml: logoHtml, positionLogo: positionLogo, panneau: panneau, definirDefaut: definirDefaut, ouvrir: ouvrir, charger: charger, actif: actif, parId: parId, options: options, synchroniser: synchroniser, BLOCS: BLOCS, DISPOSITIONS: DISPOSITIONS };
 })(typeof window !== 'undefined' ? window : globalThis);

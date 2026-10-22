@@ -1,0 +1,10 @@
+VERSION 3.53 : POSITION LIBRE DU LOGO
+=====================================
+- Éditeur de modèle : le menu « Position » (gauche, centre, droite) est remplacé par un aperçu du bulletin
+  (190 x 60 mm). Glissez le logo où vous voulez, ou saisissez X, Y et la hauteur en millimètres.
+- Le logo est positionné depuis le coin haut-gauche du bulletin. Les anciens modèles gardent leur place
+  d'origine tant qu'ils ne sont pas déplacés.
+- Bulletin standard (Sage) : le logo, qui n'était pas affiché, apparaît maintenant à la position choisie.
+- Bulletin Hôtel Océan : le logo est placé librement ; le centre de l'en-tête affiche le nom de l'employeur.
+- Le logo est posé par-dessus le bulletin : placez-le dans un espace libre de l'en-tête.
+- Service worker : terh-v56.
