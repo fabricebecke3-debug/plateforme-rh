@@ -50,6 +50,7 @@
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  var FORMULE_CCF_ANCIENNE = 'si(Lcfc>p_seuil_cfc, floor(p_cfc*Lcfc), 0)';
   // Fusion : les objets sont fusionnés, les listes et valeurs sont remplacées (ajout de paramètres possible)
   function fusion(base, sur) {
     var out = clone(base);
@@ -74,12 +75,22 @@
         var s = JSON.parse(t);
         if (s.regles_version !== DEFAUT.regles_version) { delete s.anciennete; }
         if (s.tdl_version !== DEFAUT.tdl_version) { delete s.tc; }
+        // Ancienne formule du CCF (1 % du net imposable tronqué) remplacée par 1 % de la base arrondie : on retire l'ancienne
+        var ovr = s.lignes && s.lignes.overrides && s.lignes.overrides['12'];
+        if (ovr && ovr.expr === FORMULE_CCF_ANCIENNE) { delete ovr.expr; if (!Object.keys(ovr).length) delete s.lignes.overrides['12']; }
         return fusion(DEFAUT, s);
       }
     } catch (e) {}
     return clone(DEFAUT);
   }
-  function enregistrer(p) { try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(p)); } catch (e) {} }
+  // Sauvegarde partagée (table parametres, comme les modèles et le pointage) : le navigateur garde une copie locale
+  var CLE_PONT = { params: 'hok_params_json', perm: 'hok_perm_json', mois: 'hok_mois_json' };
+  function pont() { return root.TERH_paieHok || null; }
+  function vers(nom, obj) {
+    var p = pont();
+    if (p && p.save) Promise.resolve(p.save(CLE_PONT[nom], obj)).catch(function (e) { console.error('Hôtel Océan : sauvegarde base impossible', e); });
+  }
+  function enregistrer(p) { try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(p)); } catch (e) {} vers('params', p); }
 
   // Particularités PERMANENTES par salarié (restent d'un mois à l'autre) : modifiables, supprimables.
   //   ex. prime de caisse récurrente, base CNPS incluant le transport.
@@ -103,8 +114,31 @@
   function ecrire(cle, obj) { try { root.localStorage && root.localStorage.setItem(cle, JSON.stringify(obj)); } catch (e) {} }
   function chargerPermanentes() { return lire(cleCo(PERM_CLE), PERM_DEFAUT); }
   function chargerMois() { return lire(cleCo(MOIS_CLE), MOIS_DEFAUT); }
-  function enregistrerPermanentes(obj) { ecrire(cleCo(PERM_CLE), obj); }
-  function enregistrerMois(obj) { ecrire(cleCo(MOIS_CLE), obj); }
+  function enregistrerPermanentes(obj) { ecrire(cleCo(PERM_CLE), obj); vers('perm', obj); }
+  function enregistrerMois(obj) { ecrire(cleCo(MOIS_CLE), obj); vers('mois', obj); }
+  // Lit les trois jeux de données dans la base. Si la base est vide et que ce navigateur a déjà des données,
+  // elles sont envoyées à la base (aucune donnée n'est perdue). Sinon la base fait foi.
+  function synchroniser() {
+    var p = pont();
+    if (!p || !p.load) return Promise.resolve(false);
+    var noms = ['params', 'perm', 'mois'];
+    var locales = { params: cle(), perm: cleCo(PERM_CLE), mois: cleCo(MOIS_CLE) };
+    return Promise.all(noms.map(function (n) {
+      return Promise.resolve(p.load(CLE_PONT[n])).catch(function () { return null; });
+    })).then(function (dist) {
+      noms.forEach(function (n, i) {
+        var distant = dist[i];
+        var local = null;
+        try { var t = root.localStorage && root.localStorage.getItem(locales[n]); if (t) local = JSON.parse(t); } catch (e) { local = null; }
+        if (distant && typeof distant === 'object' && Object.keys(distant).length) {
+          try { root.localStorage && root.localStorage.setItem(locales[n], JSON.stringify(distant)); } catch (e) {}
+        } else if (local && typeof local === 'object' && Object.keys(local).length) {
+          vers(n, local);
+        }
+      });
+      return true;
+    }).catch(function () { return false; });
+  }
   // Clé de période : « JJ/MM/AAAA au JJ/MM/AAAA » (le texte du bulletin peut varier)
   function cleperiode(periode) {
     var m = /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+au\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/.exec(String(periode || ''));
@@ -140,9 +174,28 @@
   }
   // Rubriques calculées par le modèle Océan qu'on peut corriger pour un salarié et un mois
   // (code -> champ des particularités du mois). Le bulletin reprend la valeur corrigée ; l'effacer rétablit le calcul.
-  var CHAMPS_CORRIGEABLES = { '2': 'logement', '3': 'assiduite', '4': 'transport', '5': 'ancMontant', '6': 'congeMontant',
+  var CHAMPS_CORRIGEABLES = { '2': 'logement', '3': 'tauxAssiduite', '4': 'transport', '5': 'tauxAnc', '6': 'congeMontant',
     '10': 'irpp', '11': 'cac', '12': 'cfc', '14': 'rav', '15': 'tc', '17': 'fne', '13': 'cnpsBase' };
   var RETENUE_FIXE = { irpp: 1, cac: 1, cfc: 1, rav: 1, tc: 1, fne: 1 };
+  // Rubriques du catalogue Sage déjà calculées par le modèle Hôtel Océan : même montant, code Océan.
+  // Elles ne s'ajoutent jamais en élément libre (sinon le montant est compté deux fois).
+  var EQUIV_OCEAN = { '1435': '2', '1510': '3', '1430': '4', '1202': '5' };
+  // Particularités du MOIS retirées (corrections) : seules les valeurs permanentes restent.
+  // Sert à calculer le montant automatique, pour le comparer à une correction.
+  function particulariteSansCorrection(nom, periode) {
+    var p = particularite(nom, periode);
+    var perms = chargerPermanentes(), kp = trouverCle(perms, nom), perm = kp ? perms[kp] : {};
+    Object.keys(CHAMPS_CORRIGEABLES).forEach(function (code) {
+      var champ = CHAMPS_CORRIGEABLES[code];
+      if (RETENUE_FIXE[champ]) {
+        p.retenues = Object.assign({}, p.retenues);
+        if (perm.retenues && perm.retenues[champ] !== undefined) p.retenues[champ] = perm.retenues[champ];
+        else delete p.retenues[champ];
+      } else if (perm[champ] !== undefined) p[champ] = perm[champ];
+      else delete p[champ];
+    });
+    return p;
+  }
   function champCorrigeable(code) { return CHAMPS_CORRIGEABLES.hasOwnProperty(String(code)); }
   // Enregistre (valeur) ou efface (null) la correction d'une rubrique pour un salarié et un mois
   function corrigerRubrique(nom, periode, code, valeur) {
@@ -172,6 +225,24 @@
     var mo = particularite(nom, periode);
     if (RETENUE_FIXE[champ]) return (mo.retenues && mo.retenues[champ] !== undefined) ? mo.retenues[champ] : null;
     return (mo[champ] !== undefined) ? mo[champ] : null;
+  }
+  // Rubriques nulles affichées sur le bulletin pour ce salarié et ce mois (par défaut : masquées)
+  function rubriquesAffichees(nom, periode) {
+    var mo = chargerMois()[cleperiode(periode)] || {}, k = trouverCle(mo, nom);
+    return (k && mo[k] && Array.isArray(mo[k].afficher)) ? mo[k].afficher.slice() : [];
+  }
+  function afficherRubrique(nom, periode, code, actif) {
+    var store = chargerMois(), cle = cleperiode(periode);
+    store[cle] = store[cle] || {};
+    var k = trouverCle(store[cle], nom) || String(nom || '').trim();
+    var d = store[cle][k] = store[cle][k] || {};
+    var liste = (Array.isArray(d.afficher) ? d.afficher : []).filter(function (c) { return String(c) !== String(code); });
+    if (actif) liste.push(String(code));
+    if (liste.length) d.afficher = liste; else delete d.afficher;
+    if (!Object.keys(d).length) delete store[cle][k];
+    if (!Object.keys(store[cle]).length) delete store[cle];
+    enregistrerMois(store);
+    return liste;
   }
   // Particularités applicables à un salarié pour une période : permanentes, complétées/remplacées par celles du mois
   function particularite(nom, periode) {
@@ -343,7 +414,7 @@
     '6': { lib: 'Indemnité de Congé', formule: 'conge', note: 'congé pris ce mois' },
     '10': { lib: 'IRPP', formule: 'bareme_irpp(Lirpp)', note: 'barème sur base imposable arrondie à 250' },
     '11': { lib: 'CAC', formule: 'p_cac*irpp', note: '10 % de l\'IRPP' },
-    '12': { lib: 'Crédit Foncier du Cameroun', formule: 'si(Lcfc>p_seuil_cfc, floor(p_cfc*Lcfc), 0)', note: '1 % de la base imposable (impôt)' },
+    '12': { lib: 'Crédit Foncier du Cameroun', formule: 'si(Lcfc>p_seuil_cfc, round(p_cfc*Lirpp), 0)', note: '1 % de la base imposable arrondie à 250 (impôt)' },
     '13': { lib: 'CNPS', formule: 'cnps', note: '4,2 % de la base CNPS' },
     '14': { lib: 'RAV', formule: 'bareme_rav(L)', note: 'barème RAV' },
     '15': { lib: 'Taxe Communale/TDL', formule: 'bareme_tc(L)', note: 'barème TC' },
@@ -406,11 +477,14 @@
     }
     // Ancienneté et logement : sur le salaire proratisé (formules du modèle)
     var smens = ((o.salaireMensuel !== undefined && o.salaireMensuel !== null && o.salaireMensuel !== '') ? nb(o.salaireMensuel) : sbPlein) * pres;
-    var tauxAnc = tauxAnciennete(ans, p);
+    // Taux d'ancienneté : celui de la table (années), ou le taux corrigé du mois (pourcentage)
+    var tauxAnc = (o.tauxAnc !== undefined && o.tauxAnc !== null && o.tauxAnc !== '') ? nb(o.tauxAnc) : tauxAnciennete(ans, p);
     var ancMontant = (o.ancMontant !== undefined && o.ancMontant !== null && o.ancMontant !== '') ? nb(o.ancMontant) : tauxAnc * smens;
     var logement = (o.logement !== undefined && o.logement !== null && o.logement !== '') ? nb(o.logement) : p.logement.taux * (smens + ancMontant);
     // Prime d'assiduité : 0 en cas d'absence (jours ou heures)
-    var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : (pres < 1 ? 0 : p.assiduite.taux * sb);
+    // Taux d'assiduité (5 % par défaut, ou taux corrigé du mois) appliqué au salaire de base
+    var tauxAss = (o.tauxAssiduite !== undefined && o.tauxAssiduite !== null && o.tauxAssiduite !== '') ? nb(o.tauxAssiduite) : p.assiduite.taux;
+    var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : (pres < 1 ? 0 : tauxAss * sb);
     // Transport proratisé : montant × présence
     var transport = (o.transport !== undefined && o.transport !== null && o.transport !== '') ? nb(o.transport) : nb(p.transport.montant) * pres;
     // Congé payé (cours et décret 75/28) : congé principal 1,5 jour par mois sur 12 mois = 18 jours,
@@ -448,7 +522,7 @@
     // Rubriques de gain standard : formule modifiée (ov) ou masquée (masq)
     var STD_GAIN = [['1', 'sb', sb, 'Salaire de Base', max0(30 * pres), sbPlein / 30, null],
       ['2', 'logement', logement, 'Indemnité de Logement', null, null, null],
-      ['3', 'assiduite', assiduite, "Prime d'Assiduité", null, null, null],
+      ['3', 'assiduite', assiduite, "Prime d'Assiduité", null, null, tauxAss],
       ['4', 'transport', transport, 'Indemnité de Transport', null, null, null],
       ['5', 'anc', ancMontant, "Prime d'Ancienneté", null, null, tauxAnc || null],
       ['6', 'conge', conge, 'Indemnité de Congé', (congeJours !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeJours : null, (congeValeurJour !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeValeurJour : null, null]];
@@ -518,7 +592,8 @@
     var cac = p.cac.taux * irppMontant;
     // Base CFC : hors libres non soumises à la CFC
     var Lcfc = (brut - nonIrpp - nonCfc) * p.abattement.taux - cnps;
-    var cfc = Lcfc <= p.irpp.seuils[0] ? 0 : Math.floor(p.cfc.taux * Lcfc);
+    // CCF = 1 % de la base imposable arrondie à 250 (base de calcul du barème, cf. bulletins de septembre 2026)
+    var cfc = Lcfc <= p.irpp.seuils[0] ? 0 : Math.round(p.cfc.taux * Lirpp);
     // Charges patronales : taux du paramétrage sur la base CNPS (K) et la base CFC (Lcfc), arrondis par ligne
     var PP = p.patronales || DEFAUT.patronales;
     var patr = {
@@ -669,21 +744,22 @@
     var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
     // Éléments libres : lignes saisies à la main et lignes de la grille (heures sup., rubriques ajoutées).
     // Le salaire de base (1000) reste calculé par le moteur à partir de la fiche et des absences.
-    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0; };
+    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0 && !EQUIV_OCEAN[String(l.code)]; };
     var manuels = lignes.filter(estLibre)
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false, src: l.grille ? 'Grille' : 'Saisie' }; });
     var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
-    var part = particularite(f.nom || o.nom, o.periode);
+    var part = o.sansCorrections ? particulariteSansCorrection(f.nom || o.nom, o.periode) : particularite(f.nom || o.nom, o.periode);
     var libres = manuels.concat(part.manuels || []).map(function (m) { return { code: m.code, lib: m.lib }; })
       .concat(retenuesManuelles.map(function (r) { return { code: r.code, lib: r.lib }; }));
     var pCodes = memoriserCodes(charger(), libres);
     return calculer({
       manuels: manuels.concat((part.manuels || []).map(function (m) { return Object.assign({}, m, { src: 'Particularité du mois' }); })),
-      ancMontant: part.ancMontant, congeMontant: part.congeMontant, cnpsInclutTransport: part.cnpsInclutTransport,
+      ancMontant: undefined, tauxAnc: part.tauxAnc, congeMontant: part.congeMontant, cnpsInclutTransport: part.cnpsInclutTransport,
       cnpsBase: part.cnpsBase, retenues: part.retenues,
       logement: (f.logement !== undefined && f.logement !== '') ? f.logement : part.logement,
       salaireBase: sb,
+      transport: (f.transport !== undefined && f.transport !== '') ? f.transport : undefined,
       ansAnciennete: (f.ans !== undefined && f.ans !== '') ? nb(f.ans) : undefined,
       salaireMensuel: (f.smens !== undefined && f.smens !== '') ? f.smens : undefined,
       exonere: !!f.exonere,
@@ -693,7 +769,7 @@
       dettes: (f.dettes !== undefined && f.dettes !== '') ? f.dettes : montantLig('22'),
       prestation: (f.prestation !== undefined && f.prestation !== '') ? f.prestation : montantLig('27'),
       communard: (f.communard !== undefined && f.communard !== '') ? f.communard : montantLig('28'),
-      assiduite: (f.assiduite !== undefined && f.assiduite !== '') ? f.assiduite : part.assiduite,
+      assiduite: (f.assiduite !== undefined && f.assiduite !== '') ? f.assiduite : undefined, tauxAssiduite: part.tauxAssiduite,
       joursAbsence: (f.jabs !== undefined && f.jabs !== '') ? f.jabs : (o.presence && o.presence.joursAbsence), heuresAbsence: (f.habs !== undefined && f.habs !== '') ? f.habs : (o.presence && o.presence.heuresAbsence),
       dateAnciennete: f.dane || f.entree || '',
       transport: (f.transport !== undefined && f.transport !== '') ? f.transport : part.transport,
@@ -813,14 +889,118 @@
     var r = calculer({ salaireBase: 100000, ansAnciennete: 3, congePris: false, params: pt });
     return r.erreurs || [];
   }
+  // Paramètres généraux affichés en champs : chemin dans les paramètres, libellé, type de saisie.
+  // Seule la présentation est décrite ici ; les valeurs sont celles des paramètres enregistrés.
+  var CHAMPS_GENERAUX = [
+    ['Logement — taux', 'logement.taux', 'pct'],
+    ['Assiduité — taux', 'assiduite.taux', 'pct'],
+    ['Transport — montant mensuel (FCFA)', 'transport.montant', 'num'],
+    ['Heures de référence par mois', 'absences.heures_mois', 'num'],
+    ['CNPS salarié — taux', 'cnps.taux', 'pct'],
+    ['CNPS — plafond (vide = aucun)', 'cnps.plafond', 'numvide'],
+    ['Abattement — taux', 'abattement.taux', 'pct'],
+    ['IRPP — seuils (FCFA ; séparés par ;)', 'irpp.seuils', 'liste'],
+    ['IRPP — taux par tranche (% ; séparés par ;)', 'irpp.taux', 'listepct'],
+    ['IRPP — cumuls (FCFA ; séparés par ;)', 'irpp.cumul', 'liste'],
+    ['IRPP — facteur', 'irpp.facteur', 'num'],
+    ['IRPP — charge', 'irpp.charge', 'pct'],
+    ['IRPP — déduction (FCFA)', 'irpp.deduction', 'num'],
+    ['CAC — taux (% de l’IRPP)', 'cac.taux', 'pct'],
+    ['CFC salarié — taux', 'cfc.taux', 'pct'],
+    ['CNPS patronale (%)', 'patronales.cnps', 'num'],
+    ['Accidents du travail (%)', 'patronales.at', 'num'],
+    ['Prestations familiales (%)', 'patronales.pf', 'num'],
+    ['FNE (%)', 'patronales.fne', 'num'],
+    ['CFC patronal (%)', 'patronales.cfc', 'num'],
+    ['RAV — tranches (base:montant ; …)', 'rav.tranches', 'tranches'],
+    ['RAV — au-delà (FCFA)', 'rav.au_dela', 'num'],
+    ['TDL — tranches (base:montant ; …)', 'tc.tranches', 'tranches'],
+    ['TDL — au-delà (FCFA)', 'tc.au_dela', 'num']
+  ];
+  function lirePath(o, chemin) { return chemin.split('.').reduce(function (x, k) { return x == null ? undefined : x[k]; }, o); }
+  function poserPath(o, chemin, v) {
+    var ks = chemin.split('.'), x = o;
+    ks.slice(0, -1).forEach(function (k) { x[k] = x[k] || {}; x = x[k]; });
+    x[ks[ks.length - 1]] = v;
+  }
+  // Valeur enregistrée -> texte affiché (taux stockés en fraction, affichés en %)
+  function versTexte(v, type) {
+    if (v == null) return '';
+    if (type === 'pct') return String(+(nb(v) * 100).toFixed(6));
+    if (type === 'listepct') return (v || []).map(function (x) { return String(+(nb(x) * 100).toFixed(6)); }).join(' ; ');
+    if (type === 'liste') return (v || []).join(' ; ');
+    if (type === 'tranches') return (v || []).map(function (t) { return t.join(':'); }).join(' ; ');
+    return String(v);
+  }
+  // Texte saisi -> valeur enregistrée ; lève une erreur si la saisie n'est pas valide
+  function depuisTexte(t, type, libelle) {
+    t = String(t == null ? '' : t).trim();
+    var nombre = function (s) {
+      var n = Number(String(s).replace(',', '.').trim());
+      if (String(s).trim() === '' || !isFinite(n)) throw new Error(libelle + ' : valeur numérique attendue');
+      return n;
+    };
+    if (type === 'numvide') return t === '' ? null : nombre(t);
+    if (type === 'num') return nombre(t);
+    if (type === 'pct') return +(nombre(t) / 100).toFixed(10);
+    var morceaux = t === '' ? [] : t.split(';').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+    if (type === 'liste') return morceaux.map(nombre);
+    if (type === 'listepct') return morceaux.map(function (s) { return +(nombre(s) / 100).toFixed(10); });
+    if (type === 'tranches') return morceaux.map(function (s) {
+      var c = s.split(':');
+      if (c.length !== 2) throw new Error(libelle + ' : format « base:montant » attendu');
+      return [nombre(c[0]), nombre(c[1])];
+    });
+    return t;
+  }
+  function champsGeneraux(p) {
+    return CHAMPS_GENERAUX.map(function (c) {
+      return '<label style="font-size:12px;display:flex;flex-direction:column;gap:2px"><span>' + esc(c[0]) + '</span>' +
+        '<input data-gen="' + esc(c[1]) + '" data-type="' + c[2] + '" data-lib="' + esc(c[0]) + '" value="' + esc(versTexte(lirePath(p, c[1]), c[2])) +
+        '" style="padding:4px 6px;border:1px solid #9aa5b5;border-radius:4px"></label>';
+    }).join('');
+  }
+  function remplirGeneraux(ov, p) {
+    ov.querySelectorAll('[data-gen]').forEach(function (inp) {
+      inp.value = versTexte(lirePath(p, inp.getAttribute('data-gen')), inp.getAttribute('data-type'));
+    });
+  }
+  function lireGeneraux(ov) {
+    var out = {};
+    ov.querySelectorAll('[data-gen]').forEach(function (inp) {
+      poserPath(out, inp.getAttribute('data-gen'), depuisTexte(inp.value, inp.getAttribute('data-type'), inp.getAttribute('data-lib')));
+    });
+    return out;
+  }
+  // Enregistre aussitôt les paramètres saisis (taux, barèmes, formules, ancienneté) : les bulletins ouverts se recalculent
+  function sauverDirect(ov) {
+    var msg = ov.querySelector('[data-msg]');
+    try {
+      var p = fusion(charger(), lireGeneraux(ov));
+      p.anciennete = {
+        seuil_ans: nb(ov.querySelector('[data-anc-seuil]').value),
+        taux_depart: nb(ov.querySelector('[data-anc-depart]').value) / 100,
+        hausse_par_an: nb(ov.querySelector('[data-anc-hausse]').value) / 100
+      };
+      var lp = lireRubriques(ov);
+      var err = verifierRubriques(lp, p);
+      if (err.length) { msg.style.color = '#c0392b'; msg.textContent = 'Formule à corriger : ' + err.join(' ; '); return false; }
+      p.lignes = lp;
+      enregistrer(fusion(DEFAUT, p));
+      msg.style.color = '#1e8449'; msg.textContent = 'Enregistré : les bulletins ouverts sont recalculés.';
+      try { root.dispatchEvent(new CustomEvent('terh-hok-params')); } catch (e) {}
+      return true;
+    } catch (err) { msg.style.color = '#c0392b'; msg.textContent = 'Valeur incorrecte : ' + err.message; return false; }
+  }
   function ouvrir() {
     if (document.getElementById('hok-overlay')) return;
+    synchroniser();
     var ov = document.createElement('div');
     ov.id = 'hok-overlay';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:2147483600;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;box-sizing:border-box';
     ov.innerHTML = '<div style="background:#fff;color:#1a1a1a;width:min(760px,100%);border-radius:8px;padding:14px;font:12px Arial,sans-serif;max-height:88vh;display:flex;flex-direction:column;gap:8px">' +
       '<b style="font-size:14px">Paramètres Hôtel Océan</b>' +
-      '<div style="color:#555">Modifiez les taux et barèmes, ou ajoutez des paramètres (format JSON). Les bulletins se recalculent à chaque impression.</div>' +
+      '<div style="color:#555">Modifiez les taux, barèmes et formules : chaque changement est enregistré aussitôt et les bulletins ouverts se recalculent. Les particularités (données des salariés) restent en JSON.</div>' +
       '<div style="font-weight:700">Prime d\'ancienneté (barème du cours)</div>' +
       '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
       '<label>Seuil (années révolues)<br><input type="number" min="0" step="1" data-anc-seuil value="' + esc(charger().anciennete.seuil_ans) + '" style="width:110px"></label>' +
@@ -828,7 +1008,7 @@
       '<label>Hausse par année (%)<br><input type="number" min="0" step="0.01" data-anc-hausse value="' + esc(+(nb(charger().anciennete.hausse_par_an) * 100).toFixed(4)) + '" style="width:110px"></label>' +
       '</div>' +
       '<div style="font-weight:700">Paramètres généraux</div>' +
-      '<textarea data-hok style="min-height:200px;font:12px Consolas,monospace;border:1px solid #9aa5b5;border-radius:4px;padding:8px">' + esc(JSON.stringify(charger(), null, 2)) + '</textarea>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px">' + champsGeneraux(charger()) + '</div>' +
       '<div style="font-weight:700">Particularités permanentes (restent d\'un mois à l\'autre) — clé = nom du salarié ; supprimer une clé la retire</div>' +
       '<textarea data-perm style="min-height:110px;font:12px Consolas,monospace;border:1px solid #9aa5b5;border-radius:4px;padding:8px">' + esc(JSON.stringify(chargerPermanentes(), null, 2)) + '</textarea>' +
       '<div style="font-weight:700">Particularités du mois — clé = période puis nom du salarié. Rien saisi = calcul automatique du modèle. Exemple : {"01/10/2026 au 31/10/2026": {"NOM": {"congeMontant": 0}}}</div>' +
@@ -838,6 +1018,11 @@
       '<div data-msg style="min-height:16px"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-x="reset">Valeurs par défaut</button><button type="button" data-x="ferme">Fermer</button><button type="button" data-x="ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:4px;padding:6px 12px">Enregistrer</button></div></div>';
     document.body.appendChild(ov);
+    // Enregistrement immédiat à chaque modification (sans attendre un bouton)
+    var attente = null;
+    function planifier() { clearTimeout(attente); attente = setTimeout(function () { sauverDirect(ov); }, 300); }
+    ov.addEventListener('input', planifier);
+    ov.addEventListener('change', planifier);
     // Nature : coche CNPS / IRPP / CFC selon le tableau des bases taxable et cotisable (Personnalisée = inchangé)
     var BASES_NATURE = { salaire: [true, true, true], transport: [false, true, true], remboursement: [false, false, false] };
     ov.addEventListener('change', function (e) {
@@ -854,30 +1039,19 @@
       if (x === 'ferme') ov.remove();
       else if (x === 'ajouter') { ov.querySelector('[data-tabajout] tbody').insertAdjacentHTML('beforeend', ligneAjout()); }
       else if (x === 'suppr') { b.closest('tr').remove(); }
-      else if (x === 'reset') { ov.querySelector('[data-hok]').value = JSON.stringify(DEFAUT, null, 2); ov.querySelector('[data-anc-seuil]').value = DEFAUT.anciennete.seuil_ans; ov.querySelector('[data-anc-depart]').value = +(DEFAUT.anciennete.taux_depart * 100).toFixed(4); ov.querySelector('[data-anc-hausse]').value = +(DEFAUT.anciennete.hausse_par_an * 100).toFixed(4); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); ov.querySelector('[data-rub]').innerHTML = editeurRubriques({}); msg.style.color = '#555'; msg.textContent = 'Valeurs par défaut affichées : enregistrez pour les appliquer.'; }
+      else if (x === 'reset') { remplirGeneraux(ov, DEFAUT); ov.querySelector('[data-anc-seuil]').value = DEFAUT.anciennete.seuil_ans; ov.querySelector('[data-anc-depart]').value = +(DEFAUT.anciennete.taux_depart * 100).toFixed(4); ov.querySelector('[data-anc-hausse]').value = +(DEFAUT.anciennete.hausse_par_an * 100).toFixed(4); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); ov.querySelector('[data-rub]').innerHTML = editeurRubriques({}); sauverDirect(ov); }
       else if (x === 'ok') {
         try {
-          var p = JSON.parse(ov.querySelector('[data-hok]').value);
-          p.anciennete = {
-            seuil_ans: nb(ov.querySelector('[data-anc-seuil]').value),
-            taux_depart: nb(ov.querySelector('[data-anc-depart]').value) / 100,
-            hausse_par_an: nb(ov.querySelector('[data-anc-hausse]').value) / 100
-          };
-          var lp = lireRubriques(ov);
-          var err = verifierRubriques(lp, p);
-          if (err.length) { msg.style.color = '#c0392b'; msg.textContent = 'Formule à corriger : ' + err.join(' ; '); return; }
-          p.lignes = lp;
           var perm = JSON.parse(ov.querySelector('[data-perm]').value);
           var mois = JSON.parse(ov.querySelector('[data-mois]').value);
-          enregistrer(fusion(DEFAUT, p));
           enregistrerPermanentes(perm);
           enregistrerMois(mois);
-          msg.style.color = '#1e8449'; msg.textContent = 'Paramètres, particularités permanentes et du mois enregistrés.';
+          if (sauverDirect(ov)) { msg.style.color = '#1e8449'; msg.textContent = 'Paramètres, particularités permanentes et du mois enregistrés.'; }
         } catch (err) { msg.style.color = '#c0392b'; msg.textContent = 'Erreur : ' + err.message; }
       }
     });
   }
 
-  root.PaieHok = { corrigerRubrique: corrigerRubrique, correctionRubrique: correctionRubrique, champCorrigeable: champCorrigeable, evaluer: function (src, vars) { return evaluerFormule(src, { v: vars || {}, p: charger() }); }, rubriquesOcean: rubriquesOcean, memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
+  root.PaieHok = { synchroniser: synchroniser, rubriquesAffichees: rubriquesAffichees, afficherRubrique: afficherRubrique, _champs: { CHAMPS_GENERAUX: CHAMPS_GENERAUX, versTexte: versTexte, depuisTexte: depuisTexte, lirePath: lirePath }, EQUIV_OCEAN: EQUIV_OCEAN, particulariteSansCorrection: particulariteSansCorrection, corrigerRubrique: corrigerRubrique, correctionRubrique: correctionRubrique, champCorrigeable: champCorrigeable, evaluer: function (src, vars) { return evaluerFormule(src, { v: vars || {}, p: charger() }); }, rubriquesOcean: rubriquesOcean, memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PaieHok;
 })(typeof window !== 'undefined' ? window : globalThis);

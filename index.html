@@ -68,6 +68,7 @@ button.s{cursor:pointer}button.s:hover{background:color-mix(in srgb,var(--ac) 10
 button:disabled{opacity:.5;cursor:wait}
 .tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:12px}
 table{border-collapse:collapse;width:100%;min-width:1200px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap;font-size:13px}
+.tw:has(#tb) table{min-width:0!important;width:100%;table-layout:auto}.tw:has(#tb) th,.tw:has(#tb) td{padding:4px 6px;font-size:12px;white-space:normal;line-height:1.25}.tw:has(#tb) th{position:sticky;top:0;z-index:2;background:var(--card)}.tw:has(#tb) td:first-child,.tw:has(#tb) th:first-child{position:sticky;left:0;z-index:1;background:var(--card);font-weight:600;min-width:150px}.tw:has(#tb) .b{font-size:11px;padding:1px 6px}
 th{font-size:11px;color:var(--mu);cursor:pointer;text-transform:uppercase;background:color-mix(in srgb,var(--ac) 5%,var(--card))}
 tr:hover td{background:color-mix(in srgb,var(--ac) 4%,var(--card))}
 .b{padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid currentColor;display:inline-block}
@@ -1365,6 +1366,7 @@ async function loadAll(){
   if(!PARAMS_DEF)PARAMS_DEF={...PARAMS};else Object.assign(PARAMS,PARAMS_DEF);
   {const c=curCo();if(c)Object.assign(PARAMS,{soc:c.nom,client:c.client||c.nom,lieu:c.ville||'',tel:c.tel||'',email:c.email||'',adresse:c.adresse||'',sig:'',fn:'Responsable des Ressources Humaines'});}
   (par.data||[]).forEach(r=>{if(r.cle in PARAMS&&r.valeur!=null)PARAMS[r.cle]=r.valeur;});
+  try{nettoyerLignesCalcul().catch(e=>{try{logErr('nettoyage ignoré : '+(((e)&&e.message)||e))}catch(_){}});}catch(e){}
   try{const _co=curCo();if(_co&&_co.groupe_id&&_co.type_entreprise!=='groupe'){const own=new Set((par.data||[]).filter(r=>r.valeur!=null&&String(r.valeur).trim()!=='').map(r=>r.cle));const mk=['tpl_let','tpl_cert','tpl_de','tpl_sanction','tpl_ns','tpl_fin'].filter(k=>k in PARAMS&&!own.has(k));if(mk.length){const pr=await db.from('parametres').select('cle,valeur').eq('entreprise_id',_co.groupe_id).in('cle',mk);(pr.data||[]).forEach(r=>{if(r.valeur!=null&&String(r.valeur).trim()!=='')PARAMS[r.cle]=r.valeur;});}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<h3>Objet : Notification de fin de contrat et démobilisation</h3>')&&!PARAMS.tpl_let.includes('<!--v2-->'))PARAMS.tpl_let=TPL_LET;
   if(PARAMS.tpl_let&&PARAMS.tpl_let.includes('<!--v2-->')&&!PARAMS.tpl_let.includes('<!--v3-->')&&PARAMS.tpl_let.includes('Nous faisons référence à votre {{TYPE_CONTRAT}}, à effet du'))PARAMS.tpl_let=TPL_LET;
@@ -2509,29 +2511,49 @@ function xRow(r,xcol,xcust){const x={};
     if(v!=='')x[k]=v;}
   for(const [c,l] of xcust){let v=r[c];if(v==null||v==='')continue;v=(v instanceof Date)?LD(v):(typeof v==='number'&&v>20000&&v<80000&&/DATE|NAISS|EXPIR|ECHEANCE/i.test(l))?pdate(v):String(v).replace(/\s+/g,' ').trim();if(v!=='')x['c:'+l]=v;}
   return x;}
-async function xMerge(out){const all=xAll();let n=0;out.forEach(o=>{if(!o._x||!Object.keys(o._x).length)return;const k=nName(o.n);all[k]={...(all[k]||{}),...o._x};n++;});if(n)await saveParam('perso_extra',JSON.stringify(all));return n;}
+// Valeurs calculées automatiquement (ancienneté, salaire, primes, CNPS…) : jamais stockées dans une fiche
+// Salaire de base : c'est le champ « Salaire de base » de la fiche (utilisé par le bulletin). Les doublons « (sept.) » ou « mensuel (complet) » sont retirés.
+const SAL_RE=/^SALAIRE DE BASE( MENSUEL)?( \(.*\))?$/;
+const canonSal=o=>{const r={};Object.keys(o||{}).forEach(k=>{if(!(k.startsWith('c:')&&SAL_RE.test(nA(k.slice(2)))))r[k]=o[k];});return r;};
+const sansCalcul=o=>canonSal(Object.fromEntries(Object.entries(o||{}).filter(([k])=>!(k.startsWith('c:')&&ligneCalcul(k)))));
+// Retire une seule fois (repère « nettoyage_calcul_v1 » par société) les anciennes valeurs calculées des fiches
+let _calcNettoye=false;
+async function nettoyerLignesCalcul(){
+  if(_calcNettoye||!CAN.upd()||PARAMS.nettoyage_calcul_v1==='1')return;
+  _calcNettoye=true;
+  const all=xAll();let n=0;
+  Object.values(all).forEach(rec=>{if(!rec||typeof rec!=='object')return;Object.keys(rec).forEach(k=>{if(k.startsWith('c:')&&ligneCalcul(k)){delete rec[k];n++;}});});
+  if(n)await saveParam('perso_extra',JSON.stringify(all));
+  await saveParam('nettoyage_calcul_v1','1');
+  if(n)toast('🧹 '+n+' valeur(s) calculée(s) retirée(s) des fiches');
+  return n;
+}
+async function xMerge(out){const all=xAll();let n=0;out.forEach(o=>{if(!o._x||!Object.keys(o._x).length)return;const k=nName(o.n);all[k]={...(all[k]||{}),...sansCalcul(o._x)};n++;});if(n)await saveParam('perso_extra',JSON.stringify(all));return n;}
 function xFormHTML(){
   return '<details open style="grid-column:1/-1;border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin:6px 0"><summary style="cursor:pointer;font-weight:700">🗂 Informations complémentaires du dossier</summary>'
    +XG.map(g=>{const fs=XF.filter(f=>f[3]===g);return '<h3 style="margin:12px 0 4px;font-size:13px;color:var(--mu)">'+esc(g)+'</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'
      +fs.map(f=>'<label>'+esc(f[1])+(f[2]==='textarea'?'<textarea id="x_'+f[0]+'" rows="2" style="width:100%"></textarea>':'<input id="x_'+f[0]+'" type="'+(f[2]==='date'?'date':f[2]==='number'?'number':f[2]==='email'?'email':f[2]==='tel'?'tel':'text')+'"'+(f[2]==='number'?' min="0"':'')+'>')+'</label>').join('')+'</div>';}).join('')
    +'<div id="x_custom" style="margin-top:10px"></div></details>';}
 function xInit(){const a=$('f_info');if(!a||$('x_mat'))return;a.insertAdjacentHTML('beforebegin',xFormHTML());}
-function xFill(r){xInit();const x=r?xGet(r.n):{};XF.forEach(f=>{const e=$('x_'+f[0]);if(e)e.value=x[f[0]]||'';});
-  xColsDef().forEach(d=>{if(!('c:'+d.l in x))x['c:'+d.l]='';});const cs=Object.keys(x).filter(k=>k.startsWith('c:')&&!hiddenKey(k));
+function xFill(r){xInit();const x=r?canonSal(xGet(r.n)):{};XF.forEach(f=>{const e=$('x_'+f[0]);if(e)e.value=x[f[0]]||'';});
+  xColsDef().forEach(d=>{if(!('c:'+d.l in x))x['c:'+d.l]='';});const cs=Object.keys(x).filter(k=>k.startsWith('c:')&&!hiddenKey(k)&&!ligneCalcul(k));
   $('x_custom').innerHTML=cs.length?'<h3 style="margin:8px 0 4px;font-size:13px;color:var(--mu)">Autres informations (colonnes importées)</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+cs.map(k=>'<label>'+esc(k.slice(2))+'<input data-xc="'+esc(k)+'" value="'+esc(x[k])+'"></label>').join('')+'</div>':'';}
 function xCollect(){const x={};XF.forEach(f=>{const e=$('x_'+f[0]);const v=e?String(e.value||'').trim():'';if(v)x[f[0]]=v;});document.querySelectorAll('#x_custom [data-xc]').forEach(e=>{const v=String(e.value||'').trim();if(v)x[e.dataset.xc]=v;});return x;}
-async function xSaveForm(o,id){if(!$('x_mat'))return;const x=xCollect();if(o.g==='F'&&ENF_LISTE.length)x.enfants=ENF_LISTE.filter(d=>d).slice();
+async function xSaveForm(o,id){if(!$('x_mat'))return;const x=sansCalcul(xCollect());if(o.g==='F'&&ENF_LISTE.length)x.enfants=ENF_LISTE.filter(d=>d).slice();
   if(x.mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.mail))throw new Error('e-mail invalide');
   const all=xAll();const old=id?E.find(e=>String(e.id)===String(id)):null;if(old&&nName(old.n)!==nName(o.n))delete all[nName(old.n)];
   if(Object.keys(x).length)all[nName(o.n)]=x;else delete all[nName(o.n)];
   await saveParam('perso_extra',JSON.stringify(all));}
+const RED_CALC=/^(ANCIENNETE|SALAIRE BRUT|PRIME D|INDEMNITE DE CONGE|AUTRES PRIMES|BASE CNPS)/;
+const ligneCalcul=k=>RED_CALC.test(nA(k.slice(2)));
 function xFiche(r){
-  const x=xGet(r.n),core=[['Nom et prénoms',r.n],['Poste',r.p],['Genre',r.g==='F'?'Féminin':'Masculin'],['Date de naissance',r.dn?F(r.dn)+(r.age!=null?' ('+r.age+' ans)':''):''],['Type de contrat',r.tLabel||r.t],['Début',r.deb?F(r.deb):''],['Fin',r.t==='CDI'?'':(r.finC?F(r.finC):'')],['Téléphone',r.tel],['N° CNPS',r.cnps],['Dernière visite médicale',r.dv?F(r.dv):'']];
+  const x=canonSal(xGet(r.n)),core=[['Nom et prénoms',r.n],['Poste',r.p],['Genre',r.g==='F'?'Féminin':'Masculin'],['Date de naissance',r.dn?F(r.dn)+(r.age!=null?' ('+r.age+' ans)':''):''],['Type de contrat',r.tLabel||r.t],['Salaire de base',r.sb!=null&&r.sb!==''?String(r.sb):''],['Début',r.deb?F(r.deb):''],['Fin',r.t==='CDI'?'':(r.finC?F(r.finC):'')],['Téléphone',r.tel],['N° CNPS',r.cnps],['Dernière visite médicale',r.dv?F(r.dv):'']];
   const isD=k=>(XF.find(f=>f[0]===k)||[])[2]==='date',fv=(k,v)=>isD(k)&&/^\d{4}-\d\d-\d\d$/.test(v)?F(v):v;
   const sec=(t,rows)=>{rows=rows.filter(a=>a[1]!==''&&a[1]!=null);return rows.length?'<h3 style="margin:14px 0 4px">'+esc(t)+'</h3><table style="width:100%;border-collapse:collapse">'+rows.map(a=>'<tr><td style="padding:3px 8px;border-bottom:1px solid var(--bd);width:42%;color:var(--mu)">'+esc(a[0])+'</td><td style="padding:3px 8px;border-bottom:1px solid var(--bd)">'+esc(String(a[1]))+'</td></tr>').join('')+'</table>':'';};
+  const ech=Object.keys(x).filter(k=>k.startsWith('c:')&&nA(k.slice(2))==='ECHELON').map(k=>x[k])[0]||'';
   let body=sec('Informations principales',core);
-  XG.forEach(g=>{body+=sec(g,XF.filter(f=>f[3]===g&&x[f[0]]).map(f=>[f[1],fv(f[0],x[f[0]])]));});
-  body+=sec('Autres informations',Object.keys(x).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),x[k]]));
+  XG.forEach(g=>{body+=sec(g,XF.filter(f=>(f[3]===g&&x[f[0]])||(f[0]==='cat'&&g==='Poste'&&ech)).map(f=>[f[1],f[0]==='cat'?[x[f[0]],ech].filter(Boolean).join(' / '):fv(f[0],x[f[0]])]));});
+  body+=sec('Autres informations',Object.keys(x).filter(k=>k.startsWith('c:')&&!ligneCalcul(k)&&nA(k.slice(2))!=='ECHELON').map(k=>[k.slice(2),x[k]]));
   const w=document.createElement('div');w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
   w.innerHTML='<div class="c" style="max-width:720px;width:100%;max-height:90vh;overflow:auto"><div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">🗂 Fiche complète — '+esc(r.n)+'</h2><button class="s" id="xf_pr">🖨️ Imprimer</button>'+(CAN.upd()?'<button class="s" id="xf_ed">✏️ Modifier</button>':'')+'<button class="s" id="xf_x">Fermer</button></div><div id="xf_b">'+body+'</div>'+(Object.keys(x).length?'':'<p class="muted" style="margin-top:10px">Aucune information complémentaire enregistrée : utilisez ✏️ Modifier ou importez un fichier Excel contenant ces colonnes.</p>')+'</div>';
   document.body.appendChild(w);
@@ -6512,8 +6534,9 @@ window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriqu
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
 window.TERH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
+window.TERH_paieHok={load:k=>rd(k),save:(k,o)=>wr(k,o)};
 window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
-window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),enfants:xx.enfants||[],enfants6:(xx.enfants&&xx.enfants.length&&window.PaieEnfants)?PaieEnfants.moins6ans(xx.enfants,LD(T)):(x.enf6||0),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
+window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),enfants:xx.enfants||[],enfants6:(xx.enfants&&xx.enfants.length&&window.PaieEnfants)?PaieEnfants.moins6ans(xx.enfants,LD(T)):(x.enf6||0),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',transport:(()=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&/^(INDEMNITE DE TRANSPORT|TRANSPORT)$/.test(nA(k.slice(2))));return k&&xx[k]!=null&&String(xx[k]).trim()!==''?xx[k]:'';})(),hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
 window.TERH_listeSalaries=window.TERH_fichesPaie;
 window.TERH_entrepriseInfos=()=>{const m=(curCo()||{}).metadata||{};const o={};['bp','tel','niu','cnps'].forEach(k=>{if(m[k])o[k]=String(m[k]);});return o;};
 window.TERH_congesPour=(id)=>(CG||[]).filter(c=>String(c.employe_id)===String(id)).map(c=>({du:c.deb,au:c.fin,statut:c.statut}));

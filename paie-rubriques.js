@@ -14,22 +14,22 @@
 
   // Modèle inspiré des rubriques Sage du bulletin de référence
   var MODELE = [
-    { code: '1000', libelle: 'Salaire de base mensuel', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: null },
-    { code: '1040', libelle: 'Sursalaire', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
-    { code: '1430', libelle: 'Indemnité de transport', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null, transport: true },
-    { code: '1435', libelle: 'Indemnité de logement', type: 'gain', imposable: true, cnps: true, cfc: false, mode: 'fixe', taux_defaut: null, logement: true },
-    { code: '1510', libelle: "Prime d'assiduité", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
-    { code: '1310', libelle: 'Prime de panier', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '1442', libelle: 'Indemnité de salissure', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '1110', libelle: 'Heures supplémentaires 20 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 120, heures_sup: true },
-    { code: '1130', libelle: 'Heures supplémentaires 30 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 130, heures_sup: true },
-    { code: '1140', libelle: 'Heures supplémentaires 40 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 140, heures_sup: true },
-    { code: '1150', libelle: 'Heures supplémentaires 50 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 150, heures_sup: true },
-    { code: '1202', libelle: "Prime d'ancienneté", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'calcul', taux_defaut: null },
-    { code: '1901', libelle: 'Primes cotisables (fiche)', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
-    { code: '1902', libelle: 'Indemnités non cotisables (fiche)', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '2000', libelle: 'Avance sur salaire', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
-    { code: '2010', libelle: 'Cantine', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null }
+    { code: '30', modele: '1', libelle: 'Salaire de base mensuel', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: null },
+    { code: '31', libelle: 'Sursalaire', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
+    { code: '32', modele: '4', libelle: 'Indemnité de transport', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null, transport: true },
+    { code: '33', modele: '2', libelle: 'Indemnité de logement', type: 'gain', imposable: true, cnps: true, cfc: false, mode: 'fixe', taux_defaut: null, logement: true },
+    { code: '34', modele: '3', libelle: "Prime d'assiduité", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
+    { code: '35', libelle: 'Prime de panier', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
+    { code: '36', libelle: 'Indemnité de salissure', type: 'gain', imposable: false, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
+    { code: '37', libelle: 'Heures supplémentaires 20 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 120, heures_sup: true },
+    { code: '38', libelle: 'Heures supplémentaires 30 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 130, heures_sup: true },
+    { code: '39', libelle: 'Heures supplémentaires 40 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 140, heures_sup: true },
+    { code: '40', libelle: 'Heures supplémentaires 50 %', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: 150, heures_sup: true },
+    { code: '41', modele: '5', libelle: "Prime d'ancienneté", type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'calcul', taux_defaut: null },
+    { code: '42', libelle: 'Primes cotisables (fiche)', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
+    { code: '43', libelle: 'Indemnités non cotisables (fiche)', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
+    { code: '44', libelle: 'Avance sur salaire', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null },
+    { code: '45', libelle: 'Cantine', type: 'retenue', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null }
   ];
 
   var MODES = { fixe: 'Montant fixe', heures: 'Nombre × base × taux', pct: '% du salaire de base' };
@@ -51,14 +51,15 @@
       taux_defaut: (r.taux_defaut === null || r.taux_defaut === '' || r.taux_defaut === undefined) ? null : Number(r.taux_defaut),
       transport: !!r.transport,
       logement: !!r.logement,
-      heures_sup: !!r.heures_sup
+      heures_sup: !!r.heures_sup,
+      modele: r.modele ? String(r.modele) : null
     };
   }
   function valider(liste) {
     var vu = {};
     for (var i = 0; i < liste.length; i++) {
       var r = liste[i];
-      if (!/^\d{4}$/.test(r.code)) return 'Code invalide (4 chiffres) : « ' + r.code + ' »';
+      if (!/^\d+$/.test(r.code) || parseInt(r.code, 10) < 30) return 'Code invalide (30 ou plus ; 1 à 29 réservés au modèle) : « ' + r.code + ' »';
       if (!r.libelle) return 'Libellé manquant pour le code ' + r.code;
       if (vu[r.code]) return 'Code en double : ' + r.code;
       if (r.taux_defaut !== null && !(r.taux_defaut >= 0)) return 'Taux invalide pour ' + r.code;
@@ -66,10 +67,33 @@
     }
     return '';
   }
+  // Anciens codes (Sage, 4 chiffres) -> 30, 31… ; rattachement au modèle conservé pour refuser les doublons
+  var ANCIEN_MODELE = { '1000': '1', '1430': '4', '1435': '2', '1510': '3', '1202': '5' };
+  function renumeroter(liste) {
+    var utilises = {};
+    liste.forEach(function (r) { if (/^\d+$/.test(r.code) && parseInt(r.code, 10) >= 30 && parseInt(r.code, 10) < 1000) utilises[r.code] = true; });
+    var suivant = 30;
+    liste.forEach(function (r) {
+      if (/^\d+$/.test(r.code) && parseInt(r.code, 10) >= 1000) {
+        if (!r.modele && ANCIEN_MODELE[r.code]) r.modele = ANCIEN_MODELE[r.code];
+        while (utilises[String(suivant)]) suivant++;
+        utilises[String(suivant)] = true; r.code = String(suivant);
+      }
+    });
+    return liste;
+  }
   function charger() {
     try {
       var brut = root.localStorage && root.localStorage.getItem(CLE);
-      if (brut) { var l = JSON.parse(brut); if (Array.isArray(l) && l.length) return l.map(copie); }
+      if (brut) {
+        var l = JSON.parse(brut);
+        if (Array.isArray(l) && l.length) {
+          var avant = JSON.stringify(l);
+          var propre = renumeroter(l.map(copie));
+          if (JSON.stringify(propre) !== avant) { try { root.localStorage.setItem(CLE, JSON.stringify(propre)); } catch (e) {} }
+          return propre;
+        }
+      }
     } catch (e) {}
     return MODELE.map(copie);
   }
@@ -81,14 +105,23 @@
     }
   }
   // Lit le catalogue enregistré pour la société (table parametres). Renvoie la liste, ou null si rien en base.
+  // Bibliothèque commune (table parametres, via TERH_paieRub) :
+  // - si la base contient une bibliothèque : elle fait foi, renumérotée 30+ et réenregistrée si besoin ;
+  // - si la base est vide et que ce navigateur a une bibliothèque : elle est envoyée à la base (aucune perte).
   function synchroniser() {
     var pont = root.TERH_paieRub;
     if (!pont || !pont.load) return Promise.resolve(null);
-    return Promise.resolve(pont.load()).then(function (l) {
-      if (!Array.isArray(l) || !l.length) return null;
-      var propre = l.map(copie);
-      try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(propre)); } catch (e) {}
-      return propre;
+    return Promise.resolve(pont.load()).then(function (distant) {
+      if (Array.isArray(distant) && distant.length) {
+        var propre = renumeroter(distant.map(copie));
+        if (JSON.stringify(propre) !== JSON.stringify(distant)) { if (pont.save) pont.save(propre); }
+        try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(propre)); } catch (e) {}
+        return propre;
+      }
+      var local = null;
+      try { var t = root.localStorage && root.localStorage.getItem(CLE); if (t) local = JSON.parse(t); } catch (e) { local = null; }
+      if (Array.isArray(local) && local.length && pont.save) pont.save(renumeroter(local.map(copie)));
+      return null;
     }).catch(function () { return null; });
   }
 
