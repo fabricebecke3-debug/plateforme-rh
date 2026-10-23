@@ -277,6 +277,8 @@
   // Codes réservés du bulletin Océan : avance (26), rappels (29), prime d'ancienneté Sage (1202)
   var CODES_RESERVES = ['26', '29', '1202'];
   // Formules standard (affichées dans l'éditeur ; le calcul est le même que par défaut)
+  // Codes affichés : ceux du moteur Océan (1, 2, 10…) ; modifiables dans l'éditeur Océan
+  var CODES_DEFAUT = {};
   var FORMULES_DEFAUT = {
     '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },
     '2': { lib: 'Indemnité de Logement', formule: 'p_logement*(smens+anc)', note: '25 % (salaire + ancienneté)' },
@@ -337,6 +339,8 @@
     var estMasquee = function (c) { return masq.indexOf(String(c)) >= 0; };
     var zeros = lp.zeros || [];
     var estZero = function (c) { return zeros.indexOf(String(c)) >= 0; };
+    var codesLp = lp.codes || {};
+    var codeAff = function (c) { return String(codesLp[c] || CODES_DEFAUT[c] || c); };
     var sbPlein = nb(o.salaireBase);
     var pres = presence(o, p);
     var sb = sbPlein * pres;
@@ -402,7 +406,7 @@
       v[varNom] = val; if (code === '1') v.sb = val;
       if (code === '5') v.anc = val;
       if (estMasquee(code)) return;
-      gains.push({ code: code, lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val });
+      gains.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val });
     });
     // Éléments libres (saisis à la main) puis rubriques ajoutées dans les paramètres
     var libres = [];
@@ -492,7 +496,7 @@
       if (estZero(code)) val = 0;
       v[r[5]] = val;
       if (estMasquee(code)) return;
-      retenues.push({ code: code, lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val });
+      retenues.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val });
     });
     (o.retenuesManuelles || []).forEach(function (r) {
       retenues.push({ code: codeLibre(r.code, r.lib), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
@@ -627,7 +631,7 @@
       prestation: (f.prestation !== undefined && f.prestation !== '') ? f.prestation : montantLig('27'),
       communard: (f.communard !== undefined && f.communard !== '') ? f.communard : montantLig('28'),
       assiduite: (f.assiduite !== undefined && f.assiduite !== '') ? f.assiduite : part.assiduite,
-      joursAbsence: (f.jabs !== undefined && f.jabs !== '') ? f.jabs : (o.presence && o.presence.joursAbsence), heuresAbsence: f.habs,
+      joursAbsence: (f.jabs !== undefined && f.jabs !== '') ? f.jabs : (o.presence && o.presence.joursAbsence), heuresAbsence: (f.habs !== undefined && f.habs !== '') ? f.habs : (o.presence && o.presence.heuresAbsence),
       dateAnciennete: f.dane || f.entree || '',
       transport: (f.transport !== undefined && f.transport !== '') ? f.transport : part.transport,
       congePris: congePourPeriode(o, f),
@@ -676,7 +680,8 @@
     var ovr = lp.overrides || {}, masq = lp.masquees || [], ajout = lp.ajoutees || [];
     var std = Object.keys(FORMULES_DEFAUT).sort(function (a, b) { return +a - +b; }).map(function (c) {
       var d = FORMULES_DEFAUT[c], f = (ovr[c] && ovr[c].expr) || d.formule, lib = (ovr[c] && ovr[c].lib) || d.lib;
-      return '<tr data-std="' + c + '"><td>' + c + '</td><td><input data-lib value="' + esc(lib) + '" style="width:100%"></td>' +
+      var codeAf = (lp.codes && lp.codes[c]) || CODES_DEFAUT[c] || c;
+      return '<tr data-std="' + c + '"><td><input data-code value="' + esc(codeAf) + '" style="width:64px"></td><td><input data-lib value="' + esc(lib) + '" style="width:100%"></td>' +
         '<td><input data-expr value="' + esc(f) + '" style="width:100%;font:12px Consolas,monospace"></td>' +
         '<td><select data-etat style="width:100%">' +
           '<option value="normal"' + (masq.indexOf(c) < 0 && (lp.zeros || []).indexOf(c) < 0 ? ' selected' : '') + '>Normal</option>' +
@@ -696,7 +701,7 @@
   }
   // Lit l'éditeur et renvoie les rubriques (lignes), ou une erreur
   function lireRubriques(ov) {
-    var ovr = {}, masq = [], zeros = [], ajout = [];
+    var ovr = {}, masq = [], zeros = [], ajout = [], codes = {}, vus = {};
     var std = ov.querySelectorAll('[data-std]');
     Array.prototype.forEach.call(std, function (tr) {
       var c = tr.getAttribute('data-std'), d = FORMULES_DEFAUT[c];
@@ -705,6 +710,8 @@
       if (f && f !== d.formule) o.expr = f;
       if (lib && lib !== d.lib) o.lib = lib;
       if (Object.keys(o).length) ovr[c] = o;
+      var cd = tr.querySelector('[data-code]').value.trim();
+      if (cd && cd !== (CODES_DEFAUT[c] || c)) codes[c] = cd;
       var etat = tr.querySelector('[data-etat]').value;
       if (etat === 'masque') masq.push(c);
       if (etat === 'zero') zeros.push(c);
@@ -723,7 +730,19 @@
       ajout.push({ code: code, lib: lib || 'Rubrique', type: type, expr: expr, nature: tr.querySelector('[data-anat]') ? tr.querySelector('[data-anat]').value : 'personnalisee',
         cnps: tr.querySelector('[data-acnps]').checked, irpp: tr.querySelector('[data-airpp]').checked, cfc: tr.querySelector('[data-acfc]').checked });
     }
-    return { overrides: ovr, masquees: masq, zeros: zeros, ajoutees: ajout };
+    // Codes uniques sur le bulletin : rubriques standard affichées + rubriques ajoutées
+    var vu = {};
+    Object.keys(FORMULES_DEFAUT).forEach(function (c) {
+      if (masq.indexOf(c) >= 0) return;
+      var cc = codes[c] || CODES_DEFAUT[c] || c;
+      if (vu[cc]) throw new Error('code ' + cc + ' en double');
+      vu[cc] = true;
+    });
+    ajout.forEach(function (r) {
+      if (vu[r.code]) throw new Error('code ' + r.code + ' déjà utilisé');
+      vu[r.code] = true;
+    });
+    return { overrides: ovr, masquees: masq, zeros: zeros, codes: codes, ajoutees: ajout };
   }
   // Vérifie chaque formule sur un salaire d'exemple avant enregistrement
   function verifierRubriques(lp, p) {

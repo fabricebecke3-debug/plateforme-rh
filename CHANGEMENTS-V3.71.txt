@@ -1,0 +1,32 @@
+VERSION 3.71 (base : TERH-paie-V3.70 envoyé) : CODES DU CATALOGUE, NET DANS LA GRILLE, HEURES D'ABSENCE
+===============================================================================
+1. CODES DU BULLETIN OCÉAN (paie-hok.js)
+- Les rubriques standard affichées sur le bulletin Océan ont les codes du catalogue :
+  salaire 1000, logement 1435, assiduité 1510, transport 1430, ancienneté 1202 (et congé 6, rubriques libres 7+).
+- Modifiables dans « Paramètres Hôtel Océan » (colonne Code). Codes uniques : un doublon est refusé à l'enregistrement.
+- Limite : les retenues statutaires (IRPP 10, CAC 11, CFC 12, CNPS 13, RAV 14, TC 15, FNE 17, dettes 22,
+  prestation 27, communard 28) gardent leurs codes internes tant qu'elles ne sont pas dans le catalogue.
+
+2. NET DANS LA GRILLE (paie-grille.js)
+- Nouvelle colonne « Net » à côté du « Brut », calculée par le même moteur que le bulletin.
+- Mise à jour à chaque saisie : jours, heures, salaire saisi, profil.
+- Le salaire saisi dans la grille est pris en compte pour le net.
+
+3. HEURES D'ABSENCE (paie-hok.js)
+- Les heures d'absence transmises par la présence sont prises en compte (avant, elles étaient ignorées).
+
+Contrôle : 38 bulletins de septembre identiques à l'Excel (brut, CNPS, net, ±1 FCFA).
+Service worker : terh-v99.
+
+Non fait dans cette version (à suivre) :
+- Colonnes de la grille ajoutables et modifiables à l'écran (la grille a encore une liste de colonnes fixe).
+- Catalogue unique : l'éditeur « Rubriques de paie » (catalogue) et l'éditeur du bulletin Océan restent deux listes séparées.
+
+CORRECTION (décision) : le bulletin Océan garde les codes de son moteur (1, 2, 3, 4, 5, 6 pour les gains ; 10, 11, 12, 13,
+14, 15, 17, 22, 27, 28 pour les retenues). Les codes restent modifiables dans « Paramètres Hôtel Océan ». Le catalogue
+« Rubriques de paie » ne s'applique pas au bulletin Océan ; le bulletin Sage reste séparé.
+
+IMPRESSION DU BULLETIN OCÉAN : COULEURS VISIBLES (paie-bulletin-ocean.js, paie-detail.js)
+- Les navigateurs n'impriment pas les couleurs de fond par défaut : l'en-tête bleu à texte blanc devenait invisible
+  sur papier. Impression forcée des couleurs (print-color-adjust: exact) pour le bulletin Océan.
+- Service worker : terh-v101.

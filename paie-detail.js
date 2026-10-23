@@ -382,7 +382,7 @@
         else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: ordreCodes(etat.lignes), saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
         if (root.PaieI18n && html) html = root.PaieI18n.html(html);
         var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
-        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}' : ''), { apercu: true });
+        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}' : ''), { apercu: true });
       }
     });
     if (root.PaieRubriques && root.PaieRubriques.synchroniser) {

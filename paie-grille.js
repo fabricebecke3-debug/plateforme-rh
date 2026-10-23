@@ -392,6 +392,22 @@
       if (!saisieValide(s)) return '';
       return fmt(lignesDe(st, s, e.fiche).filter(function (l) { return !l.erreur; }).reduce(function (t, l) { return t + (Number(l.gain) || 0); }, 0));
     }
+    // Net à payer du salarié pour le mois de la grille : même calcul que le bulletin (salaire saisi ici prioritaire)
+    function periodeDe(mois) {
+      var m = /(\d{4})-(\d{2})/.exec(mois || ''); if (!m) return '';
+      var y = +m[1], mo = +m[2], last = new Date(y, mo, 0).getDate(), mm = String(mo).padStart(2, '0');
+      return '01/' + mm + '/' + y + ' au ' + String(last).padStart(2, '0') + '/' + mm + '/' + y;
+    }
+    function netDe(e) {
+      var s = st.saisies[e.id];
+      if (!saisieValide(s) || !root.PaieHok) return '';
+      var per = periodeDe(st.mois || moisCourant());
+      var f = Object.assign({}, e.fiche || {});
+      if (s.base !== '' && s.base != null) f.sb = s.base;
+      var lignes = lignesDe(st, s, e.fiche).filter(function (l) { return !l.erreur; });
+      var r = root.PaieHok.depuisLignes({ fiche: f, lignes: lignes, periode: per, presence: absencePour(e.id, per) });
+      return fmt(Math.round(r.net));
+    }
     function derives(e) {
       var s = sEmp(e);
       if (s.valeur === '' || s.valeur == null) return { j: '', h: '' };
@@ -405,6 +421,7 @@
       tr.querySelector('[data-jours]').textContent = d.j === '' ? '' : d.j;
       tr.querySelector('[data-heures]').textContent = d.h === '' ? '' : d.h;
       tr.querySelector('[data-brut]').textContent = brutDe(e);
+      tr.querySelector('[data-net]').textContent = netDe(e);
     }
     function totaux() {
       var tot = emps.reduce(function (t, e) {
@@ -425,7 +442,7 @@
     }
 
     function vueGrille() {
-      var colonnes = ['Salarié', 'Profil', 'Saisie en', 'Valeur', 'Jours', 'Heures', 'Samedi (h)', 'HS 120 %', 'HS 130 %', 'HS 140 %', 'Dimanche (h)', 'Nuit (h)', 'Férié (h)', 'Salaire de base', 'Brut'];
+      var colonnes = ['Salarié', 'Profil', 'Saisie en', 'Valeur', 'Jours', 'Heures', 'Samedi (h)', 'HS 120 %', 'HS 130 %', 'HS 140 %', 'Dimanche (h)', 'Nuit (h)', 'Férié (h)', 'Salaire de base', 'Brut', 'Net'];
       var lignes = emps.map(function (e, idx) {
         var s = sEmp(e), d = derives(e), bg = idx % 2 ? '#f7f9fc' : '#fff';
         var champ = function (k, w) { return '<td><input data-hs="' + k + '" type="number" step="any" value="' + esc(s[k]) + '" style="' + IN + ';width:' + w + 'px;text-align:right"></td>'; };
@@ -442,7 +459,8 @@
           '<td data-heures style="text-align:right;color:#555">' + (d.h === '' ? '' : d.h) + '</td>' +
           champ('samedi', 60) + champ('hs120', 60) + champ('hs130', 60) + champ('hs140', 60) + champ('hs_dim', 60) + champ('hs_nuit', 60) + champ('hs_ferie', 60) +
           '<td><input data-base type="number" step="any" value="' + esc((s.base !== '' && s.base != null) ? s.base : (e.sb || '')) + '" style="' + IN + ';width:100px;text-align:right"></td>' +
-          '<td data-brut style="text-align:right;font-weight:700;white-space:nowrap">' + brutDe(e) + '</td></tr>';
+          '<td data-brut style="text-align:right;font-weight:700;white-space:nowrap">' + brutDe(e) + '</td>' +
+          '<td data-net style="text-align:right;font-weight:700;white-space:nowrap;color:#1e8449">' + netDe(e) + '</td></tr>';
       }).join('');
       var metaMois = '<label>Mois <input type="month" data-mois value="' + esc(st.mois || moisCourant()) + '" style="' + IN + '"></label>' +
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';

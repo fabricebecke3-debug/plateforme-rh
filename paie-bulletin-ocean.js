@@ -160,7 +160,7 @@
     };
     var libreLogo = (mod.logo && mod.logoPos !== 'aucun' && mod.logoX !== undefined && mod.logoY !== undefined)
       ? '<img src="' + mod.logo + '" alt="" style="position:absolute;left:' + (Number(mod.logoX) || 0) + 'mm;top:' + (Number(mod.logoY) || 0) + 'mm;height:' + (Number(mod.logoH) || 15) + 'mm;width:auto">' : '';
-    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + libreLogo + 
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact">' + libreLogo + 
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
