@@ -376,7 +376,7 @@
         if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: etat.lignes, conges: etat.conges, periode: etat.periode }) : null });
         else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
         var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
-        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }), { apercu: true });
+        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}' : ''), { apercu: true });
       }
     });
     if (root.PaieRubriques && root.PaieRubriques.synchroniser) {

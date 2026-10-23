@@ -1,0 +1,44 @@
+VERSION 3.57 : BP DE LA STRUCTURE, ABSENCES PROPORTIONNÉES, LIGNE D'ASTÉRISQUES SOUS L'EN-TÊTE (Hôtel de l'Océan)
+===============================================================================
+1. BP (paie-hok.js, paie-bulletin-ocean.js)
+- Champ entreprise.bp (paramètres Hôtel Océan), affiché « BP : ... » au-dessus du TEL. Vide = rien d'imprimé.
+
+2. ABSENCES (paie-hok.js)
+- presence() : 1 - jours d'absence/30 - heures d'absence/173,33 (absences.heures_mois). Fiche : jabs (jours), habs (heures).
+- Règles déduites des formules du modèle Excel (feuilles BATOUANEN L. et MOUNE ISSA) :
+  salaire de base, salaire mensuel (logement, ancienneté) proratisés ; transport = 15 000 × présence ;
+  prime d'assiduité = 0 dès qu'il y a une absence (hypothèse, à confirmer).
+- « Nombre Jour » = jours travaillés. Sans absence, montants identiques à la V3.56.
+
+3. EN-TÊTE (paie-bulletin-ocean.js)
+- Ligne d'astérisques pleine largeur sous les deux colonnes République / Republic.
+- Totaux non modifiés.
+
+Contrôle contre Bulletins_de_paie_Septembre_2026.xlsx : voir rapport de vérification (38 feuilles).
+Service worker : terh-v60. Aucune migration SQL nécessaire.
+
+4. PARTICULARITÉS PAR SALARIÉ (paie-hok.js)
+- Chaque salarié peut porter ses particularités : ancienneté, logement, assiduité, transport, congé, base CNPS
+  (ou transport soumis à la CNPS), éléments libres (ex. prime de caisse), retenues fixes (IRPP, CAC, CFC, RAV, TC).
+- Elles ne sont saisies que lorsque le modèle ne reproduit pas le bulletin : elles ne figent donc pas
+  transport, ancienneté ou taxes pour les mois suivants.
+- Données de départ : celles du fichier de septembre 2026 (PART_DEFAUT). Édition, ajout et suppression dans
+  « Paramètres Hôtel Océan » (second champ JSON). Une liste enregistrée remplace la liste par défaut.
+- Contrôle : 37 bulletins sur 38 reproduits exactement avec leurs particularités (BETCHAGUE : 1 FCFA d'écart).
+- Service worker : terh-v61.
+
+5. PERMANENTES ET DU MOIS (paie-hok.js)
+- Permanentes (PERM_DEFAUT, terh_hok_perm) : restent d'un mois à l'autre. Ex. prime de caisse de DJONTU.
+- Du mois (MOIS_DEFAUT, terh_hok_mois, clé = période) : congé, retenues fixes, rappels, ancienneté, logement,
+  assiduité, transport, base CNPS. Rien saisi pour la période = calcul automatique du modèle.
+  Elles ne touchent que le salarié et la période concernés.
+- Septembre 2026 : valeurs du fichier Excel reprises dans MOIS_DEFAUT (37/38 exacts, BETCHAGUE 1 FCFA).
+- Édition dans « Paramètres Hôtel Océan » : permanentes et du mois, JSON séparés.
+- Service worker : terh-v62.
+
+6. IMPRESSION DU BULLETIN OCÉAN (paie-detail.js)
+- Marges de page à 0 pour le modèle Océan (la date/heure et l'URL en haut et en bas venaient des en-têtes et pieds
+  de page du navigateur) ; marges intérieures reportées dans le bulletin (10 mm haut/bas, 12 mm côtés).
+- Ligne d'astérisques sous l'en-tête : présente dans le rendu. Si elle n'apparaît pas à l'impression, vider le cache du site
+  (le navigateur peut garder une version précédente).
+- Service worker : terh-v63.

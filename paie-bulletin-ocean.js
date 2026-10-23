@@ -40,11 +40,13 @@
         lignes.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</td>';
     };
     var centre = '<div style="font-weight:700;font-size:15px">' + esc(o.employeur || '') + '</div>';
+    var astérisques = '<div style="text-align:center;font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;margin:2px 0 4px">' +
+      new Array(120).join('*') + '</div>';
     return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><tr>' +
       colonne(ENTETE_FR) +
       '<td style="width:28%;text-align:center;vertical-align:middle">' + centre + '</td>' +
       colonne(ENTETE_EN) +
-      '</tr></table>' +
+      '</tr></table>' + astérisques +
       '<div style="font-size:11px;font-weight:700;margin:4px 0 6px">BULLETIN DE PAIE DU ' +
         esc(vide(per.debut)) + ' AU ' + esc(vide(per.fin)) + '</div>';
   }
@@ -53,6 +55,7 @@
   function zoneSalarie(o) {
     var E = (o.hok && o.hok.entreprise) || {}, s = o.salarie || {};
     var employeur = '<td style="width:45%;vertical-align:top;font-size:10px;line-height:1.5">' +
+      (E.bp ? 'BP : ' + esc(E.bp) + '<br>' : '') +
       (E.tel ? 'TEL. : ' + esc(E.tel) + '<br>' : '') +
       (E.niu ? 'NIU : ' + esc(E.niu) + '<br>' : '') +
       (E.cnps ? 'N° CNPS : ' + esc(E.cnps) : '') + '</td>';

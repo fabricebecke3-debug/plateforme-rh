@@ -7,7 +7,7 @@
  * - Les clés de cache ignorent les paramètres (?t=…), pour que le cache ne grossisse pas à chaque chargement.
  * Pour forcer la mise à jour des utilisateurs, augmentez le numéro de VERSION.
  */
-const VERSION = 'terh-v59';
+const VERSION = 'terh-v63';
 const BASE = new URL('./', self.location.href).href;      // dossier de l'application
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 const CODE_RE = /\.(js|css|html|json|webmanifest|md|txt)$/i;
