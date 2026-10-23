@@ -100,8 +100,8 @@
     lignes += '<tr>' + cell('') + cell('<b>Total Cotisations</b>') + cell('') + cell('') + cell('') +
       cell('') + cell('<b>' + fmt(H.totalRetenues) + '</b>', droite) + '</tr>';
     // Rappels et avances : lignes du bulletin papier, hors total cotisations
-    lignes += '<tr>' + cell('29') + cell('Rappels') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.rappel || 0), droite) + '</tr>';
-    lignes += '<tr>' + cell('26') + cell('Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
+    lignes += '<tr>' + cell('29') + cell(H.libRappel || 'Rappels') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.rappel || 0), droite) + '</tr>';
+    lignes += '<tr>' + cell('26') + cell(H.libAvance || 'Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
     var alerte = (H.erreurs && H.erreurs.length) ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-bottom:4px">Attention, formule à corriger : ' + esc(H.erreurs.join(' ; ')) + '</div>' : '';
     return alerte + '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
       entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px">' + t + '</th>'; }).join('') +

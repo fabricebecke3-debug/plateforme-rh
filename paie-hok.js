@@ -12,11 +12,13 @@
 
   var CLE = 'terh_hok_params';
   var DEFAUT = {
+    // Version des règles légales (TDL et ancienneté) : si elle change, les anciens paliers enregistrés sont remplacés
+    regles_version: 'tdl-tableau-anciennete-cours-1',
     entreprise: { bp: '', tel: '695364392 /670471563', niu: 'M042318119342F', cnps: '392-0100140- A' },
     absences: { heures_mois: 173.33 },
     logement: { taux: 0.25 },
     assiduite: { taux: 0.05 },
-    anciennete: { taux: 0.06, seuil_ans: 2, tiers: [{ depuis: 2, taux: 0.06 }, { depuis: 5, taux: 0.10 }] },
+    anciennete: { seuil_ans: 2, taux_depart: 0.04, hausse_par_an: 0.02 },
     transport: { montant: 15000, exclu_cnps: 1 },
     cnps: { taux: 0.042, plafond: null },
     abattement: { taux: 0.7 },
@@ -26,7 +28,6 @@
       cumul: [16693, 29188, 70830],
       facteur: 0.7, charge: 0.028, deduction: 41667
     },
-    conge: { base: 'salaire_base', tiers: [{ depuis: 1, taux: 0.04 }, { depuis: 2, taux: 0.02 }] },
     cac: { taux: 0.1 },
     cfc: { taux: 0.01 },
     rav: {
@@ -34,11 +35,12 @@
         [600000, 7150], [700000, 8450], [800000, 9750], [900000, 11050], [1000000, 12350]],
       au_dela: 13000
     },
+    // TDL (taxe communale) : base mensuelle L ; montant mensuel = prélèvement annuel / 12 (barème officiel)
     tc: {
-      regle: 'tranche', pas: 25000, montant: 250, decalage: 1, plafond: 2250,
-      tranches: [[15000, 0], [25000, 83], [50000, 170], [52000, 270], [75000, 270], [100000, 520], [125000, 770],
-        [150000, 1020], [200000, 1270], [330000, 1520], [400000, 2020], [500000, 2270]],
-      au_dela: 2520
+      regle: 'table',
+      tranches: [[62000, 0], [75000, 250], [100000, 500], [125000, 750], [150000, 1000], [200000, 1250],
+        [250000, 1500], [300000, 2000], [500000, 2250]],
+      au_dela: 2250
     }
   };
 
@@ -63,7 +65,11 @@
   function charger() {
     try {
       var t = root.localStorage && root.localStorage.getItem(cle());
-      if (t) return fusion(DEFAUT, JSON.parse(t));
+      if (t) {
+        var s = JSON.parse(t);
+        if (s.regles_version !== DEFAUT.regles_version) { delete s.tc; delete s.anciennete; }
+        return fusion(DEFAUT, s);
+      }
     } catch (e) {}
     return clone(DEFAUT);
   }
@@ -161,11 +167,6 @@
   }
 
   // Taux de l'indemnité de congé selon les années complètes d'ancienneté (dernier palier atteint)
-  function tauxConge(ans, p) {
-    var taux = 0;
-    (p.conge.tiers || []).forEach(function (t) { if (ans >= nb(t.depuis)) taux = nb(t.taux); });
-    return taux;
-  }
   // Taux de présence du mois : 30 jours - absences en jours - absences en heures (base 173,33 h/mois)
   // Retourne une valeur entre 0 et 1 ; 1 si aucune absence saisie.
   function presence(o, p) {
@@ -264,13 +265,22 @@
     if (pos < t.length) throw new Error('élément en trop après la formule');
     return r;
   }
+  // Prime d'ancienneté (barème du cours) : 0 % avant le seuil ; taux de départ au seuil, puis + hausse par année révolue
+  function tauxAnciennete(ans, p) {
+    var a = p.anciennete || {}, n = Math.floor(nb(ans));
+    if (n < nb(a.seuil_ans)) return 0;
+    var t = nb(a.taux_depart) + nb(a.hausse_par_an) * (n - nb(a.seuil_ans));
+    return Math.round(t * 10000) / 10000;
+  }
+  // Codes réservés du bulletin Océan : avance (26), rappels (29), prime d'ancienneté Sage (1202)
+  var CODES_RESERVES = ['26', '29', '1202'];
   // Formules standard (affichées dans l'éditeur ; le calcul est le même que par défaut)
   var FORMULES_DEFAUT = {
     '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },
     '2': { lib: 'Indemnité de Logement', formule: 'p_logement*(smens+anc)', note: '25 % (salaire + ancienneté)' },
     '3': { lib: "Prime d'Assiduité", formule: 'si(pres<1, 0, p_assiduite*sb)', note: '5 % du salaire ; 0 en cas d\'absence' },
     '4': { lib: 'Indemnité de Transport', formule: 'p_transport*pres', note: 'montant × présence' },
-    '5': { lib: "Prime d'Ancienneté", formule: 'taux_anc*smens', note: 'taux selon ancienneté × salaire' },
+    '5': { lib: "Prime d'Ancienneté", formule: 'taux_anc*smens', note: 'barème du cours : taux de départ au seuil, + hausse par année (paramètres ci-dessous)' },
     '6': { lib: 'Indemnité de Congé', formule: 'conge', note: 'congé pris ce mois' },
     '10': { lib: 'IRPP', formule: 'bareme_irpp(Lirpp)', note: 'barème sur base imposable arrondie à 250' },
     '11': { lib: 'CAC', formule: 'p_cac*irpp', note: '10 % de l\'IRPP' },
@@ -281,7 +291,9 @@
     '17': { lib: "Fonds National de l'Emploi", formule: 'fne', note: 'montant de la fiche' },
     '22': { lib: 'Dettes Internes', formule: 'dettes', note: 'montant saisi' },
     '27': { lib: 'Prestation Familiale', formule: 'prestation', note: 'montant saisi' },
-    '28': { lib: 'Communard', formule: 'communard', note: 'montant saisi' }
+    '28': { lib: 'Communard', formule: 'communard', note: 'montant saisi' },
+    '26': { lib: 'Avance sur Salaire', formule: 'avance', note: 'montant de la fiche ; toujours imprimée et déduite' },
+    '29': { lib: 'Rappels', formule: 'rappel', note: 'montant de la fiche ; toujours imprimée et ajoutée' }
   };
   // Calcul pur. Montants exacts en interne ; les rubriques suivent la définition des paramètres (lignes).
   function calculer(o) {
@@ -300,18 +312,31 @@
     }
     // Ancienneté et logement : sur le salaire proratisé (formules du modèle)
     var smens = ((o.salaireMensuel !== undefined && o.salaireMensuel !== null && o.salaireMensuel !== '') ? nb(o.salaireMensuel) : sbPlein) * pres;
-    var tauxAnc = 0;
-    (p.anciennete.tiers || [{ depuis: p.anciennete.seuil_ans, taux: p.anciennete.taux }]).forEach(function (t) {
-      if (ans >= nb(t.depuis)) tauxAnc = nb(t.taux);
-    });
+    var tauxAnc = tauxAnciennete(ans, p);
     var ancMontant = (o.ancMontant !== undefined && o.ancMontant !== null && o.ancMontant !== '') ? nb(o.ancMontant) : tauxAnc * smens;
     var logement = (o.logement !== undefined && o.logement !== null && o.logement !== '') ? nb(o.logement) : p.logement.taux * (smens + ancMontant);
     // Prime d'assiduité : 0 en cas d'absence (jours ou heures)
     var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : (pres < 1 ? 0 : p.assiduite.taux * sb);
     // Transport proratisé : montant × présence
     var transport = (o.transport !== undefined && o.transport !== null && o.transport !== '') ? nb(o.transport) : nb(p.transport.montant) * pres;
-    var tauxC = o.congePris ? tauxConge(ans, p) : 0;
-    var conge = (o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '') ? nb(o.congeMontant) : tauxC * sb;
+    // Congé payé (cours et décret 75/28) : congé principal 1,5 jour par mois sur 12 mois = 18 jours,
+    // + 2 jours par tranche entière de 5 ans d'ancienneté ; allocation principale = rémunération totale × 1/16 ;
+    // jours supplémentaires payés à la valeur d'un jour du congé principal.
+    // Rémunération totale approchée par (salaire + logement + ancienneté + assiduité) × 12 mois, hors transport (frais).
+    var congeJours = null, congeValeurJour = null, congeCalc = null;
+    if (o.congePris) {
+      var MOIS_CONGE = 12, principal = Math.ceil(MOIS_CONGE * 1.5), supp = 2 * Math.floor(Math.max(0, ans) / 5);
+      // Majoration enfants (mères salariées) : +2 par enfant de moins de 6 ans ; +1 si le congé principal ne dépasse pas 6 jours
+      var nEnf = o.mere ? Math.max(0, Math.floor(nb(o.enfants6))) : 0;
+      supp += nEnf * (principal <= 6 ? 1 : 2);
+      var remunTotale = (sb + logement + assiduite + ancMontant) * MOIS_CONGE;
+      var allocPrinc = remunTotale * 1.5 / 24;
+      congeValeurJour = allocPrinc / principal;
+      congeJours = principal + supp;
+      congeCalc = allocPrinc + supp * congeValeurJour;
+    }
+    var conge = (o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '') ? nb(o.congeMontant)
+      : (congeCalc !== null ? congeCalc : 0);
 
     // Variables disponibles dans les formules
     var v = {
@@ -331,8 +356,8 @@
       ['2', 'logement', logement, 'Indemnité de Logement', null, null, null],
       ['3', 'assiduite', assiduite, "Prime d'Assiduité", null, null, null],
       ['4', 'transport', transport, 'Indemnité de Transport', null, null, null],
-      ['5', 'anc', ancMontant, "Prime d'Ancienneté", null, null, p.anciennete.taux],
-      ['6', 'conge', conge, 'Indemnité de Congé', null, null, (tauxC || null)]];
+      ['5', 'anc', ancMontant, "Prime d'Ancienneté", null, null, tauxAnc || null],
+      ['6', 'conge', conge, 'Indemnité de Congé', (congeJours !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeJours : null, (congeValeurJour !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeValeurJour : null, null]];
     function max0(x) { return Math.max(0, x); }
     var gains = [];
     STD_GAIN.forEach(function (g) {
@@ -361,7 +386,8 @@
     var brut = gains.reduce(function (t, g) { return t + g.gain; }, 0);
     var nonCnps = libres.reduce(function (t, m) { return t + (m.cnps === false ? nb(m.gain) : 0); }, 0);
     var nonIrpp = libres.reduce(function (t, m) { return t + (m.irpp === false ? nb(m.gain) : 0); }, 0);
-    var nonCfc = libres.reduce(function (t, m) { return t + (m.cfc === false ? nb(m.gain) : 0); }, 0);
+    // Hors base CFC : seulement les éléments déjà retenus dans la base IRPP ne sont pas comptés deux fois
+    var nonCfc = libres.reduce(function (t, m) { return t + ((m.cfc === false && m.irpp !== false) ? nb(m.gain) : 0); }, 0);
     // Base CNPS : brut sans transport (sauf particularité), moins les libres non cotisables, plafond si défini
     // Transport masqué : non payé, donc rien à retrancher de la base CNPS
     var transportPaye = (estMasquee('4') || estZero('4')) ? 0 : transport;
@@ -429,6 +455,11 @@
     if (fixes.irpp !== undefined && (fixes.cac === undefined || fixes.cac === null) && parCode('11')) parCode('11').ret = 0.1 * nb(fixes.irpp);
     var sommeRet = retenues.reduce(function (t, r) { return t + r.ret; }, 0);
     var rappel = nb(o.rappel), avance = nb(o.avance);
+    v.rappel = rappel; v.avance = avance;
+    if (ov['29'] && ov['29'].expr) rappel = essayer(ov['29'].expr, rappel, 'Rappels');
+    if (ov['26'] && ov['26'].expr) avance = essayer(ov['26'].expr, avance, 'Avance sur salaire');
+    if (estZero('29')) rappel = 0;
+    if (estZero('26')) avance = 0;
     var netCalc = brut + rappel - sommeRet - avance;
     var val = function (c) { var r = parCode(c); return r ? r.ret : 0; };
     return {
@@ -442,6 +473,7 @@
       congePris: !!o.congePris,
       totalRetenues: sommeRet,
       rappel: rappel, avance: avance,
+      libRappel: (ov['29'] && ov['29'].lib) || 'Rappels', libAvance: (ov['26'] && ov['26'].lib) || 'Avance sur Salaire',
       net: netCalc,
       erreurs: erreurs,
       exact: { brut: brut, retenues: sommeRet, net: netCalc,
@@ -467,6 +499,33 @@
     return du <= dateSaisie(m[2]) && au >= dateSaisie(m[1]);
   }
 
+  // Congé de la période : (1) saisi pour le mois, (2) congé approuvé de la plateforme qui chevauche la période,
+  // (3) sinon congé par défaut au mois d'anniversaire de l'embauche (à partir d'un an de service),
+  // sauf si un congé est déjà programmé pendant cette année de congé.
+  var STATUTS_CONGE = ['approuve', 'approuvee', 'planifie', 'planifiee', 'termine', 'terminee', 'en cours'];
+  function statutCongeValide(s) {
+    var t = String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    return STATUTS_CONGE.indexOf(t) >= 0;
+  }
+  function congePourPeriode(o, f) {
+    if (congePrisSurPeriode(o.conges, o.periode)) return true;
+    var m = /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+au\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/.exec(String(o.periode || ''));
+    if (!m) return false;
+    var debut = dateSaisie(m[1]), fin = dateSaisie(m[2]);
+    if (debut === null || fin === null) return false;
+    var liste = (o.congesPlateforme || []).filter(function (c) {
+      return statutCongeValide(c.statut) && dateSaisie(c.du) !== null && dateSaisie(c.au) !== null;
+    });
+    if (liste.some(function (c) { return dateSaisie(c.du) <= fin && dateSaisie(c.au) >= debut; })) return true;
+    var h = dateSaisie(f.dane || f.entree);
+    if (h === null) return false;
+    var hd = new Date(h * 86400000), pd = new Date(debut * 86400000);
+    if (pd.getUTCMonth() !== hd.getUTCMonth()) return false;
+    if (pd.getUTCFullYear() - hd.getUTCFullYear() < 1) return false;
+    var anniv = Date.UTC(pd.getUTCFullYear(), hd.getUTCMonth(), hd.getUTCDate()) / 86400000;
+    var suivant = Date.UTC(pd.getUTCFullYear() + 1, hd.getUTCMonth(), hd.getUTCDate()) / 86400000;
+    return !liste.some(function (c) { var d = dateSaisie(c.du); return d >= anniv && d < suivant; });
+  }
   // Calcul à partir de la fiche employé et des lignes saisies à la main (bulletin imprimé)
   function depuisLignes(o) {
     var lignes = o.lignes || [], f = o.fiche || {};
@@ -474,7 +533,8 @@
     // Salaire de base : saisi explicitement dans la grille pour le mois, sinon celui de la fiche
     var sb = (o.presence && o.presence.base) ? nb(o.presence.base) : (nb(f.sb) || (l1000 ? (nb(l1000.gain) || nb(l1000.nombre) * nb(l1000.base)) : 0));
     var gain = function (l) { return root.PaieMoteur && root.PaieMoteur.gainLigne ? root.PaieMoteur.gainLigne(l) : nb(l.gain); };
-    var CODES_FIXES = ['1000', '26', '29', '17', '22', '27', '28'];
+    // 5 (ancienneté) et 1202 (prime d'ancienneté du modèle Sage) sont calculées ici : jamais reprises comme élément libre
+    var CODES_FIXES = ['1000', '26', '29', '17', '22', '27', '28', '5', '1202'];
     var lig = function (code) { return lignes.filter(function (l) { return String(l.code) === code; })[0]; };
     var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
     // Éléments libres : lignes saisies à la main et lignes de la grille (heures sup., rubriques ajoutées).
@@ -504,7 +564,9 @@
       joursAbsence: (f.jabs !== undefined && f.jabs !== '') ? f.jabs : (o.presence && o.presence.joursAbsence), heuresAbsence: f.habs,
       dateAnciennete: f.dane || f.entree || '',
       transport: (f.transport !== undefined && f.transport !== '') ? f.transport : part.transport,
-      congePris: congePrisSurPeriode(o.conges, o.periode),
+      congePris: congePourPeriode(o, f),
+      congesPlateforme: o.congesPlateforme,
+      enfants6: f.enfants6, mere: String(f.genre || '').toUpperCase() === 'F',
       retenuesManuelles: retenuesManuelles,
       params: charger()
     });
@@ -519,15 +581,22 @@
   // ===== Éditeur des rubriques et formules (fenêtre Paramètres Hôtel Océan) =====
   var VARIABLES_AIDE = 'sbPlein, sb (salaire × présence), pres (présence), smens, ans, taux_anc, anc, logement, assiduite, transport, conge, ' +
     'brut, K (base CNPS), L (base imposable), Lirpp, Lcfc (base CFC), cnps, irpp, cac, cfc, rav, tc, fne, dettes, prestation, communard, ' +
-    'p_logement, p_assiduite, p_transport, p_cnps, p_cac, p_cfc, p_abat, p_seuil_cfc, R<code> (rubrique ajoutée). ' +
+    'p_logement, p_assiduite, p_transport, p_cnps, p_cac, p_cfc, p_abat, p_seuil_cfc, rappel, avance, R<code> (rubrique ajoutée). ' +
     'Fonctions : min, max, round, floor, ceil, abs, si(condition, a, b), arrondi250, bareme_irpp, bareme_rav, bareme_tc. ' +
     'Opérateurs : + - * / et < > <= >= ==.';
   function ligneAjout(r) {
     r = r || { code: '', lib: '', type: 'gain', expr: '', cnps: true, irpp: true, cfc: true };
+    // Rubrique ancienne (sans nature enregistrée) : « Personnalisée », pour ne pas afficher une nature inexacte
+    var nat = r.nature || (r.code === undefined || r.code === '' ? 'salaire' : 'personnalisee');
     return '<tr data-add><td><input data-acode value="' + esc(r.code) + '" style="width:56px"></td>' +
       '<td><input data-alib value="' + esc(r.lib) + '" style="width:100%"></td>' +
       '<td><select data-atype><option value="gain"' + (r.type !== 'retenue' ? ' selected' : '') + '>Gain</option>' +
       '<option value="retenue"' + (r.type === 'retenue' ? ' selected' : '') + '>Retenue</option></select></td>' +
+      '<td><select data-anat style="width:100%">' +
+        '<option value="salaire"' + (nat === 'salaire' ? ' selected' : '') + '>Salaire / accessoire (imposable, cotisable)</option>' +
+        '<option value="transport"' + (nat === 'transport' ? ' selected' : '') + '>Prime de transport (imposable, non cotisable)</option>' +
+        '<option value="remboursement"' + (nat === 'remboursement' ? ' selected' : '') + '>Remboursement de frais (non imposable, non cotisable)</option>' +
+        '<option value="personnalisee"' + (nat === 'personnalisee' ? ' selected' : '') + '>Personnalisée</option></select></td>' +
       '<td><input data-aexpr value="' + esc(r.expr) + '" style="width:100%;font:12px Consolas,monospace"></td>' +
       '<td style="text-align:center"><input type="checkbox" data-acnps' + (r.cnps !== false ? ' checked' : '') + '></td>' +
       '<td style="text-align:center"><input type="checkbox" data-airpp' + (r.irpp !== false ? ' checked' : '') + '></td>' +
@@ -544,7 +613,7 @@
         '<td><select data-etat style="width:100%">' +
           '<option value="normal"' + (masq.indexOf(c) < 0 && (lp.zeros || []).indexOf(c) < 0 ? ' selected' : '') + '>Normal</option>' +
           '<option value="zero"' + ((lp.zeros || []).indexOf(c) >= 0 ? ' selected' : '') + '>Afficher à 0 (non payée)</option>' +
-          '<option value="masque"' + (masq.indexOf(c) >= 0 ? ' selected' : '') + '>Ne pas afficher</option></select></td>' +
+          (c === '26' || c === '29' ? '' : '<option value="masque"' + (masq.indexOf(c) >= 0 ? ' selected' : '') + '>Ne pas afficher</option>') + '</select></td>' +
         '<td style="color:#666;font-size:11px">' + esc(d.note) + '</td></tr>';
     }).join('');
     return '<table style="width:100%;border-collapse:collapse;font-size:12px" data-tabstd><thead><tr style="background:#eef2f8">' +
@@ -553,7 +622,7 @@
       '<div style="font-weight:700;margin-top:10px">Rubriques ajoutées</div>' +
       '<table style="width:100%;border-collapse:collapse;font-size:12px" data-tabajout><thead><tr style="background:#eef2f8">' +
       '<th style="text-align:left">Code</th><th style="text-align:left">Libellé</th><th>Type</th><th style="text-align:left">Formule</th>' +
-      '<th>CNPS</th><th>IRPP</th><th>CFC</th><th></th></tr></thead><tbody>' + ajout.map(ligneAjout).join('') + '</tbody></table>' +
+      '<th>Nature</th><th>CNPS</th><th>IRPP</th><th>CFC</th><th></th></tr></thead><tbody>' + ajout.map(ligneAjout).join('') + '</tbody></table>' +
       '<div><button type="button" data-x="ajouter">+ Ajouter une rubrique</button></div>' +
       '<div style="color:#555;font-size:11px;margin-top:4px">Variables : ' + esc(VARIABLES_AIDE) + '</div>';
   }
@@ -580,9 +649,10 @@
       if (!code && !expr && !lib) continue;
       if (!code) throw new Error('rubrique « ' + lib + ' » : code manquant');
       if (FORMULES_DEFAUT[code]) throw new Error('code ' + code + ' déjà utilisé par une rubrique standard');
+      if (CODES_RESERVES.indexOf(String(code)) >= 0) throw new Error('code ' + code + ' réservé (avance, rappels ou prime d\'ancienneté)');
       if (codes[code]) throw new Error('code ' + code + ' en double');
       codes[code] = true;
-      ajout.push({ code: code, lib: lib || 'Rubrique', type: type, expr: expr,
+      ajout.push({ code: code, lib: lib || 'Rubrique', type: type, expr: expr, nature: tr.querySelector('[data-anat]') ? tr.querySelector('[data-anat]').value : 'personnalisee',
         cnps: tr.querySelector('[data-acnps]').checked, irpp: tr.querySelector('[data-airpp]').checked, cfc: tr.querySelector('[data-acfc]').checked });
     }
     return { overrides: ovr, masquees: masq, zeros: zeros, ajoutees: ajout };
@@ -601,6 +671,12 @@
     ov.innerHTML = '<div style="background:#fff;color:#1a1a1a;width:min(760px,100%);border-radius:8px;padding:14px;font:12px Arial,sans-serif;max-height:88vh;display:flex;flex-direction:column;gap:8px">' +
       '<b style="font-size:14px">Paramètres Hôtel Océan</b>' +
       '<div style="color:#555">Modifiez les taux et barèmes, ou ajoutez des paramètres (format JSON). Les bulletins se recalculent à chaque impression.</div>' +
+      '<div style="font-weight:700">Prime d\'ancienneté (barème du cours)</div>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+      '<label>Seuil (années révolues)<br><input type="number" min="0" step="1" data-anc-seuil value="' + esc(charger().anciennete.seuil_ans) + '" style="width:110px"></label>' +
+      '<label>Taux au seuil (%)<br><input type="number" min="0" step="0.01" data-anc-depart value="' + esc(+(nb(charger().anciennete.taux_depart) * 100).toFixed(4)) + '" style="width:110px"></label>' +
+      '<label>Hausse par année (%)<br><input type="number" min="0" step="0.01" data-anc-hausse value="' + esc(+(nb(charger().anciennete.hausse_par_an) * 100).toFixed(4)) + '" style="width:110px"></label>' +
+      '</div>' +
       '<div style="font-weight:700">Paramètres généraux</div>' +
       '<textarea data-hok style="min-height:200px;font:12px Consolas,monospace;border:1px solid #9aa5b5;border-radius:4px;padding:8px">' + esc(JSON.stringify(charger(), null, 2)) + '</textarea>' +
       '<div style="font-weight:700">Particularités permanentes (restent d\'un mois à l\'autre) — clé = nom du salarié ; supprimer une clé la retire</div>' +
@@ -612,6 +688,15 @@
       '<div data-msg style="min-height:16px"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-x="reset">Valeurs par défaut</button><button type="button" data-x="ferme">Fermer</button><button type="button" data-x="ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:4px;padding:6px 12px">Enregistrer</button></div></div>';
     document.body.appendChild(ov);
+    // Nature : coche CNPS / IRPP / CFC selon le tableau des bases taxable et cotisable (Personnalisée = inchangé)
+    var BASES_NATURE = { salaire: [true, true, true], transport: [false, true, true], remboursement: [false, false, false] };
+    ov.addEventListener('change', function (e) {
+      var sel = e.target.closest && e.target.closest('[data-anat]'); if (!sel) return;
+      var tr = sel.closest('tr'), b = BASES_NATURE[sel.value]; if (!tr || !b) return;
+      tr.querySelector('[data-acnps]').checked = b[0];
+      tr.querySelector('[data-airpp]').checked = b[1];
+      tr.querySelector('[data-acfc]').checked = b[2];
+    });
     ov.addEventListener('click', function (e) {
       if (e.target === ov) { ov.remove(); return; }
       var b = e.target.closest('[data-x]'); if (!b) return;
@@ -619,10 +704,15 @@
       if (x === 'ferme') ov.remove();
       else if (x === 'ajouter') { ov.querySelector('[data-tabajout] tbody').insertAdjacentHTML('beforeend', ligneAjout()); }
       else if (x === 'suppr') { b.closest('tr').remove(); }
-      else if (x === 'reset') { ov.querySelector('[data-hok]').value = JSON.stringify(DEFAUT, null, 2); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); ov.querySelector('[data-rub]').innerHTML = editeurRubriques({}); msg.style.color = '#555'; msg.textContent = 'Valeurs par défaut affichées : enregistrez pour les appliquer.'; }
+      else if (x === 'reset') { ov.querySelector('[data-hok]').value = JSON.stringify(DEFAUT, null, 2); ov.querySelector('[data-anc-seuil]').value = DEFAUT.anciennete.seuil_ans; ov.querySelector('[data-anc-depart]').value = +(DEFAUT.anciennete.taux_depart * 100).toFixed(4); ov.querySelector('[data-anc-hausse]').value = +(DEFAUT.anciennete.hausse_par_an * 100).toFixed(4); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); ov.querySelector('[data-rub]').innerHTML = editeurRubriques({}); msg.style.color = '#555'; msg.textContent = 'Valeurs par défaut affichées : enregistrez pour les appliquer.'; }
       else if (x === 'ok') {
         try {
           var p = JSON.parse(ov.querySelector('[data-hok]').value);
+          p.anciennete = {
+            seuil_ans: nb(ov.querySelector('[data-anc-seuil]').value),
+            taux_depart: nb(ov.querySelector('[data-anc-depart]').value) / 100,
+            hausse_par_an: nb(ov.querySelector('[data-anc-hausse]').value) / 100
+          };
           var lp = lireRubriques(ov);
           var err = verifierRubriques(lp, p);
           if (err.length) { msg.style.color = '#c0392b'; msg.textContent = 'Formule à corriger : ' + err.join(' ; '); return; }
