@@ -1,0 +1,15 @@
+VERSION 3.98 : MODÈLE OCÉAN — CODES, SUGGESTIONS, TOTAUX ET NETTOYAGE (index.html, paie-detail.js)
+TOTAUX (Hôtel Océan)
+- Retour à la ligne unique « Total brut | Total retenues | Net à payer », comme avant.
+ONGLET BULLETIN
+- Le bloc « Simulation indicative » (salarié, salaire brut, autres retenues, Calculer) est masqué ; le bouton « Bulletin détaillé » reste.
+TABLEAU LIBRE (Hôtel Océan)
+- En-têtes raccourcis : « Nombre » et « Base ».
+- La ligne « Salaire de base (proratisé aux jours) » (code 1000, en double avec la rubrique 1) n'est plus reprise : elle est retirée avec un avis.
+CODES
+- Une nouvelle rubrique reçoit le premier code libre, en tenant compte aussi des codes calculés par le modèle et affichés sur le bulletin (ex. 30 déjà utilisé → 31).
+- Un avis signale un code utilisé par deux rubriques, avec le champ Code à modifier.
+- Les lignes Sage de la grille sont aussi renumérotées en codes Océan.
+SUGGESTIONS (Rechercher une rubrique)
+- Le sélecteur propose les rubriques du catalogue Sage (Sursalaire, Prime de panier, Indemnité de salissure…) avec des codes de l'Hôtel Océan (30 et suivants). Les rubriques déjà calculées par le modèle ne sont pas proposées.
+Service worker : terh-v129.

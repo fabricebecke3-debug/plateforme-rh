@@ -10,9 +10,9 @@
   var ENTETE_EN = ['REPUBLIC OF CAMEROON', 'Peace-Work-Fatherland', 'MINISTRY OF TOURISM AND LEISURE',
     'OCEAN STATE-OWNED POOL', 'HOTEL OCEAN', 'ADMINISTRATIVE UNIT'];
   var BLOCS_DEFAUT = ['entete', 'salarie', 'rubriques', 'pied'];
-  var TD = 'border:1px solid #000;padding:2px 4px;font-size:10.5px;vertical-align:middle;color:#000';
+  var TD = 'border:1px solid #000;padding:4px 5px;font-size:12px;vertical-align:middle;color:#000';
   // En-tête : fond et texte forcés (couleur du modèle, sinon bleu nuit) pour que le thème sombre ne les éclaircisse pas
-  var TH = 'border:1px solid #000;padding:3px 4px;font-size:10.5px;vertical-align:middle;text-align:center;' +
+  var TH = 'border:1px solid #000;padding:5px 4px;font-size:12px;vertical-align:middle;text-align:center;' +
     'font-weight:700;text-transform:none';
   // Lignes de total : fond bleu pâle, texte noir gras
   var TOT = 'background:#e4ecf8;font-weight:700';
@@ -166,8 +166,8 @@
     };
     var libreLogo = (mod.logo && mod.logoPos !== 'aucun' && mod.logoX !== undefined && mod.logoY !== undefined)
       ? '<img src="' + mod.logo + '" alt="" style="position:absolute;left:' + (Number(mod.logoX) || 0) + 'mm;top:' + (Number(mod.logoY) || 0) + 'mm;height:' + (Number(mod.logoH) || 15) + 'mm;width:auto">' : '';
-    return '<div class="bs-bulletin" style="position:relative;height:297mm;box-sizing:border-box;display:flex;flex-direction:column;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact">' + libreLogo + 
-      blocs.map(function (b) { return b === 'pied' ? '<div style="margin-top:auto">' + rendu.pied() + '</div>' : (rendu[b] ? rendu[b]() : ''); }).join('') + '</div>';
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:11px;width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact">' + libreLogo + 
+      blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
   root.PaieBulletinOcean = { html: html };

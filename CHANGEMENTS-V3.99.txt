@@ -1,0 +1,4 @@
+VERSION 3.99 : BULLETIN OCÉAN — MISE EN PAGE COMPACTE, LÉGÈREMENT AGRANDIE (paie-bulletin-ocean.js)
+- Retour à la mise en page compacte : le net et les signatures suivent directement le tableau (plus de hauteur fixe ni de pied séparé en bas de page).
+- Agrandissement léger : texte du tableau 10,5 → 12 pt-équivalent, marges des cellules un peu plus grandes, texte général 10 → 11 px.
+Service worker : terh-v130.
