@@ -1,0 +1,19 @@
+VERSION 3.59 : BULLETIN HÔTEL OCÉAN PARAMÉTRABLE DEPUIS LE MODÈLE
+===============================================================================
+1. COULEUR (paie-bulletin-ocean.js, paie-modeles.js)
+- La « Couleur d'en-tête » du modèle s'applique à l'en-tête du tableau. Texte blanc ou noir selon la luminosité.
+- Les lignes « Total Brut » et « Total Cotisations » prennent une teinte pâle de la même couleur.
+- Sans couleur choisie : bleu nuit (comportement de la V3.58).
+
+2. COLONNES (paie-bulletin-ocean.js)
+- Nombre jour, Base unitaire et Taux suivent les cases cochées dans le modèle.
+- N°, Désignation, Gain et Retenue sont toujours imprimés.
+
+3. RUBRIQUES NON FILTRÉES (volontaire)
+- Le choix des rubriques du modèle n'est pas appliqué au bulletin Océan : son catalogue utilise les codes
+  Sage (1000, 2000…), pas les codes 1 à 28 de l'hôtel. Filtrer masquerait l'IRPP ou la CNPS sans avertissement.
+
+4. APERÇU (paie-modeles.js)
+- L'aperçu de l'éditeur se met à jour immédiatement au changement de couleur, de colonne ou de disposition.
+
+Service worker : terh-v87.

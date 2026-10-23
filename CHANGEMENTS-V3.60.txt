@@ -1,0 +1,49 @@
+VERSION 3.60 : LIVRE DE PAIE « VENTILATION PAR SALARIÉ » (format Sage)
+===============================================================================
+1. NOUVEAU MODULE (paie-livre.js)
+- Le livre est construit à partir des mêmes données que les bulletins du mois :
+  PaieGrille.lignesPour (lignes saisies) -> PaieMoteur.calculer -> PaieBulletinSage.lignesTableau.
+  Les codes (1000, 1040, 8100, 9019…) et les montants sont donc ceux du bulletin.
+- Une colonne par salarié, 7 par page, en paysage A4 ; colonne « Total » sur la dernière page.
+- Lignes : rubriques par code, Total Brut, Total Cotisation, Présence, Brut, retenues salariales,
+  cotisations patronales, Net à payer, Net imposable, Coût total, nombre de salariés.
+
+2. CONTRÔLE
+- tests/paie-livre-8000.js : salarié 8000 du livre Sage TOTAL EMPLOI RH (16/09/26 au 15/10/26) :
+  brut 142 155, cotisations 4 612, net 130 000, net imposable 122 155, patronales 17 823,
+  coût 159 978, IRPP 3 365, CAC 337, CFC 1 121, taxe communale 770, redevance 1 950 : tous exacts.
+
+3. BOUTON (paie-detail.js, index.html)
+- « 📚 Livre de paie » dans la barre du bulletin détaillé. Lit les fiches du mois (TERH_fichesPaie).
+
+4. POINTS OUVERTS
+- La ligne « Cotisations salariales » du livre Sage (29 305 pour le salarié 8000) n'est pas reproduite :
+  la ligne affichée est « Total retenues salariales » (12 155). Définition à confirmer.
+- La ligne 1010 « Salaire de base mensuel » (second salaire, cas particulier) passe telle quelle si la grille la produit.
+- Présence : valeur saisie sur la fiche (sinon vide).
+
+Service worker : terh-v88.
+
+MISE À JOUR V3.61 (livre selon le modèle de chaque salarié)
+- Le livre suit le modèle affecté à chaque salarié (PaieModeles.pourSalarie), comme son bulletin.
+  Modèle Sage : codes 1000, 8100, 9019… (inchangé). Modèle Océan : codes 1 à 28, rappels 29, avance 26,
+  mêmes montants que le bulletin Océan (PaieHok.depuisLignes).
+- Un livre ne mélange pas les deux modèles : un bloc par modèle.
+- Océan : net imposable, cotisations patronales et coût total ne sont pas calculés par le modèle Océan :
+  ces cases restent vides plutôt que d'afficher un montant inventé.
+- Contrôle : tests/paie-livre-ocean.js (codes du bulletin Océan présents, aucun code Sage).
+- Service worker : terh-v89.
+
+MISE À JOUR V3.62 (modèle Océan complet dans le livre ; rubriques d'un mois)
+1. MODÈLE OCÉAN (paie-hok.js) : calcul de
+   - charges patronales : CNPS 4,2 % et prestations 7 %, accidents 2,5 %, FNE 1 % sur la base CNPS ; CFC patronal 1,5 % sur la base CFC.
+     Taux repris du moteur Sage. HYPOTHÈSE à confirmer par l'hôtel (paramètre « patronales » dans Paramètres Hôtel Océan).
+   - net imposable = brut hors éléments libres non imposables (drapeau « imposable » de la rubrique) ;
+   - coût employeur = brut + charges patronales (définition Sage).
+   Les charges patronales ne sont pas imprimées sur le bulletin Océan (afficherPatronales = non) : elles n'apparaissent que dans le livre.
+2. LIVRE (paie-livre.js)
+   - Les rubriques sont regroupées par code ET libellé sur l'ensemble des salariés du modèle : une rubrique présente sur un seul
+     bulletin du mois figure dans le livre, et son total général est juste. Avant, le total de la dernière page pouvait l'omettre.
+   - Un même code peut désigner deux rubriques différentes à l'hôtel (rubriques libres) : elles ne sont plus fusionnées.
+   - Contrôle : tests/paie-livre-rubrique-unique.js.
+Service worker : terh-v90.

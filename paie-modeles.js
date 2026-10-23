@@ -412,7 +412,16 @@
         if (el && el !== document.activeElement) el.value = champs[k];
       });
     }
+    // Couleur, colonnes et disposition : l'aperçu se met à jour immédiatement
+    cadre.addEventListener('change', function (e) {
+      var el = e.target;
+      if (el.matches && (el.matches('[data-f="couleur"]') || el.matches('[data-col]') || el.matches('[data-f="dispo"]') || el.matches('[data-f="pied-on"]'))) {
+        lireForm(); majApercu();
+      }
+    });
     cadre.addEventListener('input', function (e) {
+      var el = e.target;
+      if (el.matches && el.matches('[data-f="couleur"]')) { lireForm(); majApercu(); return; }
       var f = e.target.getAttribute && e.target.getAttribute('data-logo-n'); if (!f) return;
       var m = trouve(); if (!m) return;
       m[f] = Math.max(0, Number(e.target.value) || 0);

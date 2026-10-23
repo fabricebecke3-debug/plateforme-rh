@@ -357,6 +357,11 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label>Genre<select id="f_g"><option value="M">Masculin</option><option value="F">Féminin</option></select></label>
       <label>Date de naissance<input type="date" id="f_dn"></label>
       <label>Téléphone<input id="f_tel"></label>
+      <label>Matricule interne<input id="f_mat" placeholder="ex. ACC-0001"></label>
+    </fieldset>
+    <fieldset class="fs" id="fsEnf" style="display:none"><legend>Enfants (mères salariées)</legend>
+      <div id="enfListe" style="grid-column:1/-1"></div>
+      <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="s" id="enfAdd">+ Ajouter un enfant</button><span id="enfRes" style="font-size:12px;color:var(--mu)"></span></div>
     </fieldset>
     <fieldset class="fs"><legend>Contrat et présence</legend>
       <label>Poste<input id="f_p" list="pl"></label><datalist id="pl"></datalist>
@@ -366,7 +371,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label>Date d'entrée<input type="date" id="f_entree"></label>
       <label>Lieu de travail (ville)<input id="f_lieu" placeholder="ex. Douala, Yaoundé"></label>
       <label>Établissement<input id="f_etab"></label>
-      <label>Enfants de moins de 6 ans (mères salariées)<input type="number" min="0" step="1" id="f_enf6"></label>
+      <label>Enfants de moins de 6 ans (calcul automatique)<input type="number" min="0" step="1" id="f_enf6" readonly style="opacity:.75"></label>
       <label>Type d'entrée<input id="f_tent" placeholder="ex. EM (embauche)"></label>
     </fieldset>
     <fieldset class="fs"><legend>Rémunération et paie</legend>
@@ -1331,6 +1336,7 @@ const TCACHE={_o:null,open(){return this._o||(this._o=new Promise(ok=>{try{const
  key(){return (typeof _uid!=='undefined'&&_uid?_uid:'u')+'|'+(CO||'-')+'|'+MY_ROLE+'|'+VMODE;}};
 let loadTok=0;
 async function loadAll(){
+  try{ if(window.TERH_docsEntreprise) window.TERH_docsEntreprise(true).catch(()=>{}); }catch(e){}
   const tok=++loadTok;
   if(!MULTI||!COS.length||(isOwnerUser()&&!CO))await ensureCompanies();
   else if(Date.now()-(window.__cosAt||0)>1500){/* relecture sûre : sans elle, une société modifiée reste affichée avec ses anciennes valeurs */
@@ -1883,6 +1889,20 @@ $('tmf').onsubmit=async e=>{
 };
 
 /* ============ FORMULAIRE ============ */
+var ENF_LISTE=[];
+function enfToggle(){const f=$('f_g').value==='F';$('fsEnf').style.display=f?'':'none';}
+function enfRender(){
+  const box=$('enfListe');
+  const today=LD(T);
+  box.innerHTML=ENF_LISTE.map((d,i)=>{const a=PaieEnfants.ageAns(d,today);return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="min-width:80px;font-size:12px">Enfant '+(i+1)+'</span><input type="date" data-enf="'+i+'" value="'+(d||'')+'" style="flex:1"><span style="min-width:70px;font-size:12px;color:var(--mu)">'+(a==null?'':a+' an(s)')+'</span><button type="button" class="s" data-enfdel="'+i+'">✕</button></div>';}).join('')||'<div style="font-size:12px;color:var(--mu)">Aucun enfant saisi.</div>';
+  const n=PaieEnfants.moins6ans(ENF_LISTE,today);
+  $('f_enf6').value=n;
+  $('enfRes').textContent='Moins de 6 ans aujourd\'hui : '+n+' (calculé à partir des dates de naissance)';
+}
+$('f_g').addEventListener('change',enfToggle);
+$('enfAdd').onclick=()=>{ENF_LISTE.push('');enfRender();};
+$('enfListe').addEventListener('change',e=>{const i=e.target.getAttribute&&e.target.getAttribute('data-enf');if(i!==null&&i!==undefined){ENF_LISTE[+i]=e.target.value;enfRender();}});
+$('enfListe').addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-enfdel]');if(b){ENF_LISTE.splice(+b.getAttribute('data-enfdel'),1);enfRender();}});
 const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu','f_sb','f_hor','f_per','f_conv','f_cat','f_niv','f_ind','f_coef','f_dane','f_dep','f_tent','f_etab','f_enf6'];
 const FLK=['n','p','g','dn','t','deb','fin','tel','cnps','dv','entree','lieu','sb','hor','per','mod','conv','cat','niv','ind','coef','dane','dep','tent','etab','enf6'];
 function edit(r){
@@ -1897,6 +1917,8 @@ function edit(r){
   $('cu').value=r?.contrat_url||'';
   $('cn').value=r?.contrat_nom||'';
   try{xFill(r);}catch(e){console.warn(e);}
+  $('f_mat').value=r?String(MAT[r.id]||''):'';
+  ENF_LISTE=(r&&xGet(r.n).enfants)?xGet(r.n).enfants.slice():[];enfRender();enfToggle();
   finManuelle=!!(r&&r.fin&&r.fin!==calcFin(r.deb));
   updateCnpsInfo();
   $('op').style.display='none';
@@ -1921,13 +1943,19 @@ $('fm').onsubmit=async e=>{
   const o={};FLK.forEach((k,i)=>o[k]=k==='p'?normPoste($(FLD[i]).value||''):($(FLD[i]).value||'').trim());
   o.contrat_url=$('cu').value;o.contrat_nom=$('cn').value;
   if(!o.n){toast('Le nom est obligatoire');return;}
+  const matS=($('f_mat').value||'').trim();
+  if(matS&&Object.keys(MAT).some(k=>k!==String($('fid').value||'')&&String(MAT[k]||'').trim()===matS)){toast('Matricule '+matS+' déjà attribué à un autre salarié');return;}
+  const cnpsS=($('f_cnps').value||'').replace(/\D/g,'');
+  if(cnpsS&&(EN()||[]).some(x=>String(x.id)!==String($('fid').value||'')&&String(x.cnps||'').replace(/\D/g,'')===cnpsS)){toast('N° CNPS déjà attribué à un autre salarié');return;}
+  if(o.g!=='F')ENF_LISTE=[];
+  if(o.g==='F'&&ENF_LISTE.some(d=>d&&d>LD(T))){toast('Une date de naissance d\'enfant ne peut pas être dans le futur');return;}
   if((o.t==='CDD'||o.t==='OCCASIONNEL'||o.t==='TEMPORAIRE')&&!o.fin){toast('Renseignez la date de fin');return;}
   if(o.deb&&o.fin&&o.fin<o.deb){toast('La date de fin ne peut pas être avant le début');return;}
   if(o.dn&&o.dn>LD(T)){toast('La date de naissance ne peut pas être dans le futur');return;}
   if(o.tel&&!/^[0-9+\s().-]{8,20}$/.test(o.tel)){toast('Le téléphone contient des caractères invalides');return;}
   const btn=$('fsub');btn.disabled=true;btn.textContent='Enregistrement…';
   try{if(PENDING_FILE){try{btn.textContent='Téléversement du document…';const up=await upContrat(PENDING_FILE);o.contrat_url=up.url;o.contrat_nom=up.nom;try{await logDoc('Contrat',up.nom,'Téléversé à l’enregistrement');}catch(_e){try{logErr('erreur ignorée : '+(((_e)&&_e.message)||_e))}catch(_){}}}catch(upErr){toast('Fiche enregistrée, mais document non téléversé : '+upErr.message);}}
-    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}if(id)await updateEmp(id,o);else await insertEmp(o);try{await xSaveForm(o,id);}catch(xe){toast('Fiche enregistrée, mais champs complémentaires non enregistrés : '+xe.message);}toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
+    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}o.enf6=$('f_enf6').value;let idFiche=id;if(id)await updateEmp(id,o);else{const cree=await insertEmp(o);idFiche=cree&&cree.id;}if(idFiche&&matS&&matS!==String(MAT[idFiche]||'').trim())await window.TERH_enregistrerMat(idFiche,matS);try{await xSaveForm(o,idFiche||id);}catch(xe){toast('Fiche enregistrée, mais champs complémentaires non enregistrés : '+xe.message);}toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
   catch(err){toast('Erreur : '+err.message);}
   finally{btn.disabled=false;btn.textContent='Enregistrer';}
 };
@@ -2488,7 +2516,7 @@ function xFill(r){xInit();const x=r?xGet(r.n):{};XF.forEach(f=>{const e=$('x_'+f
   xColsDef().forEach(d=>{if(!('c:'+d.l in x))x['c:'+d.l]='';});const cs=Object.keys(x).filter(k=>k.startsWith('c:')&&!hiddenKey(k));
   $('x_custom').innerHTML=cs.length?'<h3 style="margin:8px 0 4px;font-size:13px;color:var(--mu)">Autres informations (colonnes importées)</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+cs.map(k=>'<label>'+esc(k.slice(2))+'<input data-xc="'+esc(k)+'" value="'+esc(x[k])+'"></label>').join('')+'</div>':'';}
 function xCollect(){const x={};XF.forEach(f=>{const e=$('x_'+f[0]);const v=e?String(e.value||'').trim():'';if(v)x[f[0]]=v;});document.querySelectorAll('#x_custom [data-xc]').forEach(e=>{const v=String(e.value||'').trim();if(v)x[e.dataset.xc]=v;});return x;}
-async function xSaveForm(o,id){if(!$('x_mat'))return;const x=xCollect();
+async function xSaveForm(o,id){if(!$('x_mat'))return;const x=xCollect();if(o.g==='F'&&ENF_LISTE.length)x.enfants=ENF_LISTE.filter(d=>d).slice();
   if(x.mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.mail))throw new Error('e-mail invalide');
   const all=xAll();const old=id?E.find(e=>String(e.id)===String(id)):null;if(old&&nName(old.n)!==nName(o.n))delete all[nName(old.n)];
   if(Object.keys(x).length)all[nName(o.n)]=x;else delete all[nName(o.n)];
@@ -3120,10 +3148,11 @@ function renderApprentissage(){
 const PANNEAUX={
   cours:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Chaque cours s\'ouvre dans une fenêtre de lecture : bouton Fermer en haut, ou touche Échap.</p>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="s" data-doc="formation/programme.md">🗺 Voir le programme</button></div>'
-    +'<div id="fo_cours" style="display:grid;gap:8px"></div>',
+    +'<h3 style="margin:14px 0 6px;font-size:14px">Documents de l\'entreprise</h3><div id="fo_docs_cours" style="display:grid;gap:8px"></div>'
+    +'<h3 style="margin:14px 0 6px;font-size:14px">Bibliothèque</h3><div id="fo_cours" style="display:grid;gap:8px"></div>',
   exo:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Saisissez votre résultat (virgule ou point). La plateforme le vérifie et explique la démarche.</p><div id="fo_exo" style="display:grid;gap:10px"></div>',
   qcm:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Questions avec correction et explication. Le score est enregistré à la fin.</p><button class="p" id="fo_qcm">📝 Lancer le QCM</button><div id="fo_qcm_zone" style="margin-top:12px"></div>',
-  docs:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Word, PDF avec texte, Markdown ou texte. Les PDF scannés ne sont pas lus automatiquement.</p><div id="fo_docs"></div>',
+  docs:()=>'<p class="muted" style="font-size:13px;margin:0 0 10px">Word, PDF avec texte, Markdown ou texte. Les PDF scannés sont lus par reconnaissance de caractères (OCR) : compter environ 10 secondes par page, 40 pages au maximum.</p><div id="fo_docs"></div>',
   prog:()=>'<div id="fo_prog" class="muted">Chargement…</div>',
   aide:()=>'<ol style="line-height:1.8;font-size:14px;padding-left:20px;margin:0 0 10px">'
     +'<li><b>Le site</b> : les cours, le QCM et l’assistant sont en place.</li>'
@@ -3142,7 +3171,7 @@ function montrerOnglet(id){
   document.querySelectorAll('#fo_onglets [data-onglet]').forEach(b=>{const on=b.dataset.onglet===id; b.style.borderBottomColor=on?'#1f5fbf':'transparent'; b.style.fontWeight=on?'700':'400'; b.setAttribute('aria-selected',on?'true':'false'); b.tabIndex=on?0:-1;});
   const pan=$('fo_panel'); if(!pan||!PANNEAUX[id]) return;
   pan.innerHTML=PANNEAUX[id]();
-  if(id==='cours'){ pan.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>afficherDoc(b.dataset.doc)); chargerBibliotheque(); }
+  if(id==='cours'){ pan.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>afficherDoc(b.dataset.doc)); chargerBibliotheque(); chargerDocsCours(); }
   if(id==='exo') chargerExercices();
   if(id==='qcm') $('fo_qcm').onclick=()=>{ $('fo_qcm_zone').innerHTML='<iframe src="formation/entrainement-qcm.html" style="width:100%;height:640px;border:1px solid #d6dbe3;border-radius:10px" title="QCM"></iframe>'; };
   if(id==='docs') chargerDocuments();
@@ -3265,6 +3294,27 @@ async function chargerExercices(){
   afficher();
 }
 
+async function ocrPdf(pdf){
+  const etat=()=>document.getElementById('fd_etat');
+  if(!window.Tesseract) await loadJS('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+  const max=Math.min(pdf.numPages,40);
+  if(etat()) etat().textContent='PDF scanné : reconnaissance du texte (OCR)…';
+  const worker=await getOcr();
+  const out=[];
+  for(let i=1;i<=max;i++){
+    if(etat()) etat().textContent='OCR : page '+i+' sur '+max+'…';
+    const page=await pdf.getPage(i);
+    const vp=page.getViewport({scale:2});
+    const c=document.createElement('canvas'); c.width=Math.round(vp.width); c.height=Math.round(vp.height);
+    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    const r=await worker.recognize(c);
+    out.push((r&&r.data&&r.data.text)||'');
+  }
+  if(pdf.numPages>max) out.push('[Seules les '+max+' premières pages ont été lues.]');
+  const texte=out.join('\n\n').trim();
+  if(!texte) throw new Error('Le PDF scanné ne contient pas de texte lisible.');
+  return texte;
+}
 async function lireFichier(file,type){
   if(type==='md'||type==='txt') return await file.text();
   if(type==='docx'){
@@ -3281,23 +3331,123 @@ async function lireFichier(file,type){
       const page=await pdf.getPage(i); const tc=await page.getTextContent();
       pages.push(tc.items.map(x=>x.str).join(' '));
     }
-    if(FormationDocuments.pdfEstScanne(pages)) return {scanne:true};
+    if(FormationDocuments.pdfEstScanne(pages)) return await ocrPdf(pdf);
     return pages.join('\n\n');
   }
   return '';
 }
+const CATEGORIES_DOC=[['convention','Convention collective'],['code','Code du travail'],['cours','Cours'],['procedure','Procédure interne'],['autre','Autre']];
+const CATEG_DOC=Object.fromEntries(CATEGORIES_DOC);
+// Règle unique : seuls le propriétaire et l'administrateur de l'entreprise écrivent (miroir de terh_admin).
+// Tous les membres lisent. Mode « voir comme » : lecture seule.
+function docsPeutEcrire(){
+  if(isOwnerUser()) return true;
+  if(VIEW_AS) return false;
+  return ER()==='admin';
+}
+function docsPeutModifier(){ return docsPeutEcrire(); }
+function docsPeutSupprimer(){ return docsPeutEcrire(); }
+// Erreur de droits renvoyée par la base : l'écran a autorisé l'action, la base la refuse -> signalé
+function docsErreurDroits(err){
+  const m=String((err&&err.message)||'')+' '+String((err&&err.code)||'');
+  return /row-level|policy|permission|42501|not allowed|denied/i.test(m);
+}
+function signalerDroits(err){
+  const msg='Droits incohérents : l\'écran autorise cette action, mais la base la refuse. Signalez-le à l\'administrateur.';
+  toast('Action refusée par la base');
+  try{ logErr('droits documents : '+((err&&err.message)||'refus sans détail')+' · rôle '+ER()); }catch(e){}
+  const box=$('fo_docs'); if(box&&!$('fd_droits')) box.insertAdjacentHTML('afterbegin','<p id="fd_droits" class="ban" style="font-size:13px">'+msg+'</p>');
+}
+// Documents de l'entreprise courante, lus dans la base (tous les appareils) ; mis en cache 5 min par entreprise
+function chunkDoc(txt){const t=String(txt||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();const out=[];for(let i=0;i<t.length;i+=1200)out.push(t.slice(i,i+1200));return out;}
+window.TERH_docsEntreprise=async function(force){
+  if(!MY_USER||!CO) return [];
+  const c=window.__docsEnt;
+  if(!force&&c&&c.co===CO&&Date.now()-c.t<300000) return c.docs;
+  const {data,error}=await db.from('formation_documents').select('id,titre,categorie,texte_extrait').eq('entreprise_id',CO).order('cree_le',{ascending:false}).limit(300);
+  const docs=error?[]:(data||[]);
+  window.__docsEnt={co:CO,t:Date.now(),docs};
+  // Assistant : mêmes textes, ajoutés au corpus (les anciens passages de la société sont remplacés)
+  const base=(window.TERH_CORPUS||[]).filter(x=>!x.ent);
+  docs.forEach(d=>{const parts=chunkDoc(d.texte_extrait);parts.forEach((x,k)=>base.push({t:d.titre+(parts.length>1?' ('+(k+1)+'/'+parts.length+')':''),x:x,k:d.categorie||'autre',inh:0,ent:1}));});
+  window.TERH_CORPUS=base;
+  return docs;
+};
+function suggererCategorie(titre){
+  const t=String(titre||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/convention/.test(t)) return 'convention';
+  if(/code du travail|\bcode\b/.test(t)) return 'code';
+  if(/proced|process|mode operatoire|guide interne/.test(t)) return 'procedure';
+  if(/cours|formation|module|lecon|apprentissage/.test(t)) return 'cours';
+  return '';
+}
+// Test non destructif : la base accepte-t-elle la modification que l'écran autorise ? (une fois par session)
+async function verifierDroitsModif(d){
+  if(window.__droitsTeste||!d) return; window.__droitsTeste=true;
+  const {data,error}=await db.from('formation_documents').update({categorie:d.categorie||'autre'}).eq('id',d.id).select('id');
+  if(error||!data||!data.length) signalerDroits(error||{message:'0 ligne modifiable'});
+}
 async function chargerDocuments(){
   const box=$('fo_docs'); if(!box) return;
-  const peutEcrire=(typeof isOwnerUser==='function'&&isOwnerUser())||(typeof isAdm==='function'&&isAdm());
-  const {data,error}=await db.from('formation_documents').select('id,titre,type,nom_fichier,chemin,cree_le,entreprise_id').order('cree_le',{ascending:false});
+  const peutEcrire=docsPeutEcrire(), peutModifier=docsPeutModifier();
+  let q=db.from('formation_documents').select('id,titre,categorie,type,nom_fichier,chemin,cree_le,entreprise_id').order('cree_le',{ascending:false});
+  if(CO) q=q.eq('entreprise_id',CO);
+  const {data,error}=await q;
+  const aClasser=(data||[]).filter(d=>!d.categorie||d.categorie==='autre').length;
   let html='';
-  if(peutEcrire) html+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px"><label>Titre<input id="fd_titre" placeholder="Ex. Code du travail — extraits" style="width:240px"></label><label>Fichier<input id="fd_fichier" type="file" accept=".docx,.pdf,.md,.txt"></label><button class="p" id="fd_envoyer">📤 Importer</button></div><div id="fd_etat" class="muted" style="font-size:13px"></div>';
+  if(peutEcrire) html+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px"><label>Titre<input id="fd_titre" placeholder="Ex. Convention collective du commerce" style="width:240px"></label><label>Catégorie<select id="fd_cat">'+CATEGORIES_DOC.map(c=>'<option value="'+c[0]+'">'+c[1]+'</option>').join('')+'</select></label><label>Fichier<input id="fd_fichier" type="file" accept=".docx,.pdf,.md,.txt"></label><button class="p" id="fd_envoyer">📤 Importer</button></div><div id="fd_etat" class="muted" style="font-size:13px"></div>';
+  if(aClasser&&!error) html+='<p class="muted" style="font-size:13px;margin:0 0 8px">'+aClasser+' document(s) sans catégorie (« Autre ») : choisissez leur catégorie dans la liste pour qu\'ils apparaissent dans l\'onglet Cours.</p>';
   if(error){ box.innerHTML=html+'<p class="ban">La liste des documents est indisponible : vérifiez que sql/formation-documents.sql a été exécuté.</p>'; }
   else if(!data||!data.length){ box.innerHTML=html+'<p class="muted">Aucun document importé pour le moment.</p>'; }
-  else { html+='<div style="display:grid;gap:6px">'+data.map(d=>'<div style="display:flex;gap:8px;align-items:center;border:1px solid #d6dbe3;border-radius:8px;padding:8px"><div style="flex:1"><b>'+esc(d.titre)+'</b><div class="muted" style="font-size:12px">'+esc(d.nom_fichier)+' · '+esc(String(d.cree_le||'').slice(0,10))+' · '+(d.entreprise_id?'société':'général')+'</div></div><button class="s" data-doc-lire="'+d.id+'">Lire</button>'+(peutEcrire?'<button class="s" data-doc-suppr="'+d.id+'" data-chemin="'+esc(d.chemin)+'">Supprimer</button>':'')+'</div>').join('')+'</div>'; box.innerHTML=html; }
+  else {
+    html+='<div style="display:grid;gap:6px">'+data.map(d=>{
+      const sug=(!d.categorie||d.categorie==='autre')?suggererCategorie(d.titre):'';
+      const sel=peutModifier?'<select data-recat="'+d.id+'" style="font-size:12px">'+CATEGORIES_DOC.map(c=>'<option value="'+c[0]+'"'+((d.categorie||'autre')===c[0]?' selected':'')+'>'+c[1]+'</option>').join('')+'</select>':'';
+      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid #d6dbe3;border-radius:8px;padding:8px"><div style="flex:1;min-width:200px"><b>'+esc(d.titre)+'</b> <span class="muted" style="font-size:12px;border:1px solid #d6dbe3;border-radius:6px;padding:1px 6px">'+esc(CATEG_DOC[d.categorie]||'Autre')+'</span><div class="muted" style="font-size:12px">'+esc(d.nom_fichier||'')+' · '+esc(String(d.cree_le||'').slice(0,10))+'</div></div>'+
+        sel+(sug?'<button class="s" data-sugg="'+d.id+'" data-cat="'+sug+'" style="font-size:12px">Suggestion : '+esc(CATEG_DOC[sug])+'</button>':'')+
+        '<button class="s" data-doc-lire="'+d.id+'">Lire</button>'+(peutEcrire&&docsPeutSupprimer()?'<button class="s" data-doc-suppr="'+d.id+'" data-chemin="'+esc(d.chemin||'')+'">Supprimer</button>':'')+'</div>';
+    }).join('')+'</div>'; box.innerHTML=html;
+  }
   if(peutEcrire&&$('fd_envoyer')) $('fd_envoyer').onclick=televerserDocument;
   box.querySelectorAll('[data-doc-lire]').forEach(b=>b.onclick=()=>lireDocument(b.dataset.docLire));
   box.querySelectorAll('[data-doc-suppr]').forEach(b=>b.onclick=()=>supprimerDocument(b.dataset.docSuppr,b.dataset.chemin));
+  box.querySelectorAll('[data-recat]').forEach(sel=>sel.onchange=()=>changerCategorie(sel.dataset.recat,sel.value));
+  box.querySelectorAll('[data-sugg]').forEach(b=>b.onclick=()=>changerCategorie(b.dataset.sugg,b.dataset.cat));
+  if(peutModifier&&data&&data.length) verifierDroitsModif(data[0]);
+}
+async function changerCategorie(id,cat){
+  const {data,error}=await db.from('formation_documents').update({categorie:cat}).eq('id',id).select('id');
+  if(error||!data||!data.length){ signalerDroits(error||{message:'0 ligne modifiable'}); return; }
+  toast('Catégorie : '+CATEG_DOC[cat]); chargerDocuments();
+}
+// Bibliothèque du propriétaire -> publication pour une entreprise (lisible par ses membres, sur tous les appareils)
+function publierBibliotheque(id,list){
+  const doc=(list||[]).find(d=>d.id===id); if(!doc) return;
+  const cos=(typeof COS!=='undefined'&&Array.isArray(COS))?COS:[];
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML='<div style="background:#fff;color:#1a1a1a;padding:18px;border-radius:10px;min-width:300px;font:14px Arial,sans-serif"><b>Publier « '+esc(doc.t)+' »</b>'+
+    '<div style="margin:10px 0"><label>Entreprise<br><select id="pb_co" style="width:100%">'+cos.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.nom||c.id)+'</option>').join('')+'</select></label></div>'+
+    '<div><label>Catégorie<br><select id="pb_cat" style="width:100%">'+CATEGORIES_DOC.map(c=>'<option value="'+c[0]+'">'+c[1]+'</option>').join('')+'</select></label></div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button id="pb_ann">Annuler</button><button id="pb_ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:6px;padding:6px 12px">Publier</button></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#pb_ann').onclick=()=>ov.remove();
+  ov.querySelector('#pb_ok').onclick=async()=>{
+    const co=ov.querySelector('#pb_co').value, cat=ov.querySelector('#pb_cat').value;
+    if(!co){ toast('Choisissez une entreprise'); return; }
+    const {error}=await db.from('formation_documents').insert({titre:doc.t,nom_fichier:doc.t,type:'txt',chemin:null,texte_extrait:(doc.chunks||[]).join(' '),entreprise_id:co,categorie:cat});
+    if(error){ toast('Publication impossible : '+error.message); return; }
+    toast('Document publié pour l\'entreprise'); ov.remove();
+  };
+}
+// Onglet Cours : cours, codes et conventions de l'entreprise (en plus de la bibliothèque)
+async function chargerDocsCours(){
+  const box=$('fo_docs_cours'); if(!box) return;
+  const docs=await window.TERH_docsEntreprise(true);
+  const liste=docs.filter(d=>['cours','code','convention'].includes(d.categorie));
+  if(!liste.length){ box.innerHTML='<p class="muted" style="font-size:13px">Aucun cours, code ou convention importé pour cette entreprise.</p>'; return; }
+  box.innerHTML=liste.map(d=>'<button class="s" style="text-align:left" data-doc-lire="'+d.id+'"><b>'+esc(d.titre)+'</b><br><span class="muted" style="font-size:12px">'+esc(CATEG_DOC[d.categorie]||'')+'</span></button>').join('');
+  box.querySelectorAll('[data-doc-lire]').forEach(b=>b.onclick=()=>lireDocument(b.dataset.docLire));
 }
 async function lireDocument(id){
   ouvrirLecteur('Document','<p class="muted">Chargement…</p>');
@@ -3308,6 +3458,7 @@ async function lireDocument(id){
 }
 
 async function televerserDocument(){
+  if(!docsPeutEcrire()){ toast('Permission refusée'); return; }
   const etat=$('fd_etat'), titre=($('fd_titre').value||'').trim(), f=$('fd_fichier').files[0];
   const dire2=m=>{ if(etat) etat.innerHTML=m; };
   if(!f){ dire2('Choisissez un fichier.'); return; }
@@ -3326,26 +3477,23 @@ async function televerserDocument(){
   const chemin=dossier+'/'+Date.now()+'-'+f.name.replace(/[^A-Za-z0-9._-]/g,'_');
   dire2('Envoi du fichier…');
   const up=await db.storage.from('formation-docs').upload(chemin,f,{upsert:false,contentType:f.type||'application/octet-stream'});
-  if(up.error){ dire2('<span class="ban">Envoi impossible : '+esc(up.error.message)+'</span>'); return; }
-  const ins=await db.from('formation_documents').insert({titre:titre,nom_fichier:f.name,type:fmt.type,chemin:chemin,texte_extrait:texte,entreprise_id:entreprise});
-  if(ins.error){ await db.storage.from('formation-docs').remove([chemin]); dire2('<span class="ban">Enregistrement impossible : '+esc(ins.error.message)+'</span>'); return; }
+  if(up.error){if(docsErreurDroits(up.error)) signalerDroits(up.error); dire2('<span class="ban">Envoi impossible : '+esc(up.error.message)+'</span>'); return; }
+  const ins=await db.from('formation_documents').insert({titre:titre,nom_fichier:f.name,type:fmt.type,chemin:chemin,texte_extrait:texte,entreprise_id:entreprise,categorie:(($('fd_cat')||{}).value)||'autre'});
+  if(ins.error){ if(docsErreurDroits(ins.error)) signalerDroits(ins.error); await db.storage.from('formation-docs').remove([chemin]); dire2('<span class="ban">Enregistrement impossible : '+esc(ins.error.message)+'</span>'); return; }
   toast('Document importé');
   chargerDocuments();
 }
 async function supprimerDocument(id,chemin){
   if(!confirm('Supprimer ce document ?')) return;
-  await db.storage.from('formation-docs').remove([chemin]);
+  if(chemin) await db.storage.from('formation-docs').remove([chemin]);
   const r=await db.from('formation_documents').delete().eq('id',id);
   if(r.error){ toast('Suppression impossible'); return; }
   toast('Document supprimé'); chargerDocuments();
 }
 async function passagesDocuments(question){
   if(!MY_USER||!window.FormationDocuments) return '';
-  if(!window.__docsCache||Date.now()-window.__docsCache.t>300000){
-    const {data}=await db.from('formation_documents').select('titre,texte_extrait').limit(30);
-    window.__docsCache={t:Date.now(),docs:(data||[]).map(d=>({titre:d.titre,texte:d.texte_extrait}))};
-  }
-  const pass=FormationDocuments.passagesPertinents(question,window.__docsCache.docs,3);
+  const docs=await window.TERH_docsEntreprise();
+  const pass=FormationDocuments.passagesPertinents(question,docs.map(d=>({titre:d.titre,texte:d.texte_extrait})),3);
   if(!pass.length) return '';
   return ' Passages des documents de formation : '+pass.map(x=>'['+x.titre+'] '+x.passage).join(' ');
 }
@@ -4999,7 +5147,7 @@ OWX.bib=async()=>{const co=curCo()||{};return `<div class="c"><h2>📚 Biblioth�
 OWP.bib=()=>{
   const draw=async()=>{const box=$('bib_list');if(!box)return;const list=await window.TERH_bibList();
     box.innerHTML=list.length?list.map(x=>`<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;margin:4px 0"><span>📄</span><b style="flex:1">${esc(x.t)}</b><small class="muted">${(x.chunks||[]).reduce((a,c)=>a+c.length,0)} car.</small><button class="s" data-bibdel="${esc(x.id)}">🗑</button></div>`).join(''):'<p class="muted">Aucun document.</p>';
-    box.querySelectorAll('[data-bibdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer ce document ?'))return;await window.TERH_bibDel(b.dataset.bibdel);toast('Supprimé');draw();});};
+    box.querySelectorAll('[data-bibdel]').forEach(b=>b.insertAdjacentHTML('beforebegin','<button class="s" data-bibpub="'+b.dataset.bibdel+'">📤 Publier pour une entreprise</button>'));box.querySelectorAll('[data-bibpub]').forEach(b=>b.onclick=()=>publierBibliotheque(b.dataset.bibpub,list));box.querySelectorAll('[data-bibdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer ce document ?'))return;await window.TERH_bibDel(b.dataset.bibdel);toast('Supprimé');draw();});};
   const f=$('bib_f');
   if(f)f.onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;const s=$('bib_s');
     for(const file of fs){try{s.textContent='⏳ Lecture de '+file.name+'…';const txt=await window.TERH_tplFromFile(file,'text');await window.TERH_bibAdd(file.name,txt);}catch(er){toast('Erreur '+file.name+' : '+er.message);}}
@@ -6361,12 +6509,12 @@ window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_model
 window.TERH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
 window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
-window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
+window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),enfants:xx.enfants||[],enfants6:(xx.enfants&&xx.enfants.length&&window.PaieEnfants)?PaieEnfants.moins6ans(xx.enfants,LD(T)):(x.enf6||0),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
 window.TERH_listeSalaries=window.TERH_fichesPaie;
 window.TERH_entrepriseInfos=()=>{const m=(curCo()||{}).metadata||{};const o={};['bp','tel','niu','cnps'].forEach(k=>{if(m[k])o[k]=String(m[k]);});return o;};
 window.TERH_congesPour=(id)=>(CG||[]).filter(c=>String(c.employe_id)===String(id)).map(c=>({du:c.deb,au:c.fin,statut:c.statut}));
 window.TERH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
-window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');MAT[id]=String(mat||'').trim();await wr('matricules_json',MAT);return true;};
+window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');const v=String(mat||'').trim();if(v&&Object.keys(MAT).some(k=>k!==String(id)&&String(MAT[k]||'').trim()===v))throw new Error('Matricule '+v+' déjà attribué à un autre salarié');MAT[id]=v;await wr('matricules_json',MAT);return true;};
 let loaded='';async function load(){if(!CO||loaded===CO)return;loaded=CO;CFG={...DEF,...(await rd('paie_json')||{})};WGT=await rd('widgets_json')||{};SAL=await rd('paie_sal_json')||{};MAT=await rd('matricules_json')||{};CUS=await rd('rubriques_json')||[];MCFG={...MCFG,...(await rd('matricule_cfg_json')||{})};MOD={...MOD,...(await rd('paie_mod_json')||{})};applyW();}
 function applyW(){const adm=['admin','super_owner'].includes(ER());document.querySelectorAll('nav button[data-v]').forEach(b=>{const k=b.dataset.v;if(['dsp','c','a'].includes(k)){const off=WGT[k]===false;if(off&&!adm)b.style.display='none';else if(off&&adm)b.style.opacity='.5';else{b.style.opacity='';if(b.id!=='nh'&&b.style.display==='none'&&k!=='dsp')b.style.display='';}}});const p=$('npaie');if(p)p.style.display=(['admin','super_owner','editeur'].includes(ER())&&WGT.paie!==false)?'':'none';}
 const TB=(v,T)=>{for(const [m,x] of T)if(v<=m)return x;return T[T.length-1][1];};
@@ -9846,9 +9994,12 @@ hook();setInterval(hook,1500);
 <script src="paie-pointage-simulation.js"></script>
 <script src="paie-bulletin-sage.js"></script>
 <script src="paie-bulletin-ocean.js"></script>
+<script src="paie-enfants.js"></script>
 <script src="paie-hok.js"></script>
 <script src="lettres-modeles.js"></script>
 <script src="paie-constantes.js"></script>
+<script src="paie-unicite.js"></script>
+<script src="paie-livre.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>
 <script src="ia-contexte.js"></script>

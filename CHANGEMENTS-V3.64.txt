@@ -1,0 +1,26 @@
+VERSION 3.64 : MATRICULE DANS LA FICHE ; ENFANTS AVEC DATES DE NAISSANCE
+===============================================================================
+1. MATRICULE (index.html)
+- Champ « Matricule interne » dans la section Identité de la fiche salarié.
+- Enregistré avec le même contrôle d'unicité que l'onglet Matricules (refus si déjà attribué à un autre salarié).
+- Les deux écrans (fiche et onglet Matricules) écrivent dans la même liste : aucune double saisie.
+- Attribution automatique (onglet Matricules, par ordre d'embauche) inchangée.
+
+2. ENFANTS DES MÈRES SALARIÉES (index.html, paie-enfants.js, paie-hok.js)
+- Pour une salariée (genre Féminin) : bloc « Enfants » avec, pour chaque enfant, la date de naissance et l'âge calculé.
+- Le champ « Enfants de moins de 6 ans » devient automatique : il est calculé à partir des dates de naissance.
+- Dans le bulletin, le calcul du congé utilise le nombre d'enfants de moins de 6 ans à la FIN de la période du bulletin
+  (et non à la date de saisie). Un enfant qui a 6 ans à la fin de la période n'est pas compté.
+- La liste est enregistrée avec les champs complémentaires de la fiche (paramètre perso_extra) : pas de modification de la base.
+- Date de naissance d'un enfant dans le futur : refusée.
+
+3. CONTRÔLES
+- tests/paie-enfants.js (9 contrôles) : âge, bornes d'anniversaire, format JJ/MM/AAAA, effet sur le congé (+4 jours pour 2 enfants).
+- Toujours OK : tests/paie-unicite.js (11), tests/paie-livre-8000.js (11), tests/paie-hok-bulletins.js (24/38 inchangé).
+
+4. À VÉRIFIER
+- La liste des enfants est enregistrée via les champs complémentaires : il faut vérifier qu'elle est bien rechargée
+  après enregistrement d'une fiche, dans le navigateur.
+- Le champ « Enfants de moins de 6 ans » est une valeur calculée ; l'ancienne saisie manuelle n'est plus possible
+  (une fiche sans liste d'enfants garde l'ancienne valeur enregistrée).
+Service worker : terh-v92.

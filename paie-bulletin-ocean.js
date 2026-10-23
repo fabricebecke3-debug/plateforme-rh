@@ -10,7 +10,12 @@
   var ENTETE_EN = ['REPUBLIC OF CAMEROON', 'Peace-Work-Fatherland', 'MINISTRY OF TOURISM AND LEISURE',
     'OCEAN STATE-OWNED POOL', 'HOTEL OCEAN', 'ADMINISTRATIVE UNIT'];
   var BLOCS_DEFAUT = ['entete', 'salarie', 'rubriques', 'pied'];
-  var TD = 'border:1px solid #000;padding:2px 4px;font-size:10.5px;vertical-align:middle';
+  var TD = 'border:1px solid #000;padding:2px 4px;font-size:10.5px;vertical-align:middle;color:#000';
+  // En-tête : fond et texte forcés (couleur du modèle, sinon bleu nuit) pour que le thème sombre ne les éclaircisse pas
+  var TH = 'border:1px solid #000;padding:3px 4px;font-size:10.5px;vertical-align:middle;text-align:center;' +
+    'font-weight:700;text-transform:none';
+  // Lignes de total : fond bleu pâle, texte noir gras
+  var TOT = 'background:#e4ecf8;font-weight:700';
   var TDD = TD + ';text-align:right';
 
   function esc(v) {
@@ -80,33 +85,52 @@
     return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><tr>' + employeur + salarie + '</tr></table>';
   }
 
+  // Couleurs du modèle (couleur d'en-tête choisie dans l'éditeur ; bleu nuit par défaut)
+  function hexRgb(h) {
+    var m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(String(h || ''));
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+  }
+  function couleurs(mod) {
+    var rgb = hexRgb(mod && mod.couleur) || [31, 59, 111];
+    var hex = function (c) { return '#' + c.map(function (v) { return Math.round(v).toString(16).padStart(2, '0'); }).join(''); };
+    var clair = rgb.map(function (v) { return v * 0.15 + 255 * 0.85; });
+    var lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+    return { tete: hex(rgb), texte: lum > 140 ? '#000' : '#fff', total: hex(clair) };
+  }
+
   // Tableau : N° | Désignation | Nombre jour | Base unitaire | Taux | Gain | Retenue
-  function tableau(o) {
-    var H = o.hok;
-    var entetes = ['N°', 'Désignation', 'Nombre<br>Jour', 'Base<br>Unitaire', 'Taux', 'Gain', 'Retenue'];
+  // Nombre, base et taux suivent les colonnes cochées dans le modèle ; N°, désignation, gain et retenue sont toujours imprimés.
+  function tableau(o, mod) {
+    var H = o.hok, C = couleurs(mod), cols = (mod && mod.colonnes) || {};
+    var entetes = [['N°', null], ['Désignation', null], ['Nombre<br>Jour', 'nombre'], ['Base<br>Unitaire', 'base'], ['Taux', 'taux'], ['Gain', null], ['Retenue', null]];
+    var vis = entetes.map(function (e) { return !e[1] || cols[e[1]] !== false; });
+    var TH_ = TH + ';background:' + C.tete + ';color:' + C.texte;
+    var TOT_ = TOT + ';background:' + C.total;
     var droite = ';text-align:right';
+    // Une ligne = 7 cellules (une par colonne) ; les colonnes masquées sont retirées
+    var rang = function (c) { return '<tr>' + c.filter(function (x, i) { return vis[i]; }).join('') + '</tr>'; };
     var lignes = '';
     H.gains.forEach(function (g) {
-      lignes += '<tr>' + cell(esc(g.code)) + cell(esc(g.lib)) +
-        cell(g.nombre != null ? nb(g.nombre, 0) : '', droite) +
-        cell(g.base != null ? fmt(g.base) : '', droite) +
-        cell(pct(g.taux), droite) + cell(fmt(g.gain), droite) + cell('') + '</tr>';
+      lignes += rang([cell(esc(g.code)), cell(esc(g.lib)),
+        cell(g.nombre != null ? nb(g.nombre, 0) : '', droite),
+        cell(g.base != null ? fmt(g.base) : '', droite),
+        cell(pct(g.taux), droite), cell(fmt(g.gain), droite), cell('')]);
     });
-    lignes += '<tr>' + cell('') + cell('<b>Total Brut</b>') + cell('') + cell('') + cell('') +
-      cell('<b>' + fmt(H.brut) + '</b>', droite) + cell('') + '</tr>';
+    lignes += rang([cell('', TOT_), cell('<b>Total Brut</b>', TOT_), cell('', TOT_), cell('', TOT_), cell('', TOT_),
+      cell('<b>' + fmt(H.brut) + '</b>', TOT_ + droite), cell('', TOT_)]);
     H.retenues.forEach(function (r) {
-      lignes += '<tr>' + cell(esc(r.code)) + cell(esc(r.lib)) + cell('') +
-        cell(r.base != null ? fmt(r.base) : '', droite) + cell(pct(r.taux), droite) +
-        cell('', droite) + cell(fmt(r.ret), droite) + '</tr>';
+      lignes += rang([cell(esc(r.code)), cell(esc(r.lib)), cell(''),
+        cell(r.base != null ? fmt(r.base) : '', droite), cell(pct(r.taux), droite),
+        cell(''), cell(fmt(r.ret), droite)]);
     });
-    lignes += '<tr>' + cell('') + cell('<b>Total Cotisations</b>') + cell('') + cell('') + cell('') +
-      cell('') + cell('<b>' + fmt(H.totalRetenues) + '</b>', droite) + '</tr>';
+    lignes += rang([cell('', TOT_), cell('<b>Total Cotisations</b>', TOT_), cell('', TOT_), cell('', TOT_), cell('', TOT_),
+      cell('', TOT_), cell('<b>' + fmt(H.totalRetenues) + '</b>', TOT_ + droite)]);
     // Rappels et avances : lignes du bulletin papier, hors total cotisations
-    lignes += '<tr>' + cell('29') + cell(H.libRappel || 'Rappels') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.rappel || 0), droite) + '</tr>';
-    lignes += '<tr>' + cell('26') + cell(H.libAvance || 'Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
+    lignes += rang([cell('29'), cell(H.libRappel || 'Rappels'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.rappel || 0), droite)]);
+    lignes += rang([cell('26'), cell(H.libAvance || 'Avance sur Salaire'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.avance || 0), droite)]);
     var alerte = (H.erreurs && H.erreurs.length) ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-bottom:4px">Attention, formule à corriger : ' + esc(H.erreurs.join(' ; ')) + '</div>' : '';
     return alerte + '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
-      entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px;font-weight:700">' + t + '</th>'; }).join('') +
+      entetes.filter(function (e, i) { return vis[i]; }).map(function (e) { return '<th style="' + TH_ + '"><b>' + e[0] + '</b></th>'; }).join('') +
       '</tr></thead><tbody>' + lignes + '</tbody></table>';
   }
 
@@ -131,7 +155,7 @@
     var rendu = {
       entete: function () { return entete(o, mod); },
       salarie: function () { return zoneSalarie(o); },
-      rubriques: function () { return tableau(o); },
+      rubriques: function () { return tableau(o, mod); },
       pied: function () { return pied(o, mod); }
     };
     var libreLogo = (mod.logo && mod.logoPos !== 'aucun' && mod.logoX !== undefined && mod.logoY !== undefined)

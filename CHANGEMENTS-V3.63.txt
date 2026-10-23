@@ -1,0 +1,20 @@
+VERSION 3.63 : UNICITÉ DES CODES, MATRICULES ET N° CNPS
+===============================================================================
+1. CODES DE RUBRIQUE (paie-hok.js, paie-unicite.js, paie-livre.js)
+- Un code désigne une seule rubrique dans toute la paie.
+- Hôtel Océan : chaque libellé de rubrique libre reçoit un code FIXE, enregistré dans les paramètres
+  (codes_libres). Il garde le même code pour tous les salariés et tous les mois. Un code ne désigne jamais deux libellés.
+  Avant : le code dépendait de l'ordre de calcul, donc un même libellé pouvait changer de code d'un salarié à l'autre.
+- Livre de paie : si un même code désigne deux libellés, le livre n'est pas imprimé et la liste des conflits s'affiche.
+- Catalogue de rubriques : le contrôle de doublon existait déjà (paie-rubriques.js).
+
+2. MATRICULES (index.html)
+- Saisie manuelle (TERH_enregistrerMat) : refusée si le matricule est déjà attribué à un autre salarié.
+- Attribution automatique (fillMat) : déjà unique.
+- Livre de paie : deux salariés avec le même matricule = impression refusée.
+
+3. N° CNPS (paie-unicite.js, paie-livre.js)
+- Deux salariés avec le même numéro CNPS (chiffres seuls, tirets et espaces ignorés) = impression du livre refusée.
+- À faire : contrôle à la saisie du N° CNPS dans la fiche salarié (point de saisie non encore identifié dans le code).
+
+Contrôles : tests/paie-unicite.js (11 contrôles). Service worker : terh-v91.

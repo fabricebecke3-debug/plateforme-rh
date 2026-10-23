@@ -29,6 +29,8 @@
       facteur: 0.7, charge: 0.028, deduction: 41667
     },
     cac: { taux: 0.1 },
+    // Charges patronales (taux légaux, comme le moteur Sage) : CNPS sur la base CNPS, CFC patronal sur la base CFC. À confirmer par l'hôtel.
+    patronales: { cnps: 4.2, at: 2.5, pf: 7, fne: 1, cfc: 1.5 },
     cfc: { taux: 0.01 },
     rav: {
       tranches: [[50000, 0], [100000, 750], [200000, 1950], [300000, 3250], [400000, 4550], [500000, 5850],
@@ -296,6 +298,39 @@
     '29': { lib: 'Rappels', formule: 'rappel', note: 'montant de la fiche ; toujours imprimée et ajoutée' }
   };
   // Calcul pur. Montants exacts en interne ; les rubriques suivent la définition des paramètres (lignes).
+  // Registre des rubriques libres : un libellé garde le même code d'un mois et d'un salarié à l'autre.
+  // Un code ne désigne jamais deux libellés. Les libellés nouveaux reçoivent un code libre (ou le code demandé s'il est libre).
+  var POOL_REGISTRE = ['7', '8', '9', '16', '18', '19', '20', '21', '23', '24', '25', '30', '31', '32', '33', '34', '35'];
+  function memoriserCodes(p, elements) {
+    var reg = Object.assign({}, p.codes_libres || {});
+    var off = {};
+    Object.keys(FORMULES_DEFAUT).forEach(function (c) { off[c] = true; });
+    CODES_RESERVES.forEach(function (c) { off[c] = true; });
+    (p.lignes && p.lignes.ajoutees || []).forEach(function (r) { off[String(r.code)] = true; });
+    var utilise = {};
+    Object.keys(reg).forEach(function (k) { utilise[reg[k].code] = k; });
+    var changed = false;
+    (elements || []).forEach(function (e) {
+      var k = String(e.lib || '').trim().toLowerCase();
+      if (!k || reg[k]) return;
+      var demande = e.code ? String(e.code).trim() : '';
+      var code = (demande && !off[demande] && !utilise[demande]) ? demande : null;
+      if (!code) {
+        for (var i = 0; i < POOL_REGISTRE.length; i++) {
+          var c = POOL_REGISTRE[i];
+          if (!off[c] && !utilise[c]) { code = c; break; }
+        }
+      }
+      if (!code) return;
+      reg[k] = { code: code, lib: String(e.lib).trim() };
+      utilise[code] = k;
+      changed = true;
+    });
+    if (!changed) return p;
+    var q = Object.assign({}, p, { codes_libres: reg });
+    enregistrer(q);
+    return q;
+  }
   function calculer(o) {
     var p = o.params || charger();
     var lp = p.lignes || {}, ov = lp.overrides || {}, masq = lp.masquees || [], ajout = lp.ajoutees || [];
@@ -371,8 +406,25 @@
     });
     // Éléments libres (saisis à la main) puis rubriques ajoutées dans les paramètres
     var libres = [];
-    (o.manuels || []).forEach(function (m, i) {
-      var g = { code: m.code || String(7 + i), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) };
+    // Codes : un élément libre ne reprend jamais un code déjà utilisé (rubrique standard, réservée, ajoutée ou libre)
+    var pris = {};
+    Object.keys(FORMULES_DEFAUT).forEach(function (c) { pris[c] = true; });
+    CODES_RESERVES.forEach(function (c) { pris[c] = true; });
+    ajout.forEach(function (r) { pris[String(r.code)] = true; });
+    var POOL_LIBRE = ['7', '8', '9', '16', '18', '19', '20', '21', '23', '24', '25', '30', '31', '32', '33', '34', '35'];
+    var reg = p.codes_libres || {};
+    function codeLibre(demande, lib) {
+      var rg = reg[String(lib || '').trim().toLowerCase()];
+      if (rg && !pris[rg.code]) { pris[rg.code] = true; return rg.code; }   // même libellé = même code, pour tous les salariés
+      var c = (demande === undefined || demande === null) ? '' : String(demande).trim();
+      if (c && !pris[c]) { pris[c] = true; return c; }
+      for (var i = 0; i < POOL_LIBRE.length; i++) {
+        if (!pris[POOL_LIBRE[i]]) { pris[POOL_LIBRE[i]] = true; return POOL_LIBRE[i]; }
+      }
+      return c;
+    }
+    (o.manuels || []).forEach(function (m) {
+      var g = { code: codeLibre(m.code, m.lib), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) };
       gains.push(g); libres.push({ gain: g.gain, cnps: m.cnps, irpp: m.irpp, cfc: m.cfc });
     });
     ajout.forEach(function (r) {
@@ -404,6 +456,13 @@
     // Base CFC : hors libres non soumises à la CFC
     var Lcfc = (brut - nonIrpp - nonCfc) * p.abattement.taux - cnps;
     var cfc = Lcfc <= p.irpp.seuils[0] ? 0 : Math.floor(p.cfc.taux * Lcfc);
+    // Charges patronales : taux du paramétrage sur la base CNPS (K) et la base CFC (Lcfc), arrondis par ligne
+    var PP = p.patronales || DEFAUT.patronales;
+    var patr = {
+      cnps: Math.round(nb(PP.cnps) / 100 * K), at: Math.round(nb(PP.at) / 100 * K), pf: Math.round(nb(PP.pf) / 100 * K),
+      fne: Math.round(nb(PP.fne) / 100 * K), cfc: Math.round(nb(PP.cfc) / 100 * Math.max(0, Lcfc))
+    };
+    var totalPatr = patr.cnps + patr.at + patr.pf + patr.fne + patr.cfc;
     var rav = tranche(p.rav.tranches, L, p.rav.au_dela);
     var tc = (p.tc.regle === 'tranche')
       ? Math.min(nb(p.tc.plafond), nb(p.tc.montant) * Math.max(0, Math.floor(L / nb(p.tc.pas)) - nb(p.tc.decalage)))
@@ -435,8 +494,8 @@
       if (estMasquee(code)) return;
       retenues.push({ code: code, lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val });
     });
-    (o.retenuesManuelles || []).forEach(function (r, i) {
-      retenues.push({ code: r.code || String(20 + i), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
+    (o.retenuesManuelles || []).forEach(function (r) {
+      retenues.push({ code: codeLibre(r.code, r.lib), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
     });
     ajout.forEach(function (r) {
       if (r.type !== 'retenue') return;
@@ -472,6 +531,10 @@
       ansAnciennete: ans,
       congePris: !!o.congePris,
       totalRetenues: sommeRet,
+      patronales: patr, totalPatronales: totalPatr,
+      // Net imposable : brut hors éléments libres non imposables ; coût employeur = brut + charges patronales (définition Sage)
+      netImposable: Math.round(brut - nonIrpp),
+      coutEmployeur: Math.round(brut) + totalPatr,
       rappel: rappel, avance: avance,
       libRappel: (ov['29'] && ov['29'].lib) || 'Rappels', libAvance: (ov['26'] && ov['26'].lib) || 'Avance sur Salaire',
       net: netCalc,
@@ -545,6 +608,9 @@
     var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
     var part = particularite(f.nom || o.nom, o.periode);
+    var libres = manuels.concat(part.manuels || []).map(function (m) { return { code: m.code, lib: m.lib }; })
+      .concat(retenuesManuelles.map(function (r) { return { code: r.code, lib: r.lib }; }));
+    var pCodes = memoriserCodes(charger(), libres);
     return calculer({
       manuels: manuels.concat(part.manuels || []),
       ancMontant: part.ancMontant, congeMontant: part.congeMontant, cnpsInclutTransport: part.cnpsInclutTransport,
@@ -566,9 +632,11 @@
       transport: (f.transport !== undefined && f.transport !== '') ? f.transport : part.transport,
       congePris: congePourPeriode(o, f),
       congesPlateforme: o.congesPlateforme,
-      enfants6: f.enfants6, mere: String(f.genre || '').toUpperCase() === 'F',
+      enfants6: (f.enfants && f.enfants.length && root.PaieEnfants)
+        ? root.PaieEnfants.moins6ans(f.enfants, root.PaieEnfants.finPeriode(o.periode)) : f.enfants6,
+      mere: String(f.genre || '').toUpperCase() === 'F',
       retenuesManuelles: retenuesManuelles,
-      params: charger()
+      params: pCodes
     });
   }
 
@@ -728,6 +796,6 @@
     });
   }
 
-  root.PaieHok = { charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
+  root.PaieHok = { memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PaieHok;
 })(typeof window !== 'undefined' ? window : globalThis);

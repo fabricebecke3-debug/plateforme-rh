@@ -1,0 +1,16 @@
+VERSION 3.58 : CODES DES RUBRIQUES, LISIBILITÉ DU BULLETIN HÔTEL OCÉAN
+===============================================================================
+1. CODES (paie-hok.js)
+- Les éléments libres (saisis à la main) et les retenues libres ne reprennent plus un code déjà utilisé
+  par une rubrique officielle du bulletin (1 à 6, 10 à 15, 17, 22, 26 à 29) ou par une rubrique ajoutée.
+  Avant : une retenue libre pouvait sortir en « 22 Cantine » en plus de « 22 Dettes Internes », ou
+  « 10 » en plus de l'IRPP.
+- Codes libres attribués dans l'ordre : 7, 8, 9, puis 16, 18, 19, 20, 21, 23, 24, 25, 30 à 35.
+- Montants inchangés : contrôle 24 / 38 bulletins de septembre 2026 (même résultat qu'avant).
+
+2. LISIBILITÉ (paie-bulletin-ocean.js)
+- En-tête du tableau : fond bleu nuit, texte blanc gras, couleur forcée. Le texte blanc sur fond gris
+  clair n'était pas lisible (la couleur du thème sombre de l'application était héritée).
+- Lignes « Total Brut » et « Total Cotisations » : fond bleu pâle, texte gras.
+
+3. Service worker : terh-v86.

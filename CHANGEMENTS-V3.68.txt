@@ -1,0 +1,17 @@
+VERSION 3.68 : IMPORT RÉSERVÉ AU PROPRIÉTAIRE ET À L'ADMINISTRATEUR
+===============================================================================
+1. RÈGLE
+- Ajout, modification, reclassement et suppression des documents : propriétaire et administrateur de l'entreprise UNIQUEMENT.
+- Lecture : tous les membres de l'entreprise (lecteur, éditeur, admin).
+- Le niveau « documents » de Rôles & permissions n'intervient plus.
+
+2. BASE (sql/formation-documents.sql — À RÉEXÉCUTER)
+- Politiques d'écriture de formation_documents et du bucket formation-docs : terh_admin(entreprise).
+- La politique de lecture reste terh_can_mod(..., 'read').
+- Le script est idempotent : il remplace les politiques précédentes.
+
+3. ÉCRAN (index.html)
+- docsPeutEcrire() : propriétaire, ou administrateur de l'entreprise courante (hors mode « voir comme »).
+- Même règle pour le reclassement et la suppression.
+
+Service worker : terh-v96.

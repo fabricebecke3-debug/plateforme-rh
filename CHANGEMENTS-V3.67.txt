@@ -1,0 +1,29 @@
+VERSION 3.67 : DROITS ALIGNÉS SUR LA BASE, ANCIENS DOCUMENTS, PUBLICATION, OCR DES PDF SCANNÉS
+===============================================================================
+1. DROITS (index.html) — la base fait foi
+- docsPeutEcrire / docsPeutModifier / docsPeutSupprimer reproduisent terh_can_mod (module « documents ») :
+  insert = admin ou éditeur, niveau vide/add/edit ; update = admin ou éditeur, niveau vide/edit ;
+  delete = idem + pas « nodelete » ; niveau none = rien ; mode « voir comme » = lecture seule.
+  Corrigé : un admin en niveau « add » et un éditeur en niveau « add » ne voient plus les actions que la base refuse.
+- Divergence signalée : refus de la base sur import, suppression ou changement de catégorie -> message
+  « Droits incohérents » + entrée dans le journal d'erreurs (Maintenance).
+- Test non destructif à l'ouverture de l'onglet Documents : une modification de la catégorie (même valeur)
+  vérifie que la base accepte ce que l'écran autorise ; une fois par session.
+- Limite connue : les droits hérités d'une société mère (groupe) ne sont pas recopiés côté écran ;
+  la base les applique, la divergence éventuelle est alors signalée par le test ci-dessus.
+
+2. ANCIENS DOCUMENTS (index.html)
+- Liste : menu « Catégorie » par document (modifiable selon les droits) et compteur des documents « Autre ».
+- Suggestion automatique selon le titre (convention, code du travail, procédure, cours) : un clic pour l'appliquer.
+
+3. BIBLIOTHÈQUE DU PROPRIÉTAIRE (index.html)
+- Bouton « 📤 Publier pour une entreprise » : copie un texte de la bibliothèque IndexedDB vers
+  formation_documents, pour l'entreprise et la catégorie choisies. Le texte devient alors lisible
+  par les membres de l'entreprise, sur tous les appareils.
+- Les documents publiés n'ont pas de fichier : Lire fonctionne, Supprimer ne retire que la ligne.
+
+4. PDF SCANNÉS (index.html)
+- OCR (Tesseract, français) page par page, rendu à 2x, 40 pages au maximum (message si plus).
+- Progression affichée pendant la lecture. Un PDF sans texte lisible est refusé avec un message.
+
+Service worker : terh-v95.

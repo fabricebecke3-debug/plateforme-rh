@@ -1,0 +1,16 @@
+VERSION 3.65 : APERÇU DU LIVRE HÔTEL ; ORDRE DES RUBRIQUES ; N° CNPS UNIQUE À LA SAISIE
+===============================================================================
+1. ORDRE DU LIVRE (paie-livre.js)
+- Gains · Total Brut · cotisations · Total Cotisation · autres retenues · rappels/avances.
+- Hôtel : 10 à 22, 27, 28, puis Total Cotisation, puis 26 et 29 : même ordre que le bulletin Océan.
+- Sage : inchangé (8100 avant Total Cotisation, 9xxx après).
+- Avant : 27 et 28 apparaissaient après le total.
+
+2. N° CNPS (index.html)
+- Contrôle à l'enregistrement de la fiche : refus si le numéro (chiffres seuls) appartient à un autre salarié.
+
+3. APERÇU
+- apercu-livre-paie-hotel.png / .html : livre de paie du modèle Hôtel Océan avec 4 salariés FICTIFS
+  (EXEMPLE ONE à FOUR). Aucune donnée réelle.
+
+Service worker : terh-v93.

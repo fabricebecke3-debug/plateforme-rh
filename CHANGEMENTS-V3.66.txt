@@ -1,0 +1,25 @@
+VERSION 3.66 : DOCUMENTS PAR ENTREPRISE (cours, codes, conventions) DANS L'APPRENTISSAGE ET L'ASSISTANT
+===============================================================================
+1. BASE DE DONNÉES (sql/formation-documents.sql — NOUVEAU, à exécuter une fois dans Supabase)
+- Table formation_documents : colonne categorie (convention, code, cours, procedure, autre), distincte du format de fichier.
+- Sécurité par entreprise (RLS) basée sur terh_can_mod et le module « documents » :
+  lecture = tout membre (sauf niveau « none ») ; ajout/modification/suppression = admin, ou éditeur avec niveau add/edit.
+- Bucket privé « formation-docs » : fichiers rangés par entreprise ; mêmes règles.
+
+2. APPRENTISSAGE (index.html)
+- Onglet Documents : sélecteur de catégorie à l'import ; liste avec catégorie ; suppression selon les droits.
+- Onglet Cours : section « Documents de l'entreprise » (cours, codes, conventions) au-dessus de la bibliothèque.
+- Droits d'import : docsPeutEcrire() reproduit la règle SQL (admin, ou éditeur avec niveau documents add/edit).
+
+3. ASSISTANT (index.html)
+- Les documents de l'entreprise courante sont chargés depuis la base, sur tous les appareils (cache 5 min par entreprise).
+- Ils alimentent l'assistant de l'application (corpus) et l'assistant de formation (passages pertinents).
+
+4. À VÉRIFIER
+- Exécuter sql/formation-documents.sql dans Supabase, puis tester : import par un admin, import refusé à un lecteur,
+  import autorisé à un éditeur ayant le niveau « documents » en add/edit.
+- Rôles & permissions : vérifier que le module « documents » apparaît dans la liste des niveaux d'accès ; sinon l'ajouter à la liste des modules.
+- La bibliothèque IndexedDB du Super Owner reste inchangée (textes de la plateforme, sur son appareil).
+- Les documents importés avant cette version ont la catégorie « autre ».
+
+Service worker : terh-v94.
