@@ -213,7 +213,14 @@
         '.pd-cadre input[type=checkbox]{width:16px;height:16px}.pd-cadre label{color:#1a1a1a}' +
         '.pd-cadre table th{background:#1f5fbf;color:#fff;font-weight:600}.pd-cadre table td{border-bottom:1px solid #e3e8ef;padding:2px 4px;height:22px;line-height:1.2}.pd-cadre table th{padding:4px;font-size:11px;white-space:nowrap}.pd-cadre table td input{height:20px;box-sizing:border-box}' +
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
-        '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}' + '.pd-cadre tr.pd-entete th{background:#3d4550;color:#fff}'; document.head.appendChild(st); }
+        '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}' + '.pd-cadre tr.pd-entete th{background:#3d4550;color:#fff}'+
+        '.pd-cadre table.pd-tbl,.pd-cadre table{min-width:0!important;width:100%}' +
+        '.pd-cadre .pd-scroll{overflow-x:auto;width:100%;max-width:100%;scrollbar-width:auto;scrollbar-color:#8a94a6 #e6e9ef;-webkit-overflow-scrolling:touch}' +
+        '.pd-cadre .pd-scroll::-webkit-scrollbar{height:12px}.pd-cadre .pd-scroll::-webkit-scrollbar-track{background:#e6e9ef;border-radius:6px}.pd-cadre .pd-scroll::-webkit-scrollbar-thumb{background:#8a94a6;border-radius:6px}' +
+        '.pd-cadre td,.pd-cadre th{user-select:text;-webkit-user-select:text}' +
+        '.pd-cadre tbody tr:hover td{background:#eef4fc!important;color:#1a1a1a!important}' +
+        '.pd-cadre tbody tr.pd-sel td{background:#fff1b8!important;color:#1a1a1a!important;font-weight:600;box-shadow:inset 0 2px 0 #1f5fbf,inset 0 -2px 0 #1f5fbf}' +
+        '.pd-cadre tbody tr td input{background:#fff;color:#1a1a1a}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
       '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="livre">📚 Livre de paie</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="liste">📋 Liste des rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
@@ -446,9 +453,9 @@
           '<td>' + (modifiable ? '<button type="button" class="s" data-x="auto" data-c="' + esc(l.code) + '">Modifier</button>' : '') + '</td></tr>';
       }).join('');
       return '<div style="margin:6px 0"><b>Rubriques du bulletin Hôtel de l’Océan</b> <span style="font-size:12px;color:#555">(codes du modèle ; « Modifier » corrige la rubrique pour ce salarié et ce mois seulement)</span></div>' +
-        '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#1f5fbf;color:#fff">' +
+        '<div class="pd-scroll"><table class="pd-tbl" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#1f5fbf;color:#fff">' +
         '<th>Code</th><th>Désignation</th><th>Nombre jour</th><th>Base unitaire</th><th>Taux %</th><th>Gain</th><th>Retenue</th><th>Origine</th><th></th></tr></thead><tbody>' + lignes + '</tbody>' +
-        '<tfoot><tr><td colspan="5" style="text-align:right"><b>Total brut</b></td><td style="text-align:right"><b>' + fmt(r.brut) + '</b></td><td style="text-align:right"><b>' + fmt(r.totalRetenues) + '</b></td><td colspan="2"><b>Net à payer : ' + fmt(Math.round(r.net)) + '</b></td></tr></tfoot></table>';
+        '<tfoot><tr><td colspan="5" style="text-align:right"><b>Total brut</b></td><td style="text-align:right"><b>' + fmt(r.brut) + '</b></td><td style="text-align:right"><b>' + fmt(r.totalRetenues) + '</b></td><td colspan="2"><b>Net à payer : ' + fmt(Math.round(r.net)) + '</b></td></tr></tfoot></table></div>';
     }
     // Fenêtre de correction d'une rubrique calculée (pour ce salarié et ce mois)
     function ouvrirAuto(code) {
@@ -604,6 +611,13 @@
       var res = cadre.querySelector('[data-res]');
       rendre(true);
     }
+    cadre.addEventListener('click', function (e) {
+      var tr = e.target.closest && e.target.closest('tbody tr');
+      if (!tr || e.target.closest('button,input,select,textarea,label')) return;
+      var deja = tr.classList.contains('pd-sel');
+      cadre.querySelectorAll('tbody tr.pd-sel').forEach(function (x) { x.classList.remove('pd-sel'); });
+      if (!deja) tr.classList.add('pd-sel');
+    });
     cadre.addEventListener('input', function (e) {
       var t = e.target;
       if (t.dataset.l != null && t.dataset.k) {
