@@ -104,7 +104,7 @@
     lignes += '<tr>' + cell('26') + cell(H.libAvance || 'Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
     var alerte = (H.erreurs && H.erreurs.length) ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-bottom:4px">Attention, formule à corriger : ' + esc(H.erreurs.join(' ; ')) + '</div>' : '';
     return alerte + '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
-      entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px">' + t + '</th>'; }).join('') +
+      entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px;font-weight:700">' + t + '</th>'; }).join('') +
       '</tr></thead><tbody>' + lignes + '</tbody></table>';
   }
 
