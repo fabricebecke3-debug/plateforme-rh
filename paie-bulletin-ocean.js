@@ -110,7 +110,11 @@
     // Une ligne = 7 cellules (une par colonne) ; les colonnes masquées sont retirées
     var rang = function (c) { return '<tr>' + c.filter(function (x, i) { return vis[i]; }).join('') + '</tr>'; };
     var lignes = '';
+    // Rubrique à zéro : imprimée seulement si elle a été validée « Afficher à 0 » dans les paramètres Océan
+    var VALIDEES = (H.zeros || []).map(String);
+    var visible = function (code, montant) { return !!Number(montant) || VALIDEES.indexOf(String(code)) >= 0; };
     H.gains.forEach(function (g) {
+      if (!visible(g.code, g.gain)) return;
       lignes += rang([cell(esc(g.code)), cell(esc(g.lib)),
         cell(g.nombre != null ? nb(g.nombre, 0) : '', droite),
         cell(g.base != null ? fmt(g.base) : '', droite),
@@ -119,6 +123,7 @@
     lignes += rang([cell('', TOT_), cell('<b>Total Brut</b>', TOT_), cell('', TOT_), cell('', TOT_), cell('', TOT_),
       cell('<b>' + fmt(H.brut) + '</b>', TOT_ + droite), cell('', TOT_)]);
     H.retenues.forEach(function (r) {
+      if (!visible(r.code, r.ret)) return;
       lignes += rang([cell(esc(r.code)), cell(esc(r.lib)), cell(''),
         cell(r.base != null ? fmt(r.base) : '', droite), cell(pct(r.taux), droite),
         cell(''), cell(fmt(r.ret), droite)]);
@@ -126,8 +131,9 @@
     lignes += rang([cell('', TOT_), cell('<b>Total Cotisations</b>', TOT_), cell('', TOT_), cell('', TOT_), cell('', TOT_),
       cell('', TOT_), cell('<b>' + fmt(H.totalRetenues) + '</b>', TOT_ + droite)]);
     // Rappels et avances : lignes du bulletin papier, hors total cotisations
-    lignes += rang([cell('29'), cell(H.libRappel || 'Rappels'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.rappel || 0), droite)]);
-    lignes += rang([cell('26'), cell(H.libAvance || 'Avance sur Salaire'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.avance || 0), droite)]);
+    // Rappels et avances : imprimés seulement s'ils sont saisis (montant non nul)
+    if (visible('29', H.rappel)) lignes += rang([cell('29'), cell(H.libRappel || 'Rappels'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.rappel), droite)]);
+    if (visible('26', H.avance)) lignes += rang([cell('26'), cell(H.libAvance || 'Avance sur Salaire'), cell(''), cell(''), cell(''), cell(''), cell(fmt(H.avance), droite)]);
     var alerte = (H.erreurs && H.erreurs.length) ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-bottom:4px">Attention, formule à corriger : ' + esc(H.erreurs.join(' ; ')) + '</div>' : '';
     return alerte + '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
       entetes.filter(function (e, i) { return vis[i]; }).map(function (e) { return '<th style="' + TH_ + '"><b>' + e[0] + '</b></th>'; }).join('') +

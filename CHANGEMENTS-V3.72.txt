@@ -1,0 +1,15 @@
+VERSION 3.72 : ZONE DE SAISIE DU BULLETIN, MÊME PRÉSENTATION QUE SAGE POUR CHAQUE MODÈLE DE TYPE SAGE (paie-detail.js)
+===============================================================================
+1. COLONNES (comme le bulletin Sage)
+- Code | Rubrique | Nombre | Base | Taux salarial | Gain | Retenue | Taux pat. | Montant pat. | Imp. | Ret. | Éléments | Supprimer | Calculé
+- Un gain va dans la colonne Gain, une retenue dans la colonne Retenue (case « Ret. » pour changer le sens).
+2. LIGNES DE COTISATIONS (8100 à 8140)
+- Retenue salariale dans la colonne Retenue, taux et montant patronaux dans Taux pat. et Montant pat.
+- Lignes « Total brut » et « Total cotisations » ajoutées.
+3. RÉCAPITULATIF SOUS LA GRILLE
+- Tableau Période / Année : Brut, Cotisations salariales, Cotisations patronales, Net à payer, Net imposable.
+- Ligne Année alimentée par les cumuls de la fiche ; « — » si le cumul n'est pas connu.
+4. MODÈLE HÔTEL DE L'OCÉAN : INCHANGÉ (colonnes Nombre jour, Base unitaire, Taux, Gain, Retenue, Origine).
+5. CORRECTION : la mise à jour en direct de la colonne Calculé écrivait dans la colonne Supprimer.
+Service worker : terh-v$NEXT.
+Non fait : boutons Ok / Annuler / Préc. / Suiv. de la fenêtre, et calcul des cumuls annuels s'ils ne sont pas dans la fiche.

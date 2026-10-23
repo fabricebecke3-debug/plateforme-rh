@@ -1,0 +1,7 @@
+VERSION 3.74 : BARÈME TDL (Hôtel Océan) SELON LE TABLEAU DE RÉFÉRENCE (paie-hok.js)
+- Tableau TDL : 62 000 à 75 000 → 3 000 / an ; 75 001 à 100 000 → 6 000 ; 100 001 à 125 000 → 9 000 ; 125 001 à 150 000 → 12 000 ; 150 001 à 200 000 → 15 000 ; 200 001 à 250 000 → 18 000 ; 250 001 à 300 000 → 24 000 ; 300 001 à 500 000 → 27 000 (mensuel = annuel ÷ 12).
+- Version du barème TDL (tdl_version) : le barème enregistré sur le poste est remplacé au premier chargement. Recharger la page.
+- Au-delà de 500 000 : maintenu à 2 250 par mois (non précisé par le tableau, à confirmer).
+- Ancienneté : inchangée (sa version reste regles_version).
+- Non modifié : CFC (en attente de la règle), TDL de FOMO N. (500 au fichier, 250 au calcul, à confirmer).
+- Service worker : terh-v111.

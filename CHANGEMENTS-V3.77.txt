@@ -1,0 +1,6 @@
+VERSION 3.77 : BULLETIN OCÉAN, RUBRIQUES À ZÉRO SEULEMENT SI VALIDÉES (paie-hok.js, paie-bulletin-ocean.js)
+- Toute rubrique dont le montant est nul n'est imprimée que si elle est validée « Afficher à 0 (non payée) » dans les Paramètres Hôtel Océan.
+- Cela vaut pour les gains, les retenues, les rubriques ajoutées, le rappel (29) et l'avance (26).
+- Rubriques non nulles : toujours imprimées. « Ne pas afficher » : jamais imprimée.
+- paie-hok.js : le résultat transmet la liste des rubriques validées (zeros).
+- Service worker : terh-v115.

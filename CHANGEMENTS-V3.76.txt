@@ -1,0 +1,5 @@
+VERSION 3.76 : BULLETIN OCÉAN, RUBRIQUES FACULTATIVES À ZÉRO MASQUÉES (paie-bulletin-ocean.js)
+- Imprimées seulement si non nulles : indemnités 2, 3, 5, 6 ; retenues 11, 17, 22, 27, 28.
+- Rappels (29) et avance sur salaire (26) : imprimés seulement si saisis (montant non nul), même si la valeur est enregistrée comme texte.
+- Rubriques obligatoires toujours imprimées : salaire de base, transport, total brut, IRPP, CNPS, CFC, RAV, TDL, total cotisations, net.
+- Service worker : terh-v114.

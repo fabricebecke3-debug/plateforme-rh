@@ -14,6 +14,8 @@
   var DEFAUT = {
     // Version des règles légales (TDL et ancienneté) : si elle change, les anciens paliers enregistrés sont remplacés
     regles_version: 'tdl-tableau-anciennete-cours-1',
+    // Version du barème TDL (tableau de l'image « TDL / Prélèvement annuel », ÷ 12 pour le mensuel) : si elle change, le barème enregistré est remplacé
+    tdl_version: 'tdl-image-sept-2026',
     entreprise: { bp: '', tel: '695364392 /670471563', niu: 'M042318119342F', cnps: '392-0100140- A' },
     absences: { heures_mois: 173.33 },
     logement: { taux: 0.25 },
@@ -42,6 +44,7 @@
       regle: 'table',
       tranches: [[62000, 0], [75000, 250], [100000, 500], [125000, 750], [150000, 1000], [200000, 1250],
         [250000, 1500], [300000, 2000], [500000, 2250]],
+      // Au-delà de 500 000 : non précisé par le tableau, maintenu à 2 250 (à confirmer)
       au_dela: 2250
     }
   };
@@ -69,7 +72,8 @@
       var t = root.localStorage && root.localStorage.getItem(cle());
       if (t) {
         var s = JSON.parse(t);
-        if (s.regles_version !== DEFAUT.regles_version) { delete s.tc; delete s.anciennete; }
+        if (s.regles_version !== DEFAUT.regles_version) { delete s.anciennete; }
+        if (s.tdl_version !== DEFAUT.tdl_version) { delete s.tc; }
         return fusion(DEFAUT, s);
       }
     } catch (e) {}
@@ -445,6 +449,8 @@
       ['5', 'anc', ancMontant, "Prime d'Ancienneté", null, null, tauxAnc || null],
       ['6', 'conge', conge, 'Indemnité de Congé', (congeJours !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeJours : null, (congeValeurJour !== null && !(o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '')) ? congeValeurJour : null, null]];
     function max0(x) { return Math.max(0, x); }
+    // Lignes n'apparaissant que si un montant est saisi : congé (6), dettes (22), avance (26), rappel (29)
+    var NON_SI_ZERO = { '6': true, '22': true, '26': true, '29': true };
     var gains = [];
     STD_GAIN.forEach(function (g) {
       var code = g[0], varNom = g[1], val = g[2];
@@ -453,6 +459,8 @@
       v[varNom] = val; if (code === '1') v.sb = val;
       if (code === '5') v.anc = val;
       if (estMasquee(code)) return;
+      // Indemnité de congé : n'apparaît que si elle est due ce mois (sauf affichage à 0 choisi dans les paramètres)
+      if (NON_SI_ZERO[code] && !nb(val) && !estZero(code)) return;
       gains.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val, src: 'Modèle Océan' });
     });
     // Éléments libres (saisis à la main) puis rubriques ajoutées dans les paramètres
@@ -543,6 +551,8 @@
       if (estZero(code)) val = 0;
       v[r[5]] = val;
       if (estMasquee(code)) return;
+      // Dettes internes : n'apparaît que si un montant est saisi (sauf affichage à 0 choisi dans les paramètres)
+      if (NON_SI_ZERO[code] && !nb(val) && !estZero(code)) return;
       retenues.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val, src: 'Modèle Océan' });
     });
     (o.retenuesManuelles || []).forEach(function (r) {
@@ -587,6 +597,8 @@
       netImposable: Math.round(brut - nonIrpp),
       coutEmployeur: Math.round(brut) + totalPatr,
       rappel: rappel, avance: avance,
+      // Rubriques validées « Afficher à 0 » (Paramètres Océan) : seules imprimées quand leur montant est nul
+      zeros: (lp.zeros || []).map(String),
       libRappel: (ov['29'] && ov['29'].lib) || 'Rappels', libAvance: (ov['26'] && ov['26'].lib) || 'Avance sur Salaire',
       net: netCalc,
       erreurs: erreurs,

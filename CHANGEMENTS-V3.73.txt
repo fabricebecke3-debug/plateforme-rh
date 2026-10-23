@@ -1,0 +1,6 @@
+VERSION 3.73 : FILTRE, PIED DE PAGE ET CORRECTIONS (paie-detail.js)
+- Filtre d'affichage : Toutes / Rubriques imprimables / Rubriques imprimables non nulles (défaut : non nulles).
+- Pied : « Bulletin modèle » (nom du modèle de la fiche), Ok, Annuler, Préc., Suiv. (Préc./Suiv. passent au salarié voisin).
+- Correction : la mise à jour en direct de la colonne Calculé utilise l'indice de la ligne et non sa position dans le tableau (sinon décalage dès qu'une ligne est masquée).
+- Non corrigé (à confirmer avec le bulletin de référence) : CFC Océan 2 FCFA trop bas sur plusieurs salariés ; TC Océan au-delà de 500 000 ; net Sage d'août (écart 16 284).
+Service worker : terh-v110.

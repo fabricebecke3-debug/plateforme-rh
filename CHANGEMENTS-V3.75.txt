@@ -1,0 +1,7 @@
+VERSION 3.75 : FENÊTRE DU BULLETIN DÉTAILLÉ (paie-detail.js)
+- Un clic à côté de la fenêtre ne la ferme plus, et ne ferme plus les autres fenêtres.
+- Barre d'en-tête propre : « ✕ Fermer » (la barre générale « Tout fermer » n'apparaît plus sur cette fenêtre).
+- Pied fixe en bas de la fenêtre : Bulletin modèle, Ok, Annuler, ‹ Préc., Suiv. › : toujours visible, sans descendre.
+- Défilement de la fenêtre amélioré (y compris sur téléphone).
+- En-tête de la zone Sage : fond sombre sur toutes les cellules (plus de bleu mélangé).
+- Service worker : terh-v112.
