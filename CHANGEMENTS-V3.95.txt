@@ -1,0 +1,8 @@
+VERSION 3.95 : SÉLECTION DE LIGNE POUR NAVIGUER DANS LE PERSONNEL (index.html)
+- Un clic sur une ligne la sélectionne (une seule à la fois) ; un nouveau clic sur la même ligne la désélectionne.
+- ↓ et ↑ : ligne suivante ou précédente, avec défilement automatique.
+- Entrée : ouvre la fiche complète de la ligne sélectionnée.
+- Échap : retire la sélection.
+- Les raccourcis ne fonctionnent pas quand on tape dans un champ (recherche, filtres).
+- La sélection reste visible quand la liste est filtrée ou retriée.
+Service worker : terh-v126.

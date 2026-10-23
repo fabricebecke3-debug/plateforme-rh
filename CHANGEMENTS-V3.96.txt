@@ -1,0 +1,5 @@
+VERSION 3.96 : MISE EN FORME DU PERSONNEL RESTAURÉE (index.html)
+- La mise en forme du tableau Personnel est celle de l'ancienne version : colonnes non resserrées, largeur de tableau et défilement comme avant. La règle CSS qui réduisait les colonnes a été retirée.
+- La sélection de ligne (clic, ↓ ↑, Entrée, Échap) est conservée.
+- Aucun autre élément de l'application n'est modifié.
+Service worker : terh-v127.

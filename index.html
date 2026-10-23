@@ -68,7 +68,6 @@ button.s{cursor:pointer}button.s:hover{background:color-mix(in srgb,var(--ac) 10
 button:disabled{opacity:.5;cursor:wait}
 .tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:12px}
 table{border-collapse:collapse;width:100%;min-width:1200px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap;font-size:13px}
-.tw:has(#tb) table{min-width:0!important;width:100%;table-layout:auto}.tw:has(#tb) th,.tw:has(#tb) td{padding:4px 6px;font-size:12px;white-space:normal;line-height:1.25}.tw:has(#tb) th{position:sticky;top:0;z-index:2;background:var(--card)}.tw:has(#tb) td:first-child,.tw:has(#tb) th:first-child{position:sticky;left:0;z-index:1;background:var(--card);font-weight:600;min-width:150px}.tw:has(#tb) .b{font-size:11px;padding:1px 6px}
 th{font-size:11px;color:var(--mu);cursor:pointer;text-transform:uppercase;background:color-mix(in srgb,var(--ac) 5%,var(--card))}
 tr:hover td{background:color-mix(in srgb,var(--ac) 4%,var(--card))}
 .b{padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid currentColor;display:inline-block}
@@ -360,7 +359,8 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label>Téléphone<input id="f_tel"></label>
       <label>Matricule interne<input id="f_mat" placeholder="ex. ACC-0001"></label>
     </fieldset>
-    <fieldset class="fs" id="fsEnf" style="display:none"><legend>Enfants (mères salariées)</legend>
+    <fieldset class="fs" id="fsEnf" style="display:none"><legend>Enfants (mères salariées) : nom et date de naissance de chaque enfant</legend>
+      <label style="grid-column:1/-1">Enfants de moins de 6 ans (calcul automatique)<input type="number" min="0" step="1" id="f_enf6" readonly style="opacity:.75"></label>
       <div id="enfListe" style="grid-column:1/-1"></div>
       <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="s" id="enfAdd">+ Ajouter un enfant</button><span id="enfRes" style="font-size:12px;color:var(--mu)"></span></div>
     </fieldset>
@@ -372,7 +372,6 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label>Date d'entrée<input type="date" id="f_entree"></label>
       <label>Lieu de travail (ville)<input id="f_lieu" placeholder="ex. Douala, Yaoundé"></label>
       <label>Établissement<input id="f_etab"></label>
-      <label>Enfants de moins de 6 ans (calcul automatique)<input type="number" min="0" step="1" id="f_enf6" readonly style="opacity:.75"></label>
       <label>Type d'entrée<input id="f_tent" placeholder="ex. EM (embauche)"></label>
     </fieldset>
     <fieldset class="fs"><legend>Rémunération et paie</legend>
@@ -1661,12 +1660,32 @@ function filt(){
 }
 let _searchTimer=null;
 function list(){
+  if(!window._pselBound){window._pselBound=1;
+    const st=document.createElement('style');
+    st.textContent='#tb tr.psel td{background:rgba(31,95,191,.45)!important}#tb tr[data-rid]{cursor:pointer}#tb tr.psel td:first-child{box-shadow:inset 4px 0 0 #6aa9ff}';
+    document.head.appendChild(st);
+    const marque=(tr)=>{$('tb').querySelectorAll('tr.psel').forEach(x=>x.classList.remove('psel'));
+      if(tr){tr.classList.add('psel');window._pselId=tr.dataset.rid;tr.scrollIntoView({block:'nearest'});}else window._pselId=null;};
+    $('tb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-rid]');
+      if(!tr||e.target.closest('button,a,select,input,label'))return;
+      marque(window._pselId===tr.dataset.rid?null:tr);});
+    document.addEventListener('keydown',e=>{
+      if(!$('tb')||!$('tb').offsetParent)return;
+      if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName||''))return;
+      const rows=[...$('tb').querySelectorAll('tr[data-rid]')];if(!rows.length)return;
+      const i=rows.findIndex(r=>r.dataset.rid===window._pselId);
+      if(e.key==='ArrowDown'){e.preventDefault();marque(rows[Math.min(rows.length-1,i+1)]);}
+      else if(e.key==='ArrowUp'){e.preventDefault();marque(rows[Math.max(0,i-1)]);}
+      else if(e.key==='Enter'&&i>=0){e.preventDefault();rows[i].querySelector('button[data-a="fx"]')?.click();}
+      else if(e.key==='Escape'&&i>=0){marque(null);}
+    });
+  }
   const q=$('q').value.toLowerCase(),fp=$('fp').value,fc=$('fc').value,fv=$('fv').value,fg=$('fg').value,fcn=$('fcn').value,fty=$('fty').value,fan=$('fan').value;
   cur=EN().filter(r=>(!fp||r.p===fp)&&(!fc||r.sc===fc)&&(!fv||r.sv===fv)&&(!fg||r.g===fg)&&(!fcn||r.scnpsSafe===fcn)&&(!fty||r.t===fty)&&(!fan||r.annee===fan)&&(!q||(r.n+r.p+r.tel+r.cnps).toLowerCase().includes(q)));
   cur.sort((a,b)=>{const x=a[sk]??'',y=b[sk]??'';return(x>y?1:x<y?-1:0)*sd;});
   const avecDoc=cur.filter(r=>r.hasDoc).length;
   $('ct').textContent=cur.length+' agent(s) sur '+E.length+' · '+avecDoc+' dossier(s) en ligne · '+(cur.length-avecDoc)+' absent(s)';
-  $('tb').innerHTML=cur.map(r=>`<tr><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${esc(r.lieu)||'—'}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${esc(r.anc)||'—'}</td><td>${r.dc??'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
+  $('tb').innerHTML=cur.map(r=>`<tr data-rid="${esc(r.id)}" class="${window._pselId===String(r.id)?'psel':''}"><td>${esc(r.n)}</td><td>${esc(r.p)}</td><td>${esc(r.lieu)||'—'}</td><td>${r.g==='F'?'Féminin':'Masculin'}</td><td>${r.age??'—'}</td><td><span class="b ${r.t}">${r.tLabel}</span></td><td>${r.annee||'—'}</td><td>${esc(r.anc)||'—'}</td><td>${r.dc??'—'}</td><td>${F(r.deb)}</td><td>${r.t==='CDI'&&!r.darret?'—':F(r.finC)}</td><td>${r.darret?'<span class="b ARRÊT">'+F(r.darret)+'</span>':'—'}</td><td>${r.jr??'—'}</td><td>${bd(r.sc)}</td><td>${bd(r.scnpsSafe)}${r.cnpsRetard?' <span class="b RETARD">⚠ +8j</span>':''}</td><td>${esc(r.cnps)||'—'}</td><td>${F(r.dv)}</td><td>${F(r.dvn)}</td><td>${bd(r.sv)}</td><td>${esc(r.tel)||'—'}</td><td>${r.contrat_url?`<span class="b VALIDE">✅ En ligne</span> <button class="s" data-open="${esc(r.id)}" style="padding:5px 8px" title="${esc(r.contrat_nom||'Dossier')}">📎</button><button class="s" data-a="dp" data-id="${r.id}" title="Imprimer : ${esc(r.contrat_nom||'dossier')}">🖨️</button><button class="s" data-a="dl" data-id="${r.id}" title="Télécharger : ${esc(r.contrat_nom||'dossier')}">⬇️</button>`:'<span class="b INCONNU">❌ Absent</span>'}</td><td><button class="s" data-a="h" data-id="${r.id}" title="Historique des contrats">📅</button><button class="s" data-a="fx" data-id="${r.id}" title="Fiche complète">🗂</button><button class="s" data-a="e" data-id="${r.id}">✏️</button><button class="s" data-a="d" data-id="${r.id}" title="Suivi disciplinaire">⚖️</button><button class="s" data-a="l" data-id="${r.id}">📄</button><button class="s" data-a="c" data-id="${r.id}">📜</button><button class="s" data-a="t" data-id="${r.id}">🚪</button><button class="s" data-a="x" data-id="${r.id}">🗑</button></td></tr>`).join('');
   try{xListCols(cur);}catch(e){console.warn('xListCols',e);}
   essaiSync().catch(()=>{});
   applyPerms();
@@ -1893,17 +1912,18 @@ $('tmf').onsubmit=async e=>{
 /* ============ FORMULAIRE ============ */
 var ENF_LISTE=[];
 function enfToggle(){const f=$('f_g').value==='F';$('fsEnf').style.display=f?'':'none';}
+function enfNorm(d){return (d&&typeof d==='object')?{nom:d.nom||'',dn:d.dn||''}:{nom:'',dn:d||''};}
 function enfRender(){
   const box=$('enfListe');
   const today=LD(T);
-  box.innerHTML=ENF_LISTE.map((d,i)=>{const a=PaieEnfants.ageAns(d,today);return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="min-width:80px;font-size:12px">Enfant '+(i+1)+'</span><input type="date" data-enf="'+i+'" value="'+(d||'')+'" style="flex:1"><span style="min-width:70px;font-size:12px;color:var(--mu)">'+(a==null?'':a+' an(s)')+'</span><button type="button" class="s" data-enfdel="'+i+'">✕</button></div>';}).join('')||'<div style="font-size:12px;color:var(--mu)">Aucun enfant saisi.</div>';
-  const n=PaieEnfants.moins6ans(ENF_LISTE,today);
+  box.innerHTML=ENF_LISTE.map((d,i)=>{const a=PaieEnfants.ageAns(d.dn,today);return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap"><span style="min-width:70px;font-size:12px">Enfant '+(i+1)+'</span><input data-enfnom="'+i+'" placeholder="Nom et prénoms" value="'+esc(d.nom||'')+'" style="flex:1;min-width:160px"><input type="date" data-enf="'+i+'" value="'+(d.dn||'')+'" style="width:160px"><span style="min-width:60px;font-size:12px;color:var(--mu)">'+(a==null?'':a+' an(s)')+'</span><button type="button" class="s" data-enfdel="'+i+'">✕</button></div>';}).join('')||'<div style="font-size:12px;color:var(--mu)">Aucun enfant saisi.</div>';
+  const n=PaieEnfants.moins6ans(ENF_LISTE.map(d=>d.dn),today);
   $('f_enf6').value=n;
   $('enfRes').textContent='Moins de 6 ans aujourd\'hui : '+n+' (calculé à partir des dates de naissance)';
 }
 $('f_g').addEventListener('change',enfToggle);
-$('enfAdd').onclick=()=>{ENF_LISTE.push('');enfRender();};
-$('enfListe').addEventListener('change',e=>{const i=e.target.getAttribute&&e.target.getAttribute('data-enf');if(i!==null&&i!==undefined){ENF_LISTE[+i]=e.target.value;enfRender();}});
+$('enfAdd').onclick=()=>{ENF_LISTE.push({nom:'',dn:''});enfRender();};
+$('enfListe').addEventListener('change',e=>{const t=e.target;if(!t.getAttribute)return;const i=t.getAttribute('data-enf'),k=t.getAttribute('data-enfnom');if(i!==null&&ENF_LISTE[+i]){ENF_LISTE[+i].dn=t.value;enfRender();}else if(k!==null&&ENF_LISTE[+k]){ENF_LISTE[+k].nom=t.value;}});
 $('enfListe').addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-enfdel]');if(b){ENF_LISTE.splice(+b.getAttribute('data-enfdel'),1);enfRender();}});
 const FLD=['f_n','f_p','f_g','f_dn','f_t','f_deb','f_fin','f_tel','f_cnps','f_dv','f_entree','f_lieu','f_sb','f_hor','f_per','f_conv','f_cat','f_niv','f_ind','f_coef','f_dane','f_dep','f_tent','f_etab','f_enf6'];
 const FLK=['n','p','g','dn','t','deb','fin','tel','cnps','dv','entree','lieu','sb','hor','per','mod','conv','cat','niv','ind','coef','dane','dep','tent','etab','enf6'];
@@ -1920,7 +1940,7 @@ function edit(r){
   $('cn').value=r?.contrat_nom||'';
   try{xFill(r);}catch(e){console.warn(e);}
   $('f_mat').value=r?String(MAT[r.id]||''):'';
-  ENF_LISTE=(r&&xGet(r.n).enfants)?xGet(r.n).enfants.slice():[];enfRender();enfToggle();
+  ENF_LISTE=(r&&xGet(r.n).enfants)?xGet(r.n).enfants.map(enfNorm):[];enfRender();enfToggle();
   finManuelle=!!(r&&r.fin&&r.fin!==calcFin(r.deb));
   updateCnpsInfo();
   $('op').style.display='none';
@@ -1950,7 +1970,7 @@ $('fm').onsubmit=async e=>{
   const cnpsS=($('f_cnps').value||'').replace(/\D/g,'');
   if(cnpsS&&(EN()||[]).some(x=>String(x.id)!==String($('fid').value||'')&&String(x.cnps||'').replace(/\D/g,'')===cnpsS)){toast('N° CNPS déjà attribué à un autre salarié');return;}
   if(o.g!=='F')ENF_LISTE=[];
-  if(o.g==='F'&&ENF_LISTE.some(d=>d&&d>LD(T))){toast('Une date de naissance d\'enfant ne peut pas être dans le futur');return;}
+  if(o.g==='F'&&ENF_LISTE.some(d=>d.dn&&d.dn>LD(T))){toast('Une date de naissance d\'enfant ne peut pas être dans le futur');return;}
   if((o.t==='CDD'||o.t==='OCCASIONNEL'||o.t==='TEMPORAIRE')&&!o.fin){toast('Renseignez la date de fin');return;}
   if(o.deb&&o.fin&&o.fin<o.deb){toast('La date de fin ne peut pas être avant le début');return;}
   if(o.dn&&o.dn>LD(T)){toast('La date de naissance ne peut pas être dans le futur');return;}
@@ -2539,7 +2559,7 @@ function xFill(r){xInit();const x=r?canonSal(xGet(r.n)):{};XF.forEach(f=>{const 
   xColsDef().forEach(d=>{if(!('c:'+d.l in x))x['c:'+d.l]='';});const cs=Object.keys(x).filter(k=>k.startsWith('c:')&&!hiddenKey(k)&&!ligneCalcul(k));
   $('x_custom').innerHTML=cs.length?'<h3 style="margin:8px 0 4px;font-size:13px;color:var(--mu)">Autres informations (colonnes importées)</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+cs.map(k=>'<label>'+esc(k.slice(2))+'<input data-xc="'+esc(k)+'" value="'+esc(x[k])+'"></label>').join('')+'</div>':'';}
 function xCollect(){const x={};XF.forEach(f=>{const e=$('x_'+f[0]);const v=e?String(e.value||'').trim():'';if(v)x[f[0]]=v;});document.querySelectorAll('#x_custom [data-xc]').forEach(e=>{const v=String(e.value||'').trim();if(v)x[e.dataset.xc]=v;});return x;}
-async function xSaveForm(o,id){if(!$('x_mat'))return;const x=sansCalcul(xCollect());if(o.g==='F'&&ENF_LISTE.length)x.enfants=ENF_LISTE.filter(d=>d).slice();
+async function xSaveForm(o,id){if(!$('x_mat'))return;const x=sansCalcul(xCollect());if(o.g==='F'&&ENF_LISTE.length)x.enfants=ENF_LISTE.filter(d=>d.dn||d.nom).map(enfNorm);
   if(x.mail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.mail))throw new Error('e-mail invalide');
   const all=xAll();const old=id?E.find(e=>String(e.id)===String(id)):null;if(old&&nName(old.n)!==nName(o.n))delete all[nName(old.n)];
   if(Object.keys(x).length)all[nName(o.n)]=x;else delete all[nName(o.n)];
@@ -6631,7 +6651,7 @@ function withArc(o,f){const s=[CFG,SAL,MOD,MAT];CFG={...DEF,...o.cfg};SAL=o.sal|
 function close(){const m=$('pym');if(m)m.remove();}
 function open(tab){close();tab=tab||'sim';const m=document.createElement('div');m.id='pym';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:10px';
 const emp=(E||[]).filter(r=>r.sc!=='ARRÊT').map(r=>'<option value="'+esc(r.id)+'">'+esc(r.n)+'</option>').join('');
-const ADM=['admin','super_owner'].includes(ER());if(!ADM&&!['sim','liv','cg'].includes(tab))tab='liv';const tabs=[['sim','🧾 Bulletin'],['cg','🏖️ Congés légaux'],['liv','📒 Saisie & états'],['rub','➕ Gains & retenues perso.'],['mat','🔢 Matricules'],['arc','🗄️ Archives'],['cfg','⚙️ Taux'],['simu','🧮 Simulation'],['wg','🧩 Widgets']].filter(([k])=>ADM||['sim','liv','cg'].includes(k)).map(([k,l])=>'<button class="s" data-pt="'+k+'" style="'+(k===tab?'font-weight:700;border-bottom:2px solid var(--pr,#1f5fbf)':'')+'">'+l+'</button>').join('');
+const ADM=['admin','super_owner'].includes(ER());if(!ADM&&!['sim','liv','cg'].includes(tab))tab='liv';if(['mat','simu','wg'].includes(tab))tab='liv';const tabs=[['sim','🧾 Bulletin'],['cg','🏖️ Congés légaux'],['liv','📒 Saisie & états'],['rub','➕ Gains & retenues perso.'],['arc','🗄️ Archives'],['cfg','⚙️ Taux']].filter(([k])=>ADM||['sim','liv','cg'].includes(k)).map(([k,l])=>'<button class="s" data-pt="'+k+'" style="'+(k===tab?'font-weight:700;border-bottom:2px solid var(--pr,#1f5fbf)':'')+'">'+l+'</button>').join('');
 let body='';
 if(tab==='sim')body='<p class="muted" style="font-size:12px">Simulation indicative. Vérifiez les taux (onglet Taux).</p><select id="pye" style="width:100%">'+'<option value="">— Employé (facultatif) —</option>'+emp+'</select><input id="pyb" type="number" placeholder="Salaire brut mensuel (FCFA)" style="width:100%;margin-top:6px"><input id="pya" type="number" placeholder="Autres retenues mensuelles (avance, TDL, RAV…)" style="width:100%;margin-top:6px"><button class="p" id="pyc" style="width:100%;margin-top:8px">Calculer</button><div id="pyr" style="margin-top:10px"></div>';
 if(tab==='cg')body='<select id="pge" style="width:100%"><option value="">— Choisir un employé —</option>'+emp+'</select><div id="pgr_info" style="margin-top:10px;white-space:pre-wrap"></div><p class="muted" style="font-size:11px">Code du travail (Loi 92/007) : 1,5 jour ouvrable/mois (art. 89), +2 jours par période entière de 5 ans d\'ancienneté (art. 90), droit de jouissance après 12 mois (art. 92). Les conventions collectives peuvent être plus favorables.</p>';

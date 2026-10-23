@@ -1,0 +1,6 @@
+VERSION 3.97 : ENFANTS RÉSERVÉS AUX SALARIÉES, AVEC NOM ET DATE DE NAISSANCE (index.html, paie-enfants.js)
+- Le champ « Enfants de moins de 6 ans (calcul automatique) » n'apparaît plus dans Contrat et présence : il est dans la section « Enfants (mères salariées) », visible uniquement pour une salariée de genre féminin.
+- Chaque enfant a un nom et une date de naissance. Le nombre de moins de 6 ans est calculé à partir des dates.
+- Les anciennes fiches (dates seules) restent lisibles et sont converties à l'ouverture.
+- Pour un salarié masculin, la section est masquée et l'effectif enfants est nul.
+Service worker : terh-v128.

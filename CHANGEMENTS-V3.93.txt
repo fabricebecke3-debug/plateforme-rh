@@ -1,0 +1,10 @@
+VERSION 3.93 : MODÈLE HÔTEL OCÉAN SANS CODES SAGE, SENS GAIN / RETENUE (paie-detail.js, paie-hok.js)
+CODES SAGE RETIRÉS DU MODÈLE OCÉAN
+- Le catalogue Océan n'affiche plus de rubrique à code Sage (≥ 1000) : plus de 1310, 1040, 1430…
+- Les éléments de la fiche (prime de panier, etc.) sont générés avec un code Océan libre (30 et suivants), au lieu du code Sage.
+- Une ligne Sage déjà saisie sur un bulletin Océan est renumérotée en code Océan, avec un avis qui indique l'ancien et le nouveau code.
+- Les rubriques de la grille ne sont pas modifiées : à reprendre dans les paramètres du profil si besoin.
+SENS GAIN / RETENUE
+- Dans le tableau libre de l'Océan, la case « Retenue » est remplacée par une liste « Sens » : Gain ou Retenue.
+- Les colonnes Nombre jour, Base unitaire, Imposable et Gain restent telles quelles.
+Service worker : terh-v124.

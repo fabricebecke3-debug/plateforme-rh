@@ -1,0 +1,9 @@
+VERSION 3.94 : MODULES INUTILES RETIRÉS, ANCIENNETÉ OCÉAN, SÉLECTION DANS LE PERSONNEL (index.html, paie-detail.js)
+MODULES RETIRÉS DE L'ESPACE PAIE
+- Matricules, Widgets (entourés) et Simulation (calculateur indicatif sans lien avec le bulletin du salarié) ne sont plus proposés.
+- Un utilisateur qui était sur un de ces onglets arrive sur « Saisie & états ».
+BULLETIN DÉTAILLÉ (Hôtel Océan)
+- Le bouton « Prime d'ancienneté » est masqué : sur l'Océan, l'ancienneté est calculée par le modèle (rubrique 5). Le message « Pas de salaire de base (rubrique 1000) » ne peut plus apparaître.
+PERSONNEL
+- Un clic sur une ligne la sélectionne (surbrillance). Un nouveau clic la désélectionne. Les boutons de la ligne ne sélectionnent pas la ligne.
+Service worker : terh-v125.

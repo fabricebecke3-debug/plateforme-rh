@@ -26,7 +26,7 @@
   }
   function moins6ans(dates, date) {
     return (dates || []).filter(function (x) {
-      var a = ageAns(x, date);
+      var a = ageAns((x && typeof x === 'object') ? x.dn : x, date);
       return a !== null && a >= 0 && a < 6;
     }).length;
   }

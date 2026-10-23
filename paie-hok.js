@@ -744,9 +744,9 @@
     var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
     // Éléments libres : lignes saisies à la main et lignes de la grille (heures sup., rubriques ajoutées).
     // Le salaire de base (1000) reste calculé par le moteur à partir de la fiche et des absences.
-    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0 && !EQUIV_OCEAN[String(l.code)]; };
+    var estLibre = function (l) { return (!l.auto || l.grille || l.fiche) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0 && !EQUIV_OCEAN[String(l.code)]; };
     var manuels = lignes.filter(estLibre)
-      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false, src: l.grille ? 'Grille' : 'Saisie' }; });
+      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false, src: l.grille ? 'Grille' : (l.fiche ? 'Fiche' : 'Saisie') }; });
     var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
     var part = o.sansCorrections ? particulariteSansCorrection(f.nom || o.nom, o.periode) : particularite(f.nom || o.nom, o.periode);

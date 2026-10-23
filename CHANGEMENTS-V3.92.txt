@@ -1,0 +1,15 @@
+VERSION 3.92 : TOTAUX, NET UNIQUE, CODES LIBRES, CATALOGUE OCÉAN, DOUBLONS, BULLETIN PLEIN PAGE (paie-detail.js, paie-bulletin-ocean.js)
+TOTAUX (Hôtel Océan)
+- Le tableau affiche trois lignes distinctes : Total brut, Total retenues, Net à payer.
+- Le pied de la fenêtre utilise les mêmes montants que le tableau et que le bulletin : un seul net.
+CODES
+- Une nouvelle rubrique reçoit un code jamais utilisé : ni dans le bulletin, ni dans le modèle Océan, ni dans les rubriques de la fiche (ex. 1310).
+CATALOGUE (Hôtel Océan)
+- Le sélecteur n'affiche plus les rubriques Sage (ex. 31 Sursalaire, 35 Prime de panier, 1011, 1040…) : seules les rubriques du modèle Océan et celles que vous avez créées.
+DOUBLONS
+- Un avis signale deux rubriques de même libellé (ex. « Prime de panier » en 1310 et en 35) pour que vous en gardiez une seule.
+RUBRIQUES LIBRES
+- Sur l'Océan, une nouvelle rubrique est proposée imposable et cotisable (modifiable).
+BULLETIN IMPRIMÉ (Hôtel Océan)
+- Le bulletin occupe toute la hauteur de la page A4 : le pied (net, signatures) est descendu en bas de page.
+Service worker : terh-v123.
