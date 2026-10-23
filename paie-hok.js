@@ -463,7 +463,7 @@
     var netCalc = brut + rappel - sommeRet - avance;
     var val = function (c) { var r = parCode(c); return r ? r.ret : 0; };
     return {
-      entreprise: p.entreprise,
+      entreprise: Object.assign({}, p.entreprise, (root.TERH_entrepriseInfos ? root.TERH_entrepriseInfos() : {})),
       gains: gains,
       retenues: retenues,
       brut: Math.round(brut),

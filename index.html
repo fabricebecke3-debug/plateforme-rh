@@ -1098,10 +1098,14 @@ function genFormHTML(kind){
     '<div class="f"><label>N°<input id="gn_num" placeholder="ex. 012"></label><label>Destinataires<input id="gn_dest" placeholder="ex. Tout le personnel" style="min-width:220px"></label><label>Objet<input id="gn_obj" style="min-width:260px"></label></div>'+
     '<label style="display:block;margin-top:6px">Corps de la note<textarea id="gn_corps" rows="4" style="width:100%"></textarea></label>'+
     '<p style="margin:8px 0"><button class="p" id="gn_go">👁 Aperçu</button> <button class="s" id="gn_print">🖨️ Imprimer / PDF</button></p><div id="gn_out" class="pp" style="background:#fff;color:#000;padding:12px"></div></div>';
+  if(kind==='lic') return '<div class="c" id="gen_box_lic"><h3 style="margin:14px 0 6px">📄 Générer une lettre de licenciement</h3>'+
+    '<div class="f"><label>Salarié<select id="gl_emp"><option value="">— choisir —</option>'+opts+'</select></label><label>Date de fin<input type="date" id="gl_date" value="'+today+'"></label><label>Motif<input id="gl_motif" placeholder="ex. motif économique" style="min-width:220px"></label></div>'+
+    '<p style="margin:8px 0"><button class="p" id="gl_go">👁 Aperçu</button> <button class="s" id="gl_print">🖨️ Imprimer / PDF</button></p><div id="gl_out" class="pp" style="background:#fff;color:#000;padding:12px"></div></div>';
   return '<div class="c" id="gen_box_fin"><h3 style="margin:0 0 6px">📄 Générer une notification de fin de contrat</h3>'+
     '<div class="f"><label>Salarié<select id="gf_emp"><option value="">— choisir —</option>'+opts+'</select></label><label>Date de fin<input type="date" id="gf_date" value="'+today+'"></label><label>Motif<input id="gf_motif" placeholder="ex. fin de mission" style="min-width:220px"></label></div>'+
     '<p style="margin:8px 0"><button class="p" id="gf_go">👁 Aperçu</button> <button class="s" id="gf_print">🖨️ Imprimer / PDF</button></p><div id="gf_out" class="pp" style="background:#fff;color:#000;padding:12px"></div></div>';
 }
+const TPL_LIC_DEFAUT='{{VILLE}}, le {{DATE_DOC}}\n\n{{CIVILITE}} {{NOM}}\n{{POSTE}}\n\nOBJET : LETTRE DE LICENCIEMENT\n\n{{CIVILITE}} {{NOM}},\n\nPar la présente, nous vous notifions la rupture de votre contrat de travail pour le motif suivant : {{MOTIF_LIC}}.\n\nLa rupture prend effet à compter du {{DATE_FIN}}. Votre solde de tout compte, votre certificat de travail et votre attestation de fin de contrat à la CNPS vous seront remis dans les conditions prévues par le Code du travail.\n\nVeuillez agréer, {{CIVILITE}} {{NOM}}, l’expression de nos salutations.\n\n{{SIGNATAIRE}}\n{{SOCIETE}}';
 function genRemplir(tpl,v){return String(tpl||'').replace(/\{\{(\w+)\}\}/g,function(m,k){return v[k]!=null?v[k]:m;});}
 function genCorps(texte){return '<div style="font:12pt \'Times New Roman\',serif;line-height:1.5">'+esc(texte).replace(/\n/g,'<br>')+'</div>';}
 function genMonter(kind){
@@ -1116,9 +1120,16 @@ function genMonter(kind){
     const calc=()=>{const r=EN().find(x=>String(x.id)===$('gf_emp').value);if(!r){toast('Choisissez un salarié');return null;}
       return genRemplir(PARAMS.tpl_fin||TPL_FIN_DEFAUT,Object.assign({},base,{CIVILITE:r.g==='F'?'Madame':'Monsieur',NOM:r.n||'',POSTE:r.p||'',DATE_FIN:FL($('gf_date').value),MOTIF_FIN:$('gf_motif').value||'fin de contrat'}));};
     $('gf_go').onclick=()=>{const t=calc();if(t!=null)$('gf_out').innerHTML=genCorps(t);};
-    $('gf_print').onclick=()=>{const t=calc();if(t!=null)printHTML('Notification de fin de contrat',genCorps(t));};
+    $('gf_print').onclick=()=>{const t=calc();if(t!=null){const r=EN().find(x=>String(x.id)===$('gf_emp').value)||{};imprimerAvecModele('fin','Notification de fin de contrat',t,r,{date_fin:FL($('gf_date').value),motif:$('gf_motif').value||''},()=>printHTML('Notification de fin de contrat',genCorps(t)));}};
   }
 }
+// Lettre de licenciement : dans le même onglet que la fin de contrat
+(function(){const orig=genMonter;genMonter=function(kind){orig(kind);if(kind!=='fin')return;const pane=$('pane-fin');if(!pane||pane.querySelector('#gen_box_lic'))return;
+  pane.insertAdjacentHTML('beforeend',genFormHTML('lic'));const base={VILLE:PARAMS.lieu||'',DATE_DOC:FL(new Date().toISOString().slice(0,10)),SOCIETE:PARAMS.soc||'',SIGNATAIRE:PARAMS.fn||''};
+  const calcL=()=>{const r=EN().find(x=>String(x.id)===$('gl_emp').value);if(!r){toast('Choisissez un salarié');return null;}return genRemplir(PARAMS.tpl_lic||TPL_LIC_DEFAUT,Object.assign({},base,{CIVILITE:r.g==='F'?'Madame':'Monsieur',NOM:r.n||'',POSTE:r.p||'',DATE_FIN:FL($('gl_date').value),MOTIF_LIC:$('gl_motif').value||'motif à préciser'}));};
+  $('gl_go').onclick=()=>{const t=calcL();if(t!=null)$('gl_out').innerHTML=genCorps(t);};
+  $('gl_print').onclick=()=>{const t=calcL();if(t!=null){const r=EN().find(x=>String(x.id)===$('gl_emp').value)||{};imprimerAvecModele('licenciement','Lettre de licenciement',t,r,{date_fin:FL($('gl_date').value),motif:$('gl_motif').value||''},()=>printHTML('Lettre de licenciement',genCorps(t)));}};
+};})();
 function modulesDepuisNav(){go('p');setTimeout(function(){const b=document.querySelector('#ptabs button[data-t="mp"]');if(b)b.click();},250);}
 (function(){
   const nav=document.querySelector('nav');if(!nav||document.getElementById('nav_modules'))return;
@@ -1222,9 +1233,29 @@ function discLetterHTML(text){
 }
 const DISC_CSS='.dl{font-family:"Times New Roman","Liberation Serif",Times,serif;font-size:12pt;line-height:normal;color:#000}.dl p{margin:14pt 0;text-align:justify}.dl .dl-date{margin:0 0 14pt 61.1%;text-align:left;line-height:1.32}.dl .dl-dest{margin:14pt 0 14pt 61.6%;text-align:left;line-height:1.32}.dl .dl-dest .dl-a{display:block;padding-left:48pt}.dl .dl-sp{height:42pt}.dl .dl-objet{text-align:left}.dl .dl-sign{margin:46pt 0 6pt;text-align:right;font-weight:700}';
 const DISC_PAGE_CSS='@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0;background:#fff;color:#000}table.sheet{width:210mm;border-collapse:collapse;border:0;table-layout:fixed}table.sheet tr{page-break-inside:auto}table.sheet td{border:0!important;padding:0!important;text-align:left;font-size:12pt;background:none}tfoot{display:table-footer-group}.hd{position:relative;height:25mm}.hd img{position:absolute;left:1.9mm;top:0;width:90.7mm;height:auto}table.sheet td.bd{padding:0 25mm!important}.ft{height:25mm}'+DISC_CSS;
-function discSheetHTML(text){return '<table class="sheet"><thead><tr><td><div class="hd"><img src="'+DISC_LOGO+'" alt=""></div></td></tr></thead><tbody><tr><td class="bd"><div class="dl">'+discLetterHTML(text)+'</div></td></tr></tbody><tfoot><tr><td><div class="ft"></div></td></tr></tfoot></table>';}
-function printDiscLetter(title,text){printHTML(title,discSheetHTML(text),DISC_PAGE_CSS);}
-function discPreviewHTML(text){return '<div class="dlp"><img class="dlp-logo" src="'+DISC_LOGO+'" alt=""><div class="dl">'+discLetterHTML(text)+'</div></div>';}
+function discLogo(){const c=(typeof curCo==='function'&&curCo())||{};return c.logo_url||c.cover_url||'';}
+function discSheetHTML(text){const lg=discLogo();return '<table class="sheet"><thead><tr><td><div class="hd">'+(lg?'<img src="'+esc(lg)+'" alt="">':'')+'</div></td></tr></thead><tbody><tr><td class="bd"><div class="dl">'+discLetterHTML(text)+'</div></td></tr></tbody><tfoot><tr><td><div class="ft"></div></td></tr></tfoot></table>';}
+// Impression commune des lettres : modèle de la société (Word ou PDF) s'il existe, sinon la mise en forme standard
+function imprimerAvecModele(kind,title,texte,emp,extra,standard){
+  const co=(typeof curCo==='function'&&curCo())||{};
+  rd('modeles_lettres').then(function(mods){
+    const mod=(mods||{})[kind];
+    if(!mod||!mod.url||!window.LettresModeles){standard();return;}
+    const x=extra||{};
+    const valeurs={nom:(emp&&emp.n)||'',poste:(emp&&emp.p)||'',date:new Date().toLocaleDateString('fr-FR'),societe:co.nom||'',titre:title||'',texte:texte||'',date_fin:x.date_fin||'',motif:x.motif||''};
+    return LettresModeles.generer({modele:mod,valeurs:valeurs,texte:texte||''}).then(function(r){
+      const u=URL.createObjectURL(r.blob);
+      if(r.ext==='docx'){const a=document.createElement('a');a.href=u;a.download=String(title||'lettre').replace(/[^\w\-]+/g,'_')+'.docx';document.body.appendChild(a);a.click();a.remove();toast('Lettre Word téléchargée : ouvrez-la dans Word pour l’imprimer');}
+      else{const w=window.open(u,'_blank');if(!w)toast('Autorisez les fenêtres pop-up pour imprimer la lettre');}
+    });
+  }).catch(function(e){toast('Modèle non utilisable ('+((e&&e.message)||e)+') : lettre standard imprimée');standard();});
+}
+function printDiscLetter(title,text){
+  const kind=/^Notification de sanction/.test(title||'')?'sanction':'de';
+  const sel=$('dme')?String($('dme').value):'';const emp=(E||[]).find(x=>String(x.id)===sel)||{};
+  imprimerAvecModele(kind,title,text,emp,{},function(){printHTML(title,discSheetHTML(text),DISC_PAGE_CSS);});
+}
+function discPreviewHTML(text){const lg=discLogo();return '<div class="dlp">'+(lg?'<img class="dlp-logo" src="'+esc(lg)+'" alt="">':'')+'<div class="dl">'+discLetterHTML(text)+'</div></div>';}
 (function(){const s=document.createElement('style');s.id='dlcss';s.textContent='.dlp{background:#fff;color:#000;padding:0 8% 7%;border-radius:6px;overflow:hidden;text-align:left}.dlp-logo{display:block;width:43%;height:auto;margin:0 0 3% -5%}.dlp .dl{font-size:10pt}'+DISC_CSS;document.head.appendChild(s);})();
 
 
@@ -2817,7 +2848,8 @@ document.addEventListener('change',e=>{const t=e.target;if(!t||!t.id||!t.id.star
   jrTable();});
 document.addEventListener('input',e=>{const t=e.target;if(t&&t.id==='jr_q'){JR.f.q=t.value;jrTable();}});
 document.addEventListener('click',e=>{const t=e.target;if(!t||!t.id)return;
-  if(t.id==='jr_csv'){jrCsv();}else if(t.id==='jr_ref'){jrLoad();}});
+  if(t.id==='jr_csv'){jrCsv();}else if(t.id==='jr_ref'){jrLoad();}
+  else if(t.id==='own_meta_fill'){const base=(window.PaieHok&&PaieHok.charger)?PaieHok.charger().entreprise||{}:{};let cur={};try{cur=JSON.parse($('own_meta').value||'{}');}catch(x){cur={};}const out=Object.assign({bp:base.bp||'',tel:base.tel||'',niu:base.niu||'',cnps:base.cnps||'',rccm:'',secteur:'Hôtel, bar et restaurant',adresse:''},cur);$('own_meta').value=JSON.stringify(out,null,1);toast('Infos remplies : vérifiez-les puis enregistrez');}});
 (function jrWatch(){
   const box=$('v-own');if(!box){setTimeout(jrWatch,800);return;}
   const mount=()=>{
@@ -4368,7 +4400,7 @@ function drawBanners(){
 }
 function grpFields(){
   if(!HASGRP())return '';
-  return `<label>Type<input id="own_type" list="own_types" value="client" placeholder="filiale, chantier, département…"></label><datalist id="own_types"><option value="client"><option value="groupe"><option value="holding"><option value="cabinet_rh"><option value="entreprise"><option value="filiale"><option value="agence"><option value="site"><option value="departement"><option value="chantier"><option value="formation"><option value="sous_traitant"><option value="fournisseur"><option value="ong"><option value="administration"><option value="autre"></datalist><label>Organisation parente<select id="own_grp"><option value="">— aucune —</option>${orderCos(COS).map(c=>`<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('')}</select></label><label>Couleur d’identification<input id="own_col" type="color" value="#1f5fbf"></label><label>Pays<input id="own_pays" placeholder="Cameroun"></label><label>Code interne<input id="own_code"></label><label>Infos libres (JSON : NIU, CNPS, RCCM…)<textarea id="own_meta" rows="2" placeholder='{"niu":"","cnps":""}'></textarea></label>`;
+  return `<label>Type<input id="own_type" list="own_types" value="client" placeholder="filiale, chantier, département…"></label><datalist id="own_types"><option value="client"><option value="groupe"><option value="holding"><option value="cabinet_rh"><option value="entreprise"><option value="filiale"><option value="agence"><option value="site"><option value="departement"><option value="chantier"><option value="formation"><option value="sous_traitant"><option value="fournisseur"><option value="ong"><option value="administration"><option value="autre"></datalist><label>Organisation parente<select id="own_grp"><option value="">— aucune —</option>${orderCos(COS).map(c=>`<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('')}</select></label><label>Couleur d’identification<input id="own_col" type="color" value="#1f5fbf"></label><label>Pays<input id="own_pays" placeholder="Cameroun"></label><label>Code interne<input id="own_code"></label><label>Infos libres (JSON : NIU, CNPS, RCCM…)<textarea id="own_meta" rows="2" placeholder='{"bp":"","tel":"","niu":"","cnps":"","rccm":"","secteur":"Hôtel, bar et restaurant","adresse":""}'></textarea></label><button type="button" id="own_meta_fill">📋 Remplir depuis le bulletin</button>`;
 }
 function fvBox(c){
   if(!HASGRP())return '';
@@ -4498,7 +4530,7 @@ document.addEventListener('click',async e=>{
   }
 });
 /* ============ PROPRIÉTAIRE : MULTI-ENTREPRISES ============ */
-const PRESETS={cabinet_rh:{l:'Cabinet RH / Intérim / Formation (société mère)',m:['personnel','alertes','discipline','conges','paie','formation','evaluations','certifications']},client_std:{l:'Société cliente (gestion RH simple)',m:['personnel','alertes','conges']},interim:{l:'Intérim / mise à disposition (CTT, CDD)',m:['personnel','alertes','discipline','conges']},pme:{l:'PME classique (CDI, CDD)',m:['personnel','discipline','conges']},ong:{l:'ONG / association',m:['personnel','conges']},minimal:{l:'Fichier du personnel seul',m:['personnel']},full:{l:'Complet (tous les modules)',m:['personnel','alertes','discipline','conges','paie','evaluations','formation','recrutement','contacts','annonces','certifications','absences','fiches','materiel','notes','taches']},btp:{l:'BTP / chantiers (CDD, occasionnels)',m:['personnel','alertes','discipline','conges']},sante:{l:'Santé / clinique',m:['personnel','alertes','conges','discipline']},commerce:{l:'Commerce / distribution',m:['personnel','discipline','conges']},ecole:{l:'École / formation',m:['personnel','conges']},cabinet:{l:'Cabinet de formation (volet formation activé)',m:['personnel','conges','formation','evaluations','certifications']},securite:{l:'Sécurité / gardiennage',m:['personnel','alertes','discipline']},transport:{l:'Transport routier / voyageurs / marchandises',m:['personnel','alertes','discipline','conges']},logistique:{l:'Logistique / entreposage / transit',m:['personnel','alertes','discipline','conges']},hotellerie:{l:'Hôtellerie / tourisme',m:['personnel','alertes','discipline','conges']},restauration:{l:'Restauration / traiteur',m:['personnel','alertes','discipline','conges']},agro:{l:'Agriculture / agro-industrie / plantations',m:['personnel','alertes','discipline','conges']},industrie:{l:'Industrie / usine / production',m:['personnel','alertes','discipline','conges']},mines:{l:'Mines / énergie / pétrole & gaz',m:['personnel','alertes','discipline','conges']},banque:{l:'Banque / assurance / microfinance',m:['personnel','alertes','discipline','conges']},telecom:{l:'Télécoms / informatique / services numériques',m:['personnel','alertes','discipline','conges']},immobilier:{l:'Immobilier / agence / syndic',m:['personnel','alertes','discipline','conges']},nettoyage:{l:'Nettoyage / hygiène / services aux entreprises',m:['personnel','alertes','discipline','conges']},medias:{l:'Médias / communication / publicité',m:['personnel','alertes','discipline','conges']},pharma:{l:'Pharmacie / laboratoire / santé privée',m:['personnel','alertes','discipline','conges']},admin_pub:{l:'Administration / collectivité / établissement public',m:['personnel','alertes','discipline','conges']},artisanat:{l:'Artisanat / petite entreprise / atelier',m:['personnel','alertes','discipline','conges']},education_sup:{l:'Enseignement supérieur / université privée',m:['personnel','alertes','discipline','conges']},domestique:{l:'Employés de maison / services à la personne',m:['personnel','alertes','discipline','conges']},peche:{l:'Pêche / élevage / exploitation forestière',m:['personnel','alertes','discipline','conges']},autre:{l:'Autre organisation (à personnaliser)',m:['personnel','alertes','discipline','conges']}};
+const PRESETS={cabinet_rh:{l:'Cabinet RH / Intérim / Formation (société mère)',m:['personnel','alertes','discipline','conges','paie','formation','evaluations','certifications']},client_std:{l:'Société cliente (gestion RH simple)',m:['personnel','alertes','conges']},interim:{l:'Intérim / mise à disposition (CTT, CDD)',m:['personnel','alertes','discipline','conges']},pme:{l:'PME classique (CDI, CDD)',m:['personnel','discipline','conges']},ong:{l:'ONG / association',m:['personnel','conges']},minimal:{l:'Fichier du personnel seul',m:['personnel']},full:{l:'Complet (tous les modules)',m:['personnel','alertes','discipline','conges','paie','evaluations','formation','recrutement','contacts','annonces','certifications','absences','fiches','materiel','notes','taches']},btp:{l:'BTP / chantiers (CDD, occasionnels)',m:['personnel','alertes','discipline','conges']},sante:{l:'Santé / clinique',m:['personnel','alertes','conges','discipline']},commerce:{l:'Commerce / distribution',m:['personnel','discipline','conges']},ecole:{l:'École / formation',m:['personnel','conges']},cabinet:{l:'Cabinet de formation (volet formation activé)',m:['personnel','conges','formation','evaluations','certifications']},securite:{l:'Sécurité / gardiennage',m:['personnel','alertes','discipline']},transport:{l:'Transport routier / voyageurs / marchandises',m:['personnel','alertes','discipline','conges']},logistique:{l:'Logistique / entreposage / transit',m:['personnel','alertes','discipline','conges']},hotellerie:{l:'Hôtel, bar et restaurant',m:['personnel','alertes','discipline','conges']},restauration:{l:'Restauration / traiteur',m:['personnel','alertes','discipline','conges']},agro:{l:'Agriculture / agro-industrie / plantations',m:['personnel','alertes','discipline','conges']},industrie:{l:'Industrie / usine / production',m:['personnel','alertes','discipline','conges']},mines:{l:'Mines / énergie / pétrole & gaz',m:['personnel','alertes','discipline','conges']},banque:{l:'Banque / assurance / microfinance',m:['personnel','alertes','discipline','conges']},telecom:{l:'Télécoms / informatique / services numériques',m:['personnel','alertes','discipline','conges']},immobilier:{l:'Immobilier / agence / syndic',m:['personnel','alertes','discipline','conges']},nettoyage:{l:'Nettoyage / hygiène / services aux entreprises',m:['personnel','alertes','discipline','conges']},medias:{l:'Médias / communication / publicité',m:['personnel','alertes','discipline','conges']},pharma:{l:'Pharmacie / laboratoire / santé privée',m:['personnel','alertes','discipline','conges']},admin_pub:{l:'Administration / collectivité / établissement public',m:['personnel','alertes','discipline','conges']},artisanat:{l:'Artisanat / petite entreprise / atelier',m:['personnel','alertes','discipline','conges']},education_sup:{l:'Enseignement supérieur / université privée',m:['personnel','alertes','discipline','conges']},domestique:{l:'Employés de maison / services à la personne',m:['personnel','alertes','discipline','conges']},peche:{l:'Pêche / élevage / exploitation forestière',m:['personnel','alertes','discipline','conges']},autre:{l:'Autre organisation (à personnaliser)',m:['personnel','alertes','discipline','conges']}};
 const MODS={
   personnel:'👥 Personnel',alertes:'🔔 Alertes contrats/CNPS',
   discipline:'⚖️ Suivi disciplinaire',conges:'🏖️ Congés',
@@ -6214,6 +6246,18 @@ async function up(path,blob){const {error}=await db.storage.from(BK).upload(path
 let blobA=null,blobL=null,stream=null;
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
 function close(){stopCam();const m=$('phm');if(m)m.remove();blobA=blobL=null;}
+const MD_TYPES=[['de','Demande d’explication'],['sanction','Lettre de sanction'],['fin','Notification de fin de contrat'],['licenciement','Lettre de licenciement']];
+const MD_ACCEPT='.doc,.docx,.odt,.rtf,.pdf,.png,.jpg,.jpeg,.webp';
+const MD_MAX=10*1024*1024;
+function mdTxt(md,k,lib){const x=(md||{})[k];return x&&x.url?lib+' : <a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.nom||'fichier')+'</a>':lib+' : aucun modèle (la lettre actuelle est utilisée)';}
+const MD_LIBELLES={de:'Demande d’explication',sanction:'Lettre de sanction',fin:'Notification de fin de contrat',licenciement:'Lettre de licenciement'};
+// Modèles de lettres de la société : rangés dans la table « parametres » (séparée des infos libres).
+// Première ouverture : reprend les modèles déjà téléversés dans les anciennes infos libres.
+async function chargerModeles(){
+  let mods=await rd('modeles_lettres');
+  if(!mods){const md=(curCo()||{}).metadata||{};mods={};Object.keys(MD_LIBELLES).forEach(k=>{if(md['modele_'+k])mods[k]=md['modele_'+k];});if(Object.keys(mods).length)await wr('modeles_lettres',mods).catch(()=>{});}
+  window.TERH_modeles=mods||{};return window.TERH_modeles;
+}
 function open(){close();const adm=['admin','super_owner'].includes(ER()),co=curCo();
 const m=document.createElement('div');m.id='phm';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
 m.innerHTML=`<div style="background:var(--bg,#fff);color:inherit;max-width:420px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.3)">
@@ -6233,13 +6277,31 @@ ${adm&&co?`<hr style="margin:14px 0"><h3 style="margin:0 0 8px">🏢 Logo — ${
 <h3 style="margin:14px 0 6px">📄 Papier à en-tête</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Image (bandeau en haut de page) ajoutée à tous les documents imprimés de cette entreprise.</p>
 <div style="text-align:center"><img id="phpe" src="${co.cover_url||''}" style="max-width:100%;max-height:80px;object-fit:contain;${co.cover_url?'':'display:none'}"></div>
 <div style="text-align:center;margin:8px 0"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir l\'en-tête<input type="file" accept="image/*" id="phfe" hidden></label> <button id="phre" class="s" type="button">🗑️ Retirer</button></div>
-<button id="phse" class="s" type="button" style="width:100%;font-weight:700">💾 Enregistrer l\'en-tête</button>`:''}
+<button id="phse" class="s" type="button" style="width:100%;font-weight:700">💾 Enregistrer l\'en-tête</button>
+<h3 style="margin:14px 0 6px">📝 Modèles de lettres</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Modèles propres à cette entreprise. Formats acceptés : Word (.doc, .docx), .odt, .rtf, PDF, image (PNG, JPG, WebP). 10 Mo maximum.</p>
+${MD_TYPES.map(function (t) { return '<div id="phm_' + t[0] + '" style="font-size:12px;margin:4px 0">' + mdTxt(window.TERH_modeles||{}, t[0], t[1]) + '</div><div style="text-align:center;margin:4px 0"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir : ' + t[1] + '<input type="file" accept="' + MD_ACCEPT + '" id="phf_' + t[0] + '" hidden></label></div>'; }).join('')}
+<button id="phsm" class="s" type="button" style="width:100%;font-weight:700">💾 Téléverser les modèles choisis</button>`:''}
 <button id="phx" class="s" type="button" style="width:100%;margin-top:12px">Fermer</button></div>`;
 document.body.appendChild(m);
+if(adm&&co)chargerModeles().then(function(mods){Object.keys(MD_LIBELLES).forEach(function(k){const d=document.getElementById('phm_'+k);if(d)d.innerHTML=mdTxt(mods,k,MD_LIBELLES[k]);});}).catch(function(){});
 const pick=(inp,img,set)=>$(inp).onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const b=await toJpeg(f,inp==='phfl'?600:320);set(b);const i=$(img);i.src=URL.createObjectURL(b);i.style.display='';i.style.visibility='visible';}catch(x){toast('Erreur : '+x.message);}};
 pick('phfa','phpa',b=>blobA=b);pick('phfc','phpa',b=>blobA=b);if(adm&&co)pick('phfl','phpl',b=>blobL=b);if(adm&&co){let bE=null;const fe=$('phfe');fe.onchange=async e=>{const f=e.target.files[0];if(!f)return;try{bE=await toJpeg(f,1600);const i=$('phpe');i.src=URL.createObjectURL(bE);i.style.display='';}catch(x){toast('Erreur : '+x.message);}};
 $('phse').onclick=async()=>{if(!bE){toast('Choisissez d\'abord une image');return;}try{const u=await up('logos/'+co.id+'-entete.jpg',bE);const {error}=await db.from('entreprises').update({cover_url:u}).eq('id',co.id);if(error)throw error;co.cover_url=u;toast('En-tête enregistré');}catch(x){toast('Erreur : '+x.message);}};
 $('phre').onclick=async()=>{if(!confirm('Retirer le papier à en-tête ?'))return;try{const {error}=await db.from('entreprises').update({cover_url:null}).eq('id',co.id);if(error)throw error;co.cover_url=null;$('phpe').style.display='none';toast('En-tête retiré');}catch(x){toast('Erreur : '+x.message);}};}
+if(adm&&co){const sel={};
+ MD_TYPES.forEach(function (t) { $('phf_'+t[0]).onchange=function (e) { sel[t[0]]=e.target.files[0]||null; if(sel[t[0]]) toast('Choisi : '+sel[t[0]].name+' (à téléverser)'); }; });
+ const okF=f=>!!f&&/\.(doc|docx|odt|rtf|pdf|png|jpe?g|webp)$/i.test(f.name)&&f.size<=MD_MAX;
+ const envoiModele=async(f,cle)=>{const ext=f.name.split('.').pop().toLowerCase();const path='modeles/'+co.id+'-'+cle+'.'+ext;const {error}=await db.storage.from(BK).upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});if(error)throw error;const url=db.storage.from(BK).getPublicUrl(path).data.publicUrl+'?v='+Date.now();const mods=Object.assign({},window.TERH_modeles||{});mods[cle]={url:url,nom:f.name,date:new Date().toISOString().slice(0,10)};await wr('modeles_lettres',mods);window.TERH_modeles=mods;};
+ $('phsm').onclick=async()=>{
+   const liste=MD_TYPES.filter(function (t) { return sel[t[0]]; });
+   if(!liste.length){toast('Choisissez au moins un modèle');return;}
+   if(liste.some(function (t) { return !okF(sel[t[0]]); })){toast('Format accepté : Word (.doc, .docx), .odt, .rtf, PDF ou image (PNG, JPG, WebP), 10 Mo maximum');return;}
+   try{
+     for(const t of liste){await envoiModele(sel[t[0]],t[0]);$('phm_'+t[0]).innerHTML=mdTxt(window.TERH_modeles,t[0],t[1]);sel[t[0]]=null;}
+     toast('Modèle(s) enregistré(s)');
+   }catch(x){toast('Erreur : '+x.message);}
+ };
+}
 $('phcam').onclick=async()=>{if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){$('phfc').click();return;}try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});$('phv').srcObject=stream;$('phv').style.display='';$('phsnap').style.display='';}catch(x){if(navigator.mediaDevices&&window.isSecureContext!==false){toast('Caméra non autorisée : ouverture de l\'appareil photo…');}$('phfc').click();}};
 $('phsnap').onclick=()=>{const v=$('phv'),c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(async b=>{const f=new File([b],'s.jpg',{type:'image/jpeg'});blobA=await toJpeg(f,320);const i=$('phpa');i.src=URL.createObjectURL(blobA);i.style.visibility='visible';stopCam();$('phv').style.display='none';$('phsnap').style.display='none';},'image/jpeg',.9);};
 $('phsa').onclick=async()=>{if(!blobA||!MY_USER){toast('Choisissez d\'abord une photo');return;}try{let u;try{u=await upAv(MY_USER.id+'/avatar.jpg',blobA);await window.TERH_saveMyProfile({avatar_url:u});window._avUrl=await signAv(u);showAv();toast('Photo enregistrée');}catch(x){try{const sm=await toJpeg(blobA,160),du=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=ko;fr.readAsDataURL(sm);});try{localStorage.setItem('terh_av_'+MY_USER.id,du);}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}try{await db.auth.updateUser({data:{avatar:du}});}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}window._avUrl=du;showAv();toast('Photo enregistrée (stockage serveur indisponible : '+x.message+')');}catch(y){toast('Erreur : '+x.message);}}}catch(z){toast('Erreur : '+z.message);}};
@@ -6301,6 +6363,7 @@ window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointa
 window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
 window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
 window.TERH_listeSalaries=window.TERH_fichesPaie;
+window.TERH_entrepriseInfos=()=>{const m=(curCo()||{}).metadata||{};const o={};['bp','tel','niu','cnps'].forEach(k=>{if(m[k])o[k]=String(m[k]);});return o;};
 window.TERH_congesPour=(id)=>(CG||[]).filter(c=>String(c.employe_id)===String(id)).map(c=>({du:c.deb,au:c.fin,statut:c.statut}));
 window.TERH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
 window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');MAT[id]=String(mat||'').trim();await wr('matricules_json',MAT);return true;};
@@ -9784,6 +9847,7 @@ hook();setInterval(hook,1500);
 <script src="paie-bulletin-sage.js"></script>
 <script src="paie-bulletin-ocean.js"></script>
 <script src="paie-hok.js"></script>
+<script src="lettres-modeles.js"></script>
 <script src="paie-constantes.js"></script>
 <script src="paie-detail.js"></script>
 <script src="formation/documents.js"></script>

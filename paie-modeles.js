@@ -339,10 +339,14 @@
 
     var ov = document.createElement('div');
     ov.id = id;
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:scroll;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y';
     var cadre = document.createElement('div');
     cadre.id = 'pm-cadre';
-    cadre.style.cssText = 'max-width:960px;width:100%;border-radius:12px;padding:16px';
+    cadre.style.cssText = 'max-width:960px;width:100%;border-radius:12px;padding:16px;background:#fff;margin-bottom:60px';
+    // Les clics dans l'éditeur ne remontent pas aux écouteurs globaux de la plateforme
+    ['click', 'change', 'input', 'keydown', 'pointerdown', 'touchstart'].forEach(function (t) {
+      cadre.addEventListener(t, function (e) { e.stopPropagation(); });
+    });
     ov.appendChild(cadre);
     // Un clic sur le fond ne ferme pas l'éditeur et n'est pas transmis aux fenêtres placées dessous
     ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(function (t) {
@@ -467,12 +471,22 @@
       }
     }
 
+    // Affichage protégé : en cas d'erreur, le message reste dans la fenêtre (rien ne disparaît)
     function dessiner() {
+      try { dessinerBrut(); }
+      catch (err) {
+        console.error('Éditeur de modèles :', err);
+        cadre.innerHTML = '<div style="position:sticky;top:0;background:#fff;padding:6px 0;border-bottom:1px solid #e3e8ef;display:flex;gap:8px;align-items:center"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="fermer">✕ Fermer</button></div>' +
+          '<div style="color:#c0392b;padding:12px;border:1px solid #c0392b;border-radius:8px;margin-top:10px">Erreur d\'affichage de l\'éditeur : ' + esc(err && err.message ? err.message : String(err)) +
+          '. Vos modifications déjà enregistrées sont conservées. Fermez la fenêtre et rouvrez-la ; si le problème revient, envoyez ce message.</div>';
+      }
+    }
+    function dessinerBrut() {
       var m = trouve();
       var options = liste.map(function (x) {
         return '<option value="' + esc(x.id) + '"' + (x.id === courant ? ' selected' : '') + '>' + esc(x.nom) + (x.defaut ? ' (par défaut)' : '') + '</option>';
       }).join('');
-      var entete = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;position:sticky;top:0;background:#fff;z-index:5;padding:6px 0;border-bottom:1px solid #e3e8ef"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="fermer">✕ Fermer</button></div>';
+      var entete = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;position:sticky;top:0;background:#fff;z-index:5;padding:6px 0;border-bottom:1px solid #e3e8ef"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="haut-page">⬆ Haut</button><button type="button" data-act="bas-page">⬇ Bas</button><button type="button" class="p" data-act="enregistrer">💾 Enregistrer</button><button type="button" data-act="fermer">✕ Fermer</button></div>';
       var barre = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label>Modèle <select data-act="choisir">' + options + '</select></label>' +
         '<button type="button" data-act="nouveau">➕ Nouveau</button><button type="button" data-act="dupliquer">⧉ Dupliquer</button>' +
         '<button type="button" data-act="defaut">★ Définir par défaut</button><button type="button" data-act="ocean">🏨 Ajouter le gabarit Hôtel Océan</button><button type="button" data-act="supprimer">✕ Supprimer</button>' +
@@ -521,6 +535,8 @@
       var b = e.target.closest('[data-act]'); if (!b) return;
       var a = b.getAttribute('data-act');
       if (a === 'fermer') { ov.remove(); return; }
+      if (a === 'haut-page') { ov.scrollTop = 0; return; }
+      if (a === 'bas-page') { ov.scrollTop = ov.scrollHeight; return; }
       lireForm();
       var m = trouve();
       if (a === 'ocean') {
