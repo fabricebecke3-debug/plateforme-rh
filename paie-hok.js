@@ -328,7 +328,11 @@
       return { code: String(codes[c] || CODES_DEFAUT[c] || c), lib: d ? d.lib : (c === '26' ? 'Avance sur salaire' : 'Rappels'), auto: true };
     });
     var ajoutees = (lp.ajoutees || []).map(function (r) { return { code: String(r.code), lib: r.lib || '', type: r.type || 'gain', auto: false }; });
-    return { auto: auto, ajoutees: ajoutees };
+    // Catalogue des rubriques du modèle Océan (codes 1, 2, 3, 4…), à proposer dans l'éditeur
+    var catalogue = Object.keys(FORMULES_DEFAUT).map(function (c) {
+      return { code: String(codes[c] || CODES_DEFAUT[c] || c), lib: FORMULES_DEFAUT[c].lib, type: Number(c) >= 10 ? 'retenue' : 'gain' };
+    });
+    return { auto: auto, ajoutees: ajoutees, catalogue: catalogue };
   }
   var FORMULES_DEFAUT = {
     '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },

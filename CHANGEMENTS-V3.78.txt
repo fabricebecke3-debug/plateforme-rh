@@ -1,0 +1,7 @@
+VERSION 3.78 : BULLETIN OCÉAN, CATALOGUE DE RUBRIQUES DU MODÈLE OCÉAN (paie-hok.js, paie-detail.js)
+- Cause : la liste « Rechercher une rubrique » ajoutait le catalogue Sage (codes 1000, 1040, 1430…) à tous les modèles. Une rubrique Sage ajoutée à un bulletin Océan ne donne aucun montant, car le moteur Océan ne calcule que ses codes (1, 2, 3, 4…).
+- Océan : la liste propose maintenant les rubriques Océan (codes 1 à 28). Les rubriques Sage ne sont plus proposées pour les salariés Océan.
+- Sage : inchangé (catalogue Sage).
+- La liste suit le modèle du salarié choisi (Sage ou Océan).
+- Garde-fou : un code Océan déjà présent sur le bulletin ne peut pas être ajouté une seconde fois (message : utiliser « Modifier »).
+- Service worker : terh-v116.

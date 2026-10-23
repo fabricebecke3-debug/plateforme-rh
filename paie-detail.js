@@ -127,9 +127,18 @@
       imposable: s.imposable !== 'Jms', cnps: false, cfc: false, taux_defaut: null, heures_sup: false };
   }
   // Catalogue affiché = rubriques de la société, puis les rubriques Sage absentes (même code : la société prime)
-  function fusionCatalogue(liste) {
+  // Rubrique du modèle Océan : codes 1, 2, 3, 4… (ne pas mélanger avec le catalogue Sage)
+  function rubriqueOcean(o) {
+    return { code: String(o.code), libelle: o.lib || '', type: o.type || 'gain', source: 'Océan',
+      imposable: true, cnps: false, cfc: false, taux_defaut: null, heures_sup: false };
+  }
+  function fusionCatalogue(liste, ocean) {
     var perso = (liste || []).slice(), codes = {};
     perso.forEach(function (r) { codes[String(r.code)] = true; });
+    if (ocean) {
+      var oc = (root.PaieHok && root.PaieHok.rubriquesOcean) ? root.PaieHok.rubriquesOcean().catalogue : [];
+      return perso.concat(oc.map(rubriqueOcean).filter(function (s) { return !codes[s.code]; }));
+    }
     var sage = ((root.PaieSageCatalogue && root.PaieSageCatalogue.rubriques) || []).map(rubriqueSage);
     return perso.concat(sage.filter(function (s) { return !codes[s.code]; }));
   }
@@ -138,14 +147,24 @@
     // Réglages de la structure (risque AT, base FNE) prioritaires sur les taux par défaut
     var tauxSage = Object.assign({}, (opts && opts.taux) || {}, (root.TERH_tauxEntreprise ? root.TERH_tauxEntreprise() : {}));
     var perso = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques.slice() : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
-    var catalogue = fusionCatalogue(perso);
+    var catalogue = fusionCatalogue(perso, false);
+    // Modèle du salarié courant (Sage ou Océan) : le catalogue suit ce modèle
+    function modeleOcean() {
+      try {
+        var m = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : null;
+        return !!(m && m.gabarit === 'ocean');
+      } catch (e) { return false; }
+    }
     if (root.PaieModeles) root.PaieModeles.synchroniser();
     function refreshCat() { var dl = cadre.querySelector('#pd-cat-list'); if (!dl) return; dl.innerHTML = '';
       catalogue.forEach(function (r) { var o = document.createElement('option'); o.value = r.code + ' — ' + (r.libelle || ''); dl.appendChild(o); }); }
-    function reconstruireCatalogue() { catalogue.splice(0, catalogue.length); fusionCatalogue(perso).forEach(function (r) { catalogue.push(r); }); root.PAIE_RUB_CACHE = perso; refreshCat(); }
+    function reconstruireCatalogue() { catalogue.splice(0, catalogue.length); fusionCatalogue(perso, modeleOcean()).forEach(function (r) { catalogue.push(r); }); root.PAIE_RUB_CACHE = perso; refreshCat(); }
     function openRubriques() { if (!root.PaieRubriques) { alert('paie-rubriques.js n\'est pas chargé.'); return; }
       root.PaieRubriques.ouvrir(perso, function (liste) { perso = liste; reconstruireCatalogue(); }); }
     function ajouterRubrique(r) {
+      if (r.source === 'Océan' && etat.lignes.some(function (l) { return String(l.code) === String(r.code); })) {
+        alert('Le code ' + r.code + ' est déjà présent sur ce bulletin : corrigez-le avec « Modifier » ou « Éléments ».'); return;
+      }
       etat.lignes.push({ code: r.code, lib: r.libelle, nombre: null, base: null, taux: (r.taux_defaut != null ? r.taux_defaut : null),
         gain: null, cnps: !!r.cnps, cfc: !!r.cfc, irpp: r.imposable !== false, retenue: r.type === 'retenue',
         transport: !!r.transport, logement: !!r.logement, heures_sup: !!r.heures_sup });
@@ -585,6 +604,7 @@
           var ie = cadre.querySelector('[data-f="employeur"]'); if (ie && !ie.value) ie.value = etat.employeur;
           // Salaire de base de la fiche : ligne 1000 = horaire × base horaire (salaire ÷ horaire), comme Sage
           appliquerFiche(fiche);
+          reconstruireCatalogue();
           // Grille de saisie (jours ou heures) : remplace les lignes générées à partir de la fiche pour ce salarié
           if (root.PaieGrille && root.PaieGrille.lignesPour && fiche.id != null) {
             var gl = root.PaieGrille.lignesPour(fiche.id);
