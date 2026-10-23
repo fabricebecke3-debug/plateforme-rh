@@ -28,11 +28,11 @@
   function copie(o) { return JSON.parse(JSON.stringify(o)); }
 
   var NATURES = {
-    salaire: 'Salaire',
-    transport: 'Transport',
-    logement_avantage: 'Logement (avantage)',
-    remboursement: 'Remboursement / indemnité',
-    indemnite_non_cotisable: 'Indemnité non cotisable'
+    salaire: 'Salaire (imposable, cotisable CNPS)',
+    transport: 'Transport (imposable, hors CNPS et CFC)',
+    logement_avantage: 'Logement en avantage (imposable, cotisable CNPS, hors CFC)',
+    remboursement: 'Remboursement (non imposable, hors CNPS et CFC)',
+    indemnite_non_cotisable: 'Indemnité hors CNPS (imposable, hors CFC)'
   };
   var MODES_HEURES = {
     calendrier: 'Calendrier : jours ouvrables (lun.-ven.) hors fériés × 8 h',
@@ -565,7 +565,7 @@
         var s = ensure(e);
         if (t.dataset.v != null) s.valeur = t.value;
         else if (t.dataset.hs != null) s[t.dataset.hs] = t.value;
-        else if (t.dataset.base != null) s.base = t.value;
+        else if (t.dataset.base != null) { s.base = t.value; s.baseManuelle = t.value !== ''; }
         else return;
         majLigne(e); totaux(); modifie(e);
         return;
@@ -634,5 +634,17 @@
     }
   }
 
-  root.PaieGrille = { ouvrir: ouvrir, charger: charger, sauver: sauver, lignesPour: lignesPour, evaluer: evaluer, heuresDuMois: heuresDuMois, exporter: exporterXls, DEFAUT: DEFAUT };
+  // Absences du mois pour un salarié : jours travaillés saisis dans la grille → jours d'absence (base 30 jours)
+  function absencePour(id, periode) {
+    var st = charger(), s = st.saisies[String(id)];
+    if (!s || s.valeur === '' || s.valeur == null) return null;
+    var m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(String(periode || ''));
+    if (m && s.mois && s.mois !== m[3] + '-' + m[2]) return null;   // saisie d'un autre mois
+    var v = variables(st, s);
+    var out = { joursAbsence: Math.max(0, arrondi2((1 - v.fraction) * 30)) };
+    // Salaire de base saisi à la main dans la grille pour ce mois (sinon la fiche s'applique)
+    if (s.baseManuelle && s.base !== '' && s.base != null) out.base = nombreF(s.base);
+    return out;
+  }
+  root.PaieGrille = { ouvrir: ouvrir, charger: charger, sauver: sauver, lignesPour: lignesPour, evaluer: evaluer, heuresDuMois: heuresDuMois, absencePour: absencePour, exporter: exporterXls, DEFAUT: DEFAUT };
 })(typeof window !== 'undefined' ? window : globalThis);

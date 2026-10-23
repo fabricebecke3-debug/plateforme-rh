@@ -42,7 +42,7 @@
     var per = bornes(o.periode);
     var E = (o.hok && o.hok.entreprise) || {};
     var colonne = function (lignes) {
-      return '<td style="width:37%;vertical-align:top;text-align:center;font-family:\'Times New Roman\',Times,serif;font-size:9.5px;line-height:1.25">' +
+      return '<td style="border:0;width:37%;vertical-align:top;text-align:center;font-family:\'Times New Roman\',Times,serif;font-size:9.5px;line-height:1.25">' +
         lignes.map(function (l) {
           return '<div>' + esc(l) + '</div><div style="font-size:9px;letter-spacing:0.5px;line-height:1.1">' + etoiles(l) + '</div>';
         }).join('') + '</td>';
@@ -51,9 +51,9 @@
     var h = (mod && mod.logoH) ? Number(mod.logoH) : 18;
     var logo = (mod && mod.logo && mod.logoPos !== 'aucun')
       ? '<img src="' + mod.logo + '" alt="" style="height:' + h + 'mm;width:auto;display:block;margin:0 auto 4px">' : '';
-    var centre = '<td style="width:26%;text-align:center;vertical-align:middle">' + logo +
+    var centre = '<td style="border:0;width:26%;text-align:center;vertical-align:middle">' + logo +
       '<div style="font-weight:700;font-size:13px;font-family:Arial,sans-serif">' + esc(o.employeur || '') + '</div></td>';
-    return '<table style="width:100%;border-collapse:collapse;margin-bottom:8px"><tr>' +
+    return '<table style="width:100%;border:0;border-collapse:collapse;margin-bottom:8px"><tr>' +
       colonne(ENTETE_FR) + centre + colonne(ENTETE_EN) +
       '</tr></table>' +
       '<div style="font-size:11px;font-weight:700;margin:4px 0 6px">BULLETIN DE PAIE DU ' +
@@ -102,7 +102,8 @@
     // Rappels et avances : lignes du bulletin papier, hors total cotisations
     lignes += '<tr>' + cell('29') + cell('Rappels') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.rappel || 0), droite) + '</tr>';
     lignes += '<tr>' + cell('26') + cell('Avance sur Salaire') + cell('') + cell('') + cell('') + cell('') + cell(fmt(H.avance || 0), droite) + '</tr>';
-    return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
+    var alerte = (H.erreurs && H.erreurs.length) ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-bottom:4px">Attention, formule à corriger : ' + esc(H.erreurs.join(' ; ')) + '</div>' : '';
+    return alerte + '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr>' +
       entetes.map(function (t) { return '<th style="' + TD + ';background:#f2f2f2;font-size:10px">' + t + '</th>'; }).join('') +
       '</tr></thead><tbody>' + lignes + '</tbody></table>';
   }

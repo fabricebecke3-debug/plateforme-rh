@@ -1,0 +1,173 @@
+{
+  "permanentes": {
+    "DJONTU": {
+      "manuels": [
+        {
+          "code": "7",
+          "lib": "Prime de caisse",
+          "gain": 21327
+        }
+      ]
+    }
+  },
+  "du_mois": {
+    "01/09/2026 au 30/09/2026": {
+      "NGONO T.": {
+        "logement": 32680,
+        "assiduite": 1849.8000000000002,
+        "ancMontant": 7399,
+        "congeMontant": 170242,
+        "cnpsBase": 249166.8,
+        "retenues": {
+          "cfc": 1670
+        }
+      },
+      "APANDAPIT": {
+        "retenues": {
+          "cfc": 883
+        }
+      },
+      "BETCHAGUE": {
+        "retenues": {
+          "cfc": 923,
+          "irpp": 2033
+        }
+      },
+      "KENGNE": {
+        "retenues": {
+          "cfc": 813
+        }
+      },
+      "MOHAMADOU": {
+        "retenues": {
+          "irpp": 0,
+          "cac": 0,
+          "cfc": 0,
+          "rav": 0,
+          "tc": 0
+        }
+      },
+      "ATSAM": {
+        "retenues": {
+          "irpp": 0,
+          "cac": 0,
+          "cfc": 0,
+          "rav": 0,
+          "tc": 0
+        }
+      },
+      "DJEDANG F.": {
+        "logement": 22328.9,
+        "ancMontant": 5055.6,
+        "cnpsBase": 115857.5,
+        "retenues": {
+          "cfc": 868
+        }
+      },
+      "BAMBOK": {
+        "logement": 18948,
+        "assiduite": 1072.5,
+        "ancMontant": 4290,
+        "congeMontant": 108256,
+        "cnpsBase": 154016.5,
+        "retenues": {
+          "cfc": 1045
+        }
+      },
+      "NDJALA": {
+        "retenues": {
+          "cfc": 753
+        }
+      },
+      "NGAH BOLO": {
+        "logement": 18948,
+        "assiduite": 1072.5,
+        "ancMontant": 4290,
+        "congeMontant": 110535,
+        "cnpsBase": 156295.5,
+        "avance": 10000,
+        "retenues": {
+          "cfc": 1060
+        }
+      },
+      "TSAFACK C.": {
+        "retenues": {
+          "cfc": 753
+        },
+        "rappel": 20000
+      },
+      "ANONENA": {
+        "retenues": {
+          "cfc": 753
+        },
+        "rappel": 20000
+      },
+      "ABEGAN": {
+        "retenues": {
+          "cfc": 753
+        },
+        "rappel": 20000
+      },
+      "MBIANGOUP": {
+        "retenues": {
+          "cfc": 753
+        },
+        "rappel": 20000
+      },
+      "ETOGA F.": {
+        "retenues": {
+          "cfc": 753
+        },
+        "avance": 15000
+      },
+      "EMAN M.": {
+        "logement": 18948,
+        "assiduite": 1072.5,
+        "ancMontant": 4290,
+        "congeMontant": 111822,
+        "cnpsBase": 157582.5
+      },
+      "AISSATOU I.": {
+        "retenues": {
+          "cfc": 753
+        }
+      },
+      "MATSENA": {
+        "retenues": {
+          "cfc": 753
+        },
+        "rappel": 20000
+      },
+      "FOMO N.": {
+        "assiduite": 0,
+        "cnpsBase": 94737.5,
+        "retenues": {
+          "tc": 500
+        }
+      },
+      "Mme.EKOBO": {
+        "avance": 20000
+      },
+      "DJONTU MICHELE NATHALIE": {
+        "retenues": {
+          "cfc": 1008
+        }
+      },
+      "NGOMBI RACHEL CARINE": {
+        "retenues": {
+          "cfc": 868
+        }
+      },
+      "NDENDE NGAH MARIANE JULIENNE": {
+        "retenues": {
+          "cfc": 868
+        }
+      },
+      "MBINACK REBECCA MARGUERITE EPSE HINO": {
+        "retenues": {
+          "cfc": 868
+        }
+      }
+    }
+  }
+}

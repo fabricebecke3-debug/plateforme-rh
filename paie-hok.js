@@ -75,134 +75,10 @@
   //   rappels, ancienneté, logement, assiduité, transport, base CNPS). Sans saisie pour la période, tout est
   //   calculé automatiquement par le modèle. Elles n'affectent que le salarié et la période concernés.
   var PERM_CLE = 'terh_hok_perm', MOIS_CLE = 'terh_hok_mois';
-  var PERM_DEFAUT = {
-   "DJONTU": {
-    "manuels": [
-     {
-      "code": "7",
-      "lib": "Prime de caisse",
-      "gain": 21327
-     }
-    ]
-   }
-  };
-  var MOIS_DEFAUT = {
-   "01/09/2026 au 30/09/2026": {
-    "NGONO T.": {
-     "logement": 32680,
-     "assiduite": 1849.8000000000002,
-     "ancMontant": 7399,
-     "congeMontant": 170242,
-     "cnpsBase": 249166.8
-    },
-    "APANDAPIT": {
-     "retenues": {
-      "cfc": 883
-     }
-    },
-    "BETCHAGUE": {
-     "retenues": {
-      "cfc": 923
-     }
-    },
-    "KENGNE": {
-     "retenues": {
-      "cfc": 813
-     }
-    },
-    "MOHAMADOU": {
-     "retenues": {
-      "irpp": 0,
-      "cac": 0,
-      "cfc": 0,
-      "rav": 0,
-      "tc": 0
-     }
-    },
-    "ATSAM": {
-     "retenues": {
-      "irpp": 0,
-      "cac": 0,
-      "cfc": 0,
-      "rav": 0,
-      "tc": 0
-     }
-    },
-    "DJEDANG F.": {
-     "logement": 22328.9,
-     "ancMontant": 5055.6,
-     "cnpsBase": 115857.5
-    },
-    "BAMBOK": {
-     "logement": 18948,
-     "assiduite": 1072.5,
-     "ancMontant": 4290,
-     "congeMontant": 108256,
-     "cnpsBase": 154016.5
-    },
-    "NDJALA": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "NGAH BOLO": {
-     "logement": 18948,
-     "assiduite": 1072.5,
-     "ancMontant": 4290,
-     "congeMontant": 110535,
-     "cnpsBase": 156295.5
-    },
-    "TSAFACK C.": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "ANONENA": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "ABEGAN": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "MBIANGOUP": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "ETOGA F.": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "EMAN M.": {
-     "logement": 18948,
-     "assiduite": 1072.5,
-     "ancMontant": 4290,
-     "congeMontant": 111822,
-     "cnpsBase": 157582.5
-    },
-    "AISSATOU I.": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "MATSENA": {
-     "retenues": {
-      "cfc": 753
-     }
-    },
-    "FOMO N.": {
-     "assiduite": 0,
-     "cnpsBase": 94737.5,
-     "retenues": {
-      "tc": 500
-     }
-    }
-   }
-  };
+  // Données de chaque mois saisies par l'utilisateur (aucune donnée de salarié dans le code)
+  var PERM_DEFAUT = {};
+  // Données de chaque mois saisies par l'utilisateur (aucune donnée de salarié dans le code)
+  var MOIS_DEFAUT = {};
   function cleCo(base) {
     var co = '';
     try { co = (typeof CO !== 'undefined' && CO) ? String(CO) : ''; } catch (e) { co = ''; }
@@ -222,11 +98,39 @@
     var m = /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+au\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/.exec(String(periode || ''));
     return m ? m[1] + ' au ' + m[2] : String(periode || '').trim();
   }
+  // Nom normalisé pour la correspondance : majuscules, sans accents, sans ponctuation
+  function nomNorm(x) {
+    var t = String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    return t.replace(/^(MME|MLLE|MR|M) /, '');   // civilités retirées : « Mme.EKOBO » = « EKOBO »
+  }
+  // Une clé (ex. « DUPONT J. ») désigne le salarié dont le nom complet commence par elle (ex. « NGONO TSALA ALBERT »).
+  // La clé la plus longue qui correspond gagne ; une correspondance à moins de 4 caractères est refusée.
+  function cleCorrespond(cle, nom) {
+    var ta = nomNorm(cle).split(' '), tb = nomNorm(nom).split(' ');
+    if (!ta[0] || !tb[0] || ta[0].length < 3 || ta.length > tb.length) return 0;
+    var score = 0;
+    for (var i = 0; i < ta.length; i++) {
+      var x = ta[i], y = tb[i];
+      if (x === y) score += x.length;
+      else if (x.length === 1 && y.charAt(0) === x) score += 1;          // initiale : « T » pour « TSALA »
+      else return 0;
+    }
+    return score;
+  }
+  function trouverCle(obj, nom) {
+    var meilleure = null, score = 0;
+    Object.keys(obj || {}).forEach(function (k) {
+      var c = cleCorrespond(k, nom);
+      if (c > score) { score = c; meilleure = k; }
+    });
+    return meilleure;
+  }
   // Particularités applicables à un salarié pour une période : permanentes, complétées/remplacées par celles du mois
   function particularite(nom, periode) {
-    var k = String(nom || '').trim();
-    var perm = chargerPermanentes()[k] || {};
-    var mo = (chargerMois()[cleperiode(periode)] || {})[k] || {};
+    var perms = chargerPermanentes(), mois = chargerMois()[cleperiode(periode)] || {};
+    var kp = trouverCle(perms, nom), km = trouverCle(mois, nom);
+    var perm = kp ? perms[kp] : {}, mo = km ? mois[km] : {};
     var out = {};
     Object.keys(perm).forEach(function (c) { out[c] = perm[c]; });
     Object.keys(mo).forEach(function (c) {
@@ -269,9 +173,123 @@
     var h = nb(p.absences && p.absences.heures_mois) || 173.33;
     return Math.max(0, Math.min(1, 1 - jabs / 30 - habs / h));
   }
-  // Calcul pur. Montants exacts en interne ; ROUND pour les lignes arrondies comme dans le fichier.
+  // ===== Évaluateur de formules (sûr : pas d'eval) =====
+  // Opérateurs : + - * / ( ) et comparaisons < > <= >= == ; nombres ; variables ; fonctions.
+  // Fonctions : min, max, round, floor, ceil, abs, si(cond, a, b), arrondi250(x), bareme_irpp(x),
+  // bareme_rav(x), bareme_tc(x) (barèmes des paramètres).
+  function tokeniser(src) {
+    var t = [], i = 0, s = String(src || '');
+    while (i < s.length) {
+      var c = s.charAt(i);
+      if (/\s/.test(c)) { i++; continue; }
+      var deux = s.substr(i, 2);
+      if (deux === '<=' || deux === '>=' || deux === '==') { t.push({ k: 'op', v: deux }); i += 2; continue; }
+      if ('+-*/(),<>'.indexOf(c) >= 0) { t.push({ k: 'op', v: c }); i++; continue; }
+      var m = /^\d+([.,]\d+)?/.exec(s.slice(i));
+      if (m) { t.push({ k: 'num', v: parseFloat(m[0].replace(',', '.')) }); i += m[0].length; continue; }
+      m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+      if (m) { t.push({ k: 'id', v: m[0] }); i += m[0].length; continue; }
+      throw new Error('caractère non reconnu : ' + c);
+    }
+    return t;
+  }
+  function evaluerFormule(src, ctx) {
+    var t = tokeniser(src), pos = 0;
+    function voir() { return t[pos]; }
+    function prendre() { return t[pos++]; }
+    function attendre(v) { var x = prendre(); if (!x || x.v !== v) throw new Error('« ' + v + ' » attendu'); }
+    function comparaison() {
+      var a = somme(), x = voir();
+      if (x && x.k === 'op' && ['<', '>', '<=', '>=', '=='].indexOf(x.v) >= 0) {
+        prendre(); var b = somme(), v = x.v;
+        return (v === '<' ? a < b : v === '>' ? a > b : v === '<=' ? a <= b : v === '>=' ? a >= b : a === b) ? 1 : 0;
+      }
+      return a;
+    }
+    function somme() {
+      var a = produit(), x;
+      while ((x = voir()) && x.k === 'op' && (x.v === '+' || x.v === '-')) { prendre(); var b = produit(); a = x.v === '+' ? a + b : a - b; }
+      return a;
+    }
+    function produit() {
+      var a = unaire(), x;
+      while ((x = voir()) && x.k === 'op' && (x.v === '*' || x.v === '/')) {
+        prendre(); var b = unaire(); if (x.v === '/' && b === 0) throw new Error('division par zéro'); a = x.v === '*' ? a * b : a / b;
+      }
+      return a;
+    }
+    function unaire() {
+      var x = voir();
+      if (x && x.k === 'op' && (x.v === '-' || x.v === '+')) { prendre(); var v = unaire(); return x.v === '-' ? -v : v; }
+      return primaire();
+    }
+    var FONCTIONS = {
+      min: function () { return Math.min.apply(null, arguments); },
+      max: function () { return Math.max.apply(null, arguments); },
+      round: function (x) { return Math.round(x); },
+      floor: function (x) { return Math.floor(x); },
+      ceil: function (x) { return Math.ceil(x); },
+      abs: function (x) { return Math.abs(x); },
+      si: function (c, a, b) { return c ? a : b; },
+      arrondi250: function (x) { return Math.round(x / 250) * 250; },
+      bareme_irpp: function (x) { return Math.round(irpp(x, ctx.p)); },
+      bareme_rav: function (x) { return tranche(ctx.p.rav.tranches, x, ctx.p.rav.au_dela); },
+      bareme_tc: function (x) {
+        var p = ctx.p;
+        return (p.tc.regle === 'tranche')
+          ? Math.min(nb(p.tc.plafond), nb(p.tc.montant) * Math.max(0, Math.floor(x / nb(p.tc.pas)) - nb(p.tc.decalage)))
+          : tranche(p.tc.tranches, x, p.tc.au_dela);
+      }
+    };
+    function primaire() {
+      var x = prendre();
+      if (!x) throw new Error('expression incomplète');
+      if (x.k === 'num') return x.v;
+      if (x.k === 'op' && x.v === '(') { var v = comparaison(); attendre(')'); return v; }
+      if (x.k === 'id') {
+        if (voir() && voir().v === '(') {
+          prendre();
+          var args = [];
+          if (!(voir() && voir().v === ')')) { args.push(comparaison()); while (voir() && voir().v === ',') { prendre(); args.push(comparaison()); } }
+          attendre(')');
+          if (!FONCTIONS.hasOwnProperty(x.v)) throw new Error('fonction inconnue : ' + x.v);
+          return FONCTIONS[x.v].apply(null, args);
+        }
+        if (!Object.prototype.hasOwnProperty.call(ctx.v, x.v)) throw new Error('variable inconnue : ' + x.v);
+        return nb(ctx.v[x.v]);
+      }
+      throw new Error('élément inattendu');
+    }
+    var r = comparaison();
+    if (pos < t.length) throw new Error('élément en trop après la formule');
+    return r;
+  }
+  // Formules standard (affichées dans l'éditeur ; le calcul est le même que par défaut)
+  var FORMULES_DEFAUT = {
+    '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },
+    '2': { lib: 'Indemnité de Logement', formule: 'p_logement*(smens+anc)', note: '25 % (salaire + ancienneté)' },
+    '3': { lib: "Prime d'Assiduité", formule: 'si(pres<1, 0, p_assiduite*sb)', note: '5 % du salaire ; 0 en cas d\'absence' },
+    '4': { lib: 'Indemnité de Transport', formule: 'p_transport*pres', note: 'montant × présence' },
+    '5': { lib: "Prime d'Ancienneté", formule: 'taux_anc*smens', note: 'taux selon ancienneté × salaire' },
+    '6': { lib: 'Indemnité de Congé', formule: 'conge', note: 'congé pris ce mois' },
+    '10': { lib: 'IRPP', formule: 'bareme_irpp(Lirpp)', note: 'barème sur base imposable arrondie à 250' },
+    '11': { lib: 'CAC', formule: 'p_cac*irpp', note: '10 % de l\'IRPP' },
+    '12': { lib: 'Crédit Foncier du Cameroun', formule: 'si(Lcfc>p_seuil_cfc, floor(p_cfc*Lcfc), 0)', note: '1 % de la base imposable (impôt)' },
+    '13': { lib: 'CNPS', formule: 'cnps', note: '4,2 % de la base CNPS' },
+    '14': { lib: 'RAV', formule: 'bareme_rav(L)', note: 'barème RAV' },
+    '15': { lib: 'Taxe Communale/TDL', formule: 'bareme_tc(L)', note: 'barème TC' },
+    '17': { lib: "Fonds National de l'Emploi", formule: 'fne', note: 'montant de la fiche' },
+    '22': { lib: 'Dettes Internes', formule: 'dettes', note: 'montant saisi' },
+    '27': { lib: 'Prestation Familiale', formule: 'prestation', note: 'montant saisi' },
+    '28': { lib: 'Communard', formule: 'communard', note: 'montant saisi' }
+  };
+  // Calcul pur. Montants exacts en interne ; les rubriques suivent la définition des paramètres (lignes).
   function calculer(o) {
     var p = o.params || charger();
+    var lp = p.lignes || {}, ov = lp.overrides || {}, masq = lp.masquees || [], ajout = lp.ajoutees || [];
+    var estMasquee = function (c) { return masq.indexOf(String(c)) >= 0; };
+    var zeros = lp.zeros || [];
+    var estZero = function (c) { return zeros.indexOf(String(c)) >= 0; };
     var sbPlein = nb(o.salaireBase);
     var pres = presence(o, p);
     var sb = sbPlein * pres;
@@ -280,7 +298,7 @@
       var a = root.PaieMoteur.ancienneteDepuis(o.dateAnciennete);
       ans = a ? a.ans : 0;
     }
-    // Ancienneté et logement : formules du modèle (F21+F25)*25 % et F21*taux, donc sur le salaire proratisé
+    // Ancienneté et logement : sur le salaire proratisé (formules du modèle)
     var smens = ((o.salaireMensuel !== undefined && o.salaireMensuel !== null && o.salaireMensuel !== '') ? nb(o.salaireMensuel) : sbPlein) * pres;
     var tauxAnc = 0;
     (p.anciennete.tiers || [{ depuis: p.anciennete.seuil_ans, taux: p.anciennete.taux }]).forEach(function (t) {
@@ -288,78 +306,131 @@
     });
     var ancMontant = (o.ancMontant !== undefined && o.ancMontant !== null && o.ancMontant !== '') ? nb(o.ancMontant) : tauxAnc * smens;
     var logement = (o.logement !== undefined && o.logement !== null && o.logement !== '') ? nb(o.logement) : p.logement.taux * (smens + ancMontant);
-    // Prime d'assiduité : 5 % de la base du mois ; 0 en cas d'absence (saisie possible par le paramètre assiduite)
-    // Absence (jours ou heures) : prime d'assiduité perdue (0), comme sur les bulletins absents du fichier Excel
+    // Prime d'assiduité : 0 en cas d'absence (jours ou heures)
     var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : (pres < 1 ? 0 : p.assiduite.taux * sb);
-    // Transport proratisé : montant × présence (formule du modèle : 15000*(30-jours)/30)
+    // Transport proratisé : montant × présence
     var transport = (o.transport !== undefined && o.transport !== null && o.transport !== '') ? nb(o.transport) : nb(p.transport.montant) * pres;
-
-    var gains = [
-      { code: '1', lib: 'Salaire de Base', nombre: Math.max(0, 30 * pres), base: sbPlein / 30, taux: null, gain: sb },
-      { code: '2', lib: 'Indemnité de Logement', nombre: null, base: null, taux: null, gain: logement },
-      { code: '3', lib: "Prime d'Assiduité", nombre: null, base: null, taux: null, gain: assiduite },
-      { code: '4', lib: 'Indemnité de Transport', nombre: null, base: null, taux: null, gain: transport },
-      { code: '5', lib: "Prime d'Ancienneté", nombre: null, base: null, taux: p.anciennete.taux, gain: ancMontant }
-    ];
     var tauxC = o.congePris ? tauxConge(ans, p) : 0;
-    if (o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '') {
-      gains.push({ code: '6', lib: 'Indemnité de Congé', nombre: null, base: null, taux: null, gain: nb(o.congeMontant) });
-    } else {
-      gains.push({ code: '6', lib: 'Indemnité de Congé', nombre: null, base: null, taux: tauxC || null, gain: tauxC * sb });
+    var conge = (o.congeMontant !== undefined && o.congeMontant !== null && o.congeMontant !== '') ? nb(o.congeMontant) : tauxC * sb;
+
+    // Variables disponibles dans les formules
+    var v = {
+      sbPlein: sbPlein, sb: sb, pres: pres, smens: smens, ans: ans, taux_anc: tauxAnc, anc: ancMontant,
+      logement: logement, assiduite: assiduite, transport: transport, conge: conge,
+      p_logement: p.logement.taux, p_assiduite: p.assiduite.taux, p_transport: nb(p.transport.montant),
+      p_cnps: p.cnps.taux, p_cac: p.cac.taux, p_cfc: p.cfc.taux, p_abat: p.abattement.taux,
+      p_seuil_cfc: nb(p.irpp.seuils[0]), fne: nb(o.fne), dettes: nb(o.dettes), prestation: nb(o.prestation), communard: nb(o.communard)
+    };
+    var ctx = { v: v, p: p }, erreurs = [];
+    function essayer(expr, repli, lib) {
+      try { return nb(evaluerFormule(expr, ctx)); }
+      catch (e) { erreurs.push((lib || 'Rubrique') + ' : ' + e.message); return repli; }
     }
+    // Rubriques de gain standard : formule modifiée (ov) ou masquée (masq)
+    var STD_GAIN = [['1', 'sb', sb, 'Salaire de Base', max0(30 * pres), sbPlein / 30, null],
+      ['2', 'logement', logement, 'Indemnité de Logement', null, null, null],
+      ['3', 'assiduite', assiduite, "Prime d'Assiduité", null, null, null],
+      ['4', 'transport', transport, 'Indemnité de Transport', null, null, null],
+      ['5', 'anc', ancMontant, "Prime d'Ancienneté", null, null, p.anciennete.taux],
+      ['6', 'conge', conge, 'Indemnité de Congé', null, null, (tauxC || null)]];
+    function max0(x) { return Math.max(0, x); }
+    var gains = [];
+    STD_GAIN.forEach(function (g) {
+      var code = g[0], varNom = g[1], val = g[2];
+      if (ov[code] && ov[code].expr) { val = essayer(ov[code].expr, val, g[3]); }
+      if (estZero(code)) val = 0;               // affichée à 0 : non payée, ne compte pas
+      v[varNom] = val; if (code === '1') v.sb = val;
+      if (code === '5') v.anc = val;
+      if (estMasquee(code)) return;
+      gains.push({ code: code, lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val });
+    });
+    // Éléments libres (saisis à la main) puis rubriques ajoutées dans les paramètres
+    var libres = [];
     (o.manuels || []).forEach(function (m, i) {
-      gains.push({ code: m.code || String(7 + i), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) });
+      var g = { code: m.code || String(7 + i), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) };
+      gains.push(g); libres.push({ gain: g.gain, cnps: m.cnps, irpp: m.irpp, cfc: m.cfc });
+    });
+    ajout.forEach(function (r) {
+      if (r.type === 'retenue') return;
+      var val = essayer(r.expr, 0, r.lib);
+      v['R' + r.code] = val;
+      var g = { code: String(r.code), lib: r.lib || 'Rubrique', nombre: null, base: null, taux: null, gain: val };
+      gains.push(g); libres.push({ gain: val, cnps: r.cnps, irpp: r.irpp, cfc: r.cfc });
     });
 
     var brut = gains.reduce(function (t, g) { return t + g.gain; }, 0);
-    // Base CNPS (colonne K) : brut sans transport, plafond si défini
-    var K = brut - transport * nb(p.transport.exclu_cnps);
-    if (o.cnpsInclutTransport) K = brut;                       // particularité : transport soumis à la CNPS
-    if (o.cnpsBase !== undefined && o.cnpsBase !== null && o.cnpsBase !== '') K = nb(o.cnpsBase);  // base CNPS saisie
+    var nonCnps = libres.reduce(function (t, m) { return t + (m.cnps === false ? nb(m.gain) : 0); }, 0);
+    var nonIrpp = libres.reduce(function (t, m) { return t + (m.irpp === false ? nb(m.gain) : 0); }, 0);
+    var nonCfc = libres.reduce(function (t, m) { return t + (m.cfc === false ? nb(m.gain) : 0); }, 0);
+    // Base CNPS : brut sans transport (sauf particularité), moins les libres non cotisables, plafond si défini
+    // Transport masqué : non payé, donc rien à retrancher de la base CNPS
+    var transportPaye = (estMasquee('4') || estZero('4')) ? 0 : transport;
+    var K = brut - nonCnps - transportPaye * nb(p.transport.exclu_cnps);
+    if (o.cnpsInclutTransport) K = brut - nonCnps;
+    if (o.cnpsBase !== undefined && o.cnpsBase !== null && o.cnpsBase !== '') K = nb(o.cnpsBase);
     if (p.cnps.plafond) K = Math.min(K, nb(p.cnps.plafond));
     var cnps = p.cnps.taux * K;
-    // Base imposable (colonne L) : brut × abattement − CNPS
-    var L = brut * p.abattement.taux - cnps;
-    // Base IRPP arrondie au multiple de 250 le plus proche ; IRPP arrondi à l'unité ; CAC = 10 % de l'IRPP arrondi
+    // Base imposable (IRPP) : brut hors libres non imposables, × abattement, − CNPS
+    var L = (brut - nonIrpp) * p.abattement.taux - cnps;
     var Lirpp = Math.round(L / 250) * 250;
     var irppMontant = Math.round(irpp(Lirpp, p));
     var cac = p.cac.taux * irppMontant;
-    var cfc = L <= p.irpp.seuils[0] ? 0 : Math.floor(p.cfc.taux * L);
+    // Base CFC : hors libres non soumises à la CFC
+    var Lcfc = (brut - nonIrpp - nonCfc) * p.abattement.taux - cnps;
+    var cfc = Lcfc <= p.irpp.seuils[0] ? 0 : Math.floor(p.cfc.taux * Lcfc);
     var rav = tranche(p.rav.tranches, L, p.rav.au_dela);
     var tc = (p.tc.regle === 'tranche')
       ? Math.min(nb(p.tc.plafond), nb(p.tc.montant) * Math.max(0, Math.floor(L / nb(p.tc.pas)) - nb(p.tc.decalage)))
       : tranche(p.tc.tranches, L, p.tc.au_dela);
-    // Salarié non assujetti aux retenues fiscales (bulletin sans IRPP, CAC, CFC, RAV, TC)
+    // Salarié exonéré des retenues fiscales (bulletin sans IRPP, CAC, CFC, RAV, TC)
     if (o.exonere) { irppMontant = 0; cac = 0; cfc = 0; rav = 0; tc = 0; }
+    // Variables des retenues
+    Object.assign(v, { K: K, L: L, Lirpp: Lirpp, Lcfc: Lcfc, brut: brut, cnps: cnps, irpp: irppMontant, cac: cac, cfc: cfc, rav: rav, tc: tc });
 
-    // Ordre et libellés du bulletin papier Hôtel Océan (lignes fixes à 0 incluses)
-    var retenues = [
-      { code: '10', lib: 'IRPP', base: L, taux: null, ret: irppMontant },
-      { code: '11', lib: 'CAC', base: null, taux: null, ret: cac },
-      { code: '12', lib: 'Crédit Foncier du Cameroun', base: L, taux: p.cfc.taux, ret: cfc },
-      { code: '17', lib: "Fonds National de l'Emploi", base: null, taux: null, ret: nb(o.fne) },
-      { code: '13', lib: 'CNPS', base: K, taux: p.cnps.taux, ret: cnps },
-      { code: '14', lib: 'RAV', base: null, taux: null, ret: rav },
-      { code: '15', lib: 'Taxe Communale/TDL', base: null, taux: null, ret: tc },
-      { code: '22', lib: 'Dettes Internes', base: null, taux: null, ret: nb(o.dettes) },
-      { code: '27', lib: 'Prestation Familiale', base: null, taux: null, ret: nb(o.prestation) },
-      { code: '28', lib: 'Communard', base: null, taux: null, ret: nb(o.communard) }
+    // Retenues standard : libellés et bases du bulletin ; formule modifiée ou masquée
+    var STD_RET = [
+      ['10', 'IRPP', L, null, irppMontant, 'irpp'],
+      ['11', 'CAC', null, null, cac, 'cac'],
+      ['12', 'Crédit Foncier du Cameroun', L, p.cfc.taux, cfc, 'cfc'],
+      ['17', "Fonds National de l'Emploi", null, null, nb(o.fne), 'fne'],
+      ['13', 'CNPS', K, p.cnps.taux, cnps, 'cnps'],
+      ['14', 'RAV', null, null, rav, 'rav'],
+      ['15', 'Taxe Communale/TDL', null, null, tc, 'tc'],
+      ['22', 'Dettes Internes', null, null, nb(o.dettes), 'dettes'],
+      ['27', 'Prestation Familiale', null, null, nb(o.prestation), 'prestation'],
+      ['28', 'Communard', null, null, nb(o.communard), 'communard']
     ];
+    var retenues = [];
+    STD_RET.forEach(function (r) {
+      var code = r[0], val = r[4];
+      if (ov[code] && ov[code].expr && !o.exonere) { val = essayer(ov[code].expr, val, r[1]); }
+      if (estZero(code)) val = 0;
+      v[r[5]] = val;
+      if (estMasquee(code)) return;
+      retenues.push({ code: code, lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val });
+    });
     (o.retenuesManuelles || []).forEach(function (r, i) {
       retenues.push({ code: r.code || String(20 + i), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
     });
+    ajout.forEach(function (r) {
+      if (r.type !== 'retenue') return;
+      var val = essayer(r.expr, 0, r.lib);
+      retenues.push({ code: String(r.code), lib: r.lib || 'Retenue', base: null, taux: null, ret: val });
+    });
 
-    // Retenues saisies à la main (particularités) : remplacent le calcul ; CAC = 10 % de l'IRPP retenu si non saisie
+    // Retenues saisies à la main (particularités) : remplacent le calcul ; CAC = 10 % de l'IRPP si non saisie
     var fixes = o.retenues || {};
+    var parCode = function (c) { return retenues.filter(function (r) { return r.code === c; })[0]; };
+    var CODE_FIXE = { '10': 'irpp', '11': 'cac', '12': 'cfc', '17': 'fne', '14': 'rav', '15': 'tc' };
     retenues.forEach(function (r) {
-      var k = ({ '10': 'irpp', '11': 'cac', '12': 'cfc', '17': 'fne', '14': 'rav', '15': 'tc' })[r.code];
+      var k = CODE_FIXE[r.code];
       if (k && fixes[k] !== undefined && fixes[k] !== null && fixes[k] !== '') r.ret = nb(fixes[k]);
     });
-    if ((fixes.irpp !== undefined) && (fixes.cac === undefined || fixes.cac === null)) retenues[1].ret = 0.1 * nb(fixes.irpp);
+    if (fixes.irpp !== undefined && (fixes.cac === undefined || fixes.cac === null) && parCode('11')) parCode('11').ret = 0.1 * nb(fixes.irpp);
     var sommeRet = retenues.reduce(function (t, r) { return t + r.ret; }, 0);
-    // Rappels (s'ajoutent au net) et avances (se déduisent du net), hors brut et hors retenues
     var rappel = nb(o.rappel), avance = nb(o.avance);
     var netCalc = brut + rappel - sommeRet - avance;
+    var val = function (c) { var r = parCode(c); return r ? r.ret : 0; };
     return {
       entreprise: p.entreprise,
       gains: gains,
@@ -372,11 +443,11 @@
       totalRetenues: sommeRet,
       rappel: rappel, avance: avance,
       net: netCalc,
+      erreurs: erreurs,
       exact: { brut: brut, retenues: sommeRet, net: netCalc,
-        irpp: retenues[0].ret, cac: retenues[1].ret, cnps: retenues[4].ret, cfc: retenues[2].ret, rav: retenues[5].ret, tc: retenues[6].ret }
+        irpp: val('10'), cac: val('11'), cnps: val('13'), cfc: val('12'), rav: val('14'), tc: val('15') }
     };
   }
-
   // Date saisie (JJ/MM/AAAA, JJ/MM/AA ou AAAA-MM-JJ) -> jours depuis 1970, ou null
   function dateSaisie(s) {
     var t = String(s || '').trim(), m;
@@ -400,13 +471,17 @@
   function depuisLignes(o) {
     var lignes = o.lignes || [], f = o.fiche || {};
     var l1000 = lignes.filter(function (l) { return String(l.code) === '1000'; })[0];
-    var sb = nb(f.sb) || (l1000 ? (nb(l1000.gain) || nb(l1000.nombre) * nb(l1000.base)) : 0);
+    // Salaire de base : saisi explicitement dans la grille pour le mois, sinon celui de la fiche
+    var sb = (o.presence && o.presence.base) ? nb(o.presence.base) : (nb(f.sb) || (l1000 ? (nb(l1000.gain) || nb(l1000.nombre) * nb(l1000.base)) : 0));
     var gain = function (l) { return root.PaieMoteur && root.PaieMoteur.gainLigne ? root.PaieMoteur.gainLigne(l) : nb(l.gain); };
     var CODES_FIXES = ['1000', '26', '29', '17', '22', '27', '28'];
     var lig = function (code) { return lignes.filter(function (l) { return String(l.code) === code; })[0]; };
     var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
-    var manuels = lignes.filter(function (l) { return !l.auto && !l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
-      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l) }; });
+    // Éléments libres : lignes saisies à la main et lignes de la grille (heures sup., rubriques ajoutées).
+    // Le salaire de base (1000) reste calculé par le moteur à partir de la fiche et des absences.
+    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0; };
+    var manuels = lignes.filter(estLibre)
+      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false }; });
     var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
     var part = particularite(f.nom || o.nom, o.periode);
@@ -418,20 +493,18 @@
       salaireBase: sb,
       ansAnciennete: (f.ans !== undefined && f.ans !== '') ? nb(f.ans) : undefined,
       salaireMensuel: (f.smens !== undefined && f.smens !== '') ? f.smens : undefined,
-      logement: (f.logement !== undefined && f.logement !== '') ? f.logement : undefined,
       exonere: !!f.exonere,
-      rappel: (f.rappel !== undefined && f.rappel !== '') ? f.rappel : montantLig('29'),
-      avance: (f.avance !== undefined && f.avance !== '') ? f.avance : montantLig('26'),
+      rappel: (f.rappel !== undefined && f.rappel !== '') ? f.rappel : (part.rappel !== undefined ? part.rappel : montantLig('29')),
+      avance: (f.avance !== undefined && f.avance !== '') ? f.avance : (part.avance !== undefined ? part.avance : montantLig('26')),
       fne: (f.fne !== undefined && f.fne !== '') ? f.fne : montantLig('17'),
       dettes: (f.dettes !== undefined && f.dettes !== '') ? f.dettes : montantLig('22'),
       prestation: (f.prestation !== undefined && f.prestation !== '') ? f.prestation : montantLig('27'),
       communard: (f.communard !== undefined && f.communard !== '') ? f.communard : montantLig('28'),
       assiduite: (f.assiduite !== undefined && f.assiduite !== '') ? f.assiduite : part.assiduite,
-      joursAbsence: f.jabs, heuresAbsence: f.habs,
+      joursAbsence: (f.jabs !== undefined && f.jabs !== '') ? f.jabs : (o.presence && o.presence.joursAbsence), heuresAbsence: f.habs,
       dateAnciennete: f.dane || f.entree || '',
       transport: (f.transport !== undefined && f.transport !== '') ? f.transport : part.transport,
       congePris: congePrisSurPeriode(o.conges, o.periode),
-      manuels: manuels,
       retenuesManuelles: retenuesManuelles,
       params: charger()
     });
@@ -443,6 +516,83 @@
     });
   }
   // Fenêtre de paramètres : JSON modifiable ; les paramètres ajoutés sont conservés
+  // ===== Éditeur des rubriques et formules (fenêtre Paramètres Hôtel Océan) =====
+  var VARIABLES_AIDE = 'sbPlein, sb (salaire × présence), pres (présence), smens, ans, taux_anc, anc, logement, assiduite, transport, conge, ' +
+    'brut, K (base CNPS), L (base imposable), Lirpp, Lcfc (base CFC), cnps, irpp, cac, cfc, rav, tc, fne, dettes, prestation, communard, ' +
+    'p_logement, p_assiduite, p_transport, p_cnps, p_cac, p_cfc, p_abat, p_seuil_cfc, R<code> (rubrique ajoutée). ' +
+    'Fonctions : min, max, round, floor, ceil, abs, si(condition, a, b), arrondi250, bareme_irpp, bareme_rav, bareme_tc. ' +
+    'Opérateurs : + - * / et < > <= >= ==.';
+  function ligneAjout(r) {
+    r = r || { code: '', lib: '', type: 'gain', expr: '', cnps: true, irpp: true, cfc: true };
+    return '<tr data-add><td><input data-acode value="' + esc(r.code) + '" style="width:56px"></td>' +
+      '<td><input data-alib value="' + esc(r.lib) + '" style="width:100%"></td>' +
+      '<td><select data-atype><option value="gain"' + (r.type !== 'retenue' ? ' selected' : '') + '>Gain</option>' +
+      '<option value="retenue"' + (r.type === 'retenue' ? ' selected' : '') + '>Retenue</option></select></td>' +
+      '<td><input data-aexpr value="' + esc(r.expr) + '" style="width:100%;font:12px Consolas,monospace"></td>' +
+      '<td style="text-align:center"><input type="checkbox" data-acnps' + (r.cnps !== false ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center"><input type="checkbox" data-airpp' + (r.irpp !== false ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center"><input type="checkbox" data-acfc' + (r.cfc !== false ? ' checked' : '') + '></td>' +
+      '<td><button type="button" data-x="suppr">✕</button></td></tr>';
+  }
+  function editeurRubriques(lp) {
+    lp = lp || {};
+    var ovr = lp.overrides || {}, masq = lp.masquees || [], ajout = lp.ajoutees || [];
+    var std = Object.keys(FORMULES_DEFAUT).sort(function (a, b) { return +a - +b; }).map(function (c) {
+      var d = FORMULES_DEFAUT[c], f = (ovr[c] && ovr[c].expr) || d.formule, lib = (ovr[c] && ovr[c].lib) || d.lib;
+      return '<tr data-std="' + c + '"><td>' + c + '</td><td><input data-lib value="' + esc(lib) + '" style="width:100%"></td>' +
+        '<td><input data-expr value="' + esc(f) + '" style="width:100%;font:12px Consolas,monospace"></td>' +
+        '<td><select data-etat style="width:100%">' +
+          '<option value="normal"' + (masq.indexOf(c) < 0 && (lp.zeros || []).indexOf(c) < 0 ? ' selected' : '') + '>Normal</option>' +
+          '<option value="zero"' + ((lp.zeros || []).indexOf(c) >= 0 ? ' selected' : '') + '>Afficher à 0 (non payée)</option>' +
+          '<option value="masque"' + (masq.indexOf(c) >= 0 ? ' selected' : '') + '>Ne pas afficher</option></select></td>' +
+        '<td style="color:#666;font-size:11px">' + esc(d.note) + '</td></tr>';
+    }).join('');
+    return '<table style="width:100%;border-collapse:collapse;font-size:12px" data-tabstd><thead><tr style="background:#eef2f8">' +
+      '<th style="text-align:left">Code</th><th style="text-align:left">Libellé</th><th style="text-align:left">Formule</th><th>Affichage</th><th style="text-align:left">Par défaut</th></tr></thead><tbody>' +
+      std + '</tbody></table>' +
+      '<div style="font-weight:700;margin-top:10px">Rubriques ajoutées</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px" data-tabajout><thead><tr style="background:#eef2f8">' +
+      '<th style="text-align:left">Code</th><th style="text-align:left">Libellé</th><th>Type</th><th style="text-align:left">Formule</th>' +
+      '<th>CNPS</th><th>IRPP</th><th>CFC</th><th></th></tr></thead><tbody>' + ajout.map(ligneAjout).join('') + '</tbody></table>' +
+      '<div><button type="button" data-x="ajouter">+ Ajouter une rubrique</button></div>' +
+      '<div style="color:#555;font-size:11px;margin-top:4px">Variables : ' + esc(VARIABLES_AIDE) + '</div>';
+  }
+  // Lit l'éditeur et renvoie les rubriques (lignes), ou une erreur
+  function lireRubriques(ov) {
+    var ovr = {}, masq = [], zeros = [], ajout = [];
+    var std = ov.querySelectorAll('[data-std]');
+    Array.prototype.forEach.call(std, function (tr) {
+      var c = tr.getAttribute('data-std'), d = FORMULES_DEFAUT[c];
+      var f = tr.querySelector('[data-expr]').value.trim(), lib = tr.querySelector('[data-lib]').value.trim();
+      var o = {};
+      if (f && f !== d.formule) o.expr = f;
+      if (lib && lib !== d.lib) o.lib = lib;
+      if (Object.keys(o).length) ovr[c] = o;
+      var etat = tr.querySelector('[data-etat]').value;
+      if (etat === 'masque') masq.push(c);
+      if (etat === 'zero') zeros.push(c);
+    });
+    var lignes = ov.querySelectorAll('[data-add]'), codes = {};
+    for (var i = 0; i < lignes.length; i++) {
+      var tr = lignes[i];
+      var code = tr.querySelector('[data-acode]').value.trim(), expr = tr.querySelector('[data-aexpr]').value.trim();
+      var lib = tr.querySelector('[data-alib]').value.trim(), type = tr.querySelector('[data-atype]').value;
+      if (!code && !expr && !lib) continue;
+      if (!code) throw new Error('rubrique « ' + lib + ' » : code manquant');
+      if (FORMULES_DEFAUT[code]) throw new Error('code ' + code + ' déjà utilisé par une rubrique standard');
+      if (codes[code]) throw new Error('code ' + code + ' en double');
+      codes[code] = true;
+      ajout.push({ code: code, lib: lib || 'Rubrique', type: type, expr: expr,
+        cnps: tr.querySelector('[data-acnps]').checked, irpp: tr.querySelector('[data-airpp]').checked, cfc: tr.querySelector('[data-acfc]').checked });
+    }
+    return { overrides: ovr, masquees: masq, zeros: zeros, ajoutees: ajout };
+  }
+  // Vérifie chaque formule sur un salaire d'exemple avant enregistrement
+  function verifierRubriques(lp, p) {
+    var pt = clone(p); pt.lignes = lp;
+    var r = calculer({ salaireBase: 100000, ansAnciennete: 3, congePris: false, params: pt });
+    return r.erreurs || [];
+  }
   function ouvrir() {
     if (document.getElementById('hok-overlay')) return;
     var ov = document.createElement('div');
@@ -457,6 +607,8 @@
       '<textarea data-perm style="min-height:110px;font:12px Consolas,monospace;border:1px solid #9aa5b5;border-radius:4px;padding:8px">' + esc(JSON.stringify(chargerPermanentes(), null, 2)) + '</textarea>' +
       '<div style="font-weight:700">Particularités du mois — clé = période puis nom du salarié. Rien saisi = calcul automatique du modèle. Exemple : {"01/10/2026 au 31/10/2026": {"NOM": {"congeMontant": 0}}}</div>' +
       '<textarea data-mois style="min-height:150px;font:12px Consolas,monospace;border:1px solid #9aa5b5;border-radius:4px;padding:8px">' + esc(JSON.stringify(chargerMois(), null, 2)) + '</textarea>' +
+      '<div style="font-weight:700">Rubriques et formules du bulletin Océan (modifiables, ajoutables, masquables)</div>' +
+      '<div data-rub style="overflow:auto;max-height:300px">' + editeurRubriques(charger().lignes) + '</div>' +
       '<div data-msg style="min-height:16px"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-x="reset">Valeurs par défaut</button><button type="button" data-x="ferme">Fermer</button><button type="button" data-x="ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:4px;padding:6px 12px">Enregistrer</button></div></div>';
     document.body.appendChild(ov);
@@ -465,17 +617,23 @@
       var b = e.target.closest('[data-x]'); if (!b) return;
       var x = b.getAttribute('data-x'), msg = ov.querySelector('[data-msg]');
       if (x === 'ferme') ov.remove();
-      else if (x === 'reset') { ov.querySelector('[data-hok]').value = JSON.stringify(DEFAUT, null, 2); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); msg.style.color = '#555'; msg.textContent = 'Valeurs par défaut affichées : enregistrez pour les appliquer.'; }
+      else if (x === 'ajouter') { ov.querySelector('[data-tabajout] tbody').insertAdjacentHTML('beforeend', ligneAjout()); }
+      else if (x === 'suppr') { b.closest('tr').remove(); }
+      else if (x === 'reset') { ov.querySelector('[data-hok]').value = JSON.stringify(DEFAUT, null, 2); ov.querySelector('[data-perm]').value = JSON.stringify(PERM_DEFAUT, null, 2); ov.querySelector('[data-mois]').value = JSON.stringify(MOIS_DEFAUT, null, 2); ov.querySelector('[data-rub]').innerHTML = editeurRubriques({}); msg.style.color = '#555'; msg.textContent = 'Valeurs par défaut affichées : enregistrez pour les appliquer.'; }
       else if (x === 'ok') {
         try {
           var p = JSON.parse(ov.querySelector('[data-hok]').value);
+          var lp = lireRubriques(ov);
+          var err = verifierRubriques(lp, p);
+          if (err.length) { msg.style.color = '#c0392b'; msg.textContent = 'Formule à corriger : ' + err.join(' ; '); return; }
+          p.lignes = lp;
           var perm = JSON.parse(ov.querySelector('[data-perm]').value);
           var mois = JSON.parse(ov.querySelector('[data-mois]').value);
           enregistrer(fusion(DEFAUT, p));
           enregistrerPermanentes(perm);
           enregistrerMois(mois);
           msg.style.color = '#1e8449'; msg.textContent = 'Paramètres, particularités permanentes et du mois enregistrés.';
-        } catch (err) { msg.style.color = '#c0392b'; msg.textContent = 'JSON invalide : ' + err.message; }
+        } catch (err) { msg.style.color = '#c0392b'; msg.textContent = 'Erreur : ' + err.message; }
       }
     });
   }

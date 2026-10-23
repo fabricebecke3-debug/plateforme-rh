@@ -72,3 +72,85 @@ Service worker : terh-v60. Aucune migration SQL nécessaire.
 - Si la colonne reste vide, le salaire n'est pas dans la fiche : réimporter le fichier du personnel
   (import V3.62 : colonne « SALAIRE DE BASE » ou « SALAIRE DE BASE MENSUEL (complet) »), ou le saisir dans la fiche.
 - Service worker : terh-v66.
+
+10. EN-TÊTE OCÉAN SANS BORDURES (paie-bulletin-ocean.js)
+- Le tableau d'en-tête et ses trois cellules n'ont plus de bordure (la règle générale des tableaux les encadrait).
+  Les tableaux du salarié et des rubriques ne sont pas modifiés.
+- Service worker : terh-v67.
+
+11. LIEN GRILLE → BULLETIN OCÉAN (paie-grille.js, paie-hok.js, paie-detail.js)
+- Absences : les jours saisis dans la grille (jours travaillés sur 30) deviennent les jours d'absence du bulletin
+  du même mois (salaire, transport, logement, ancienneté et assiduité proratisés). Si la fiche porte des jours d'absence,
+  la fiche prime.
+- Lignes de la grille : heures supplémentaires et rubriques ajoutées entrent maintenant dans le bulletin Océan
+  (avant, elles étaient ignorées). Le salaire de base (1000) reste calculé à partir de la fiche.
+- Drapeaux de nature : une ligne libre peut être non cotisable à la CNPS (cnps:false) ou non imposable à l'IRPP (irpp:false),
+  selon sa nature dans la grille (remboursement, indemnité non cotisable : exclues ; salaire, logement : incluses).
+  Sans drapeau, la ligne est cotisable et imposable comme avant.
+- Limite : le drapeau CFC n'est pas encore appliqué aux lignes libres.
+- Service worker : terh-v68.
+
+12. VOCABULAIRE ET BASES (paie-hok.js, paie-grille.js)
+- Les lignes libres portent trois drapeaux : imposable (base IRPP), cotisable CNPS, soumise CFC. Sans drapeau, la ligne est
+  imposable, cotisable et soumise à la CFC.
+- Natures de la grille : libellés alignés sur ces drapeaux (ex. « Remboursement : non imposable, hors CNPS et CFC »).
+- CFC : la base CFC exclut désormais les lignes marquées non soumises à la CFC.
+- Salaire de base de la grille : un salaire saisi à la main dans la grille pour le mois remplace celui de la fiche.
+  Sans saisie manuelle, la fiche s'applique.
+- Taux et barèmes (logement, assiduité, ancienneté, transport, CNPS, abattement, IRPP, CAC, CFC, RAV, TC, congé) :
+  dans « Paramètres Hôtel Océan », champ « Paramètres généraux ».
+- Service worker : terh-v69.
+
+13. FORMULES ET RUBRIQUES PARAMÉTRABLES (paie-hok.js)
+- Le calcul du bulletin Océan lit ses formules dans les paramètres (champ « lignes ») : plus besoin de modifier le code.
+- Évaluateur de formules sûr (pas d'eval) : + - * /, comparaisons, fonctions min, max, round, floor, ceil, abs,
+  si(condition, a, b), arrondi250, bareme_irpp, bareme_rav, bareme_tc.
+- Fenêtre « Paramètres Hôtel Océan » : tableau « Rubriques et formules » :
+  * rubriques standard : libellé, formule (modifiable), affichée ou non ;
+  * rubriques ajoutées : code, libellé, type gain/retenue, formule, cotisable CNPS, imposable IRPP, soumise CFC, suppression ;
+  * enregistrement après vérification de chaque formule sur un salaire d'exemple ; une erreur bloque l'enregistrement.
+- Rubrique masquée : retirée du bulletin et du brut (ou des retenues).
+- Formule en erreur à l'impression : rubrique signalée (erreurs du calcul), bulletin calculé quand même.
+- Les formules par défaut reproduisent exactement le calcul précédent (contrôles 24/38, 12/12 et 37/38 inchangés).
+- Limite : une formule modifiée s'applique à sa propre rubrique ; les autres rubriques calculées avant elle gardent leur valeur.
+- Service worker : terh-v70.
+
+14. CORRECTION : TRANSPORT MASQUÉ (paie-hok.js)
+- Un transport masqué n'est plus retranché de la base CNPS (il n'est pas payé). Test : brut 169 565, base CNPS 169 565, CNPS 7 122.
+- Service worker : terh-v71.
+
+15. AFFICHAGE DES RUBRIQUES STANDARD (paie-hok.js)
+- Dans « Rubriques et formules », chaque rubrique standard a un choix : Normal, Afficher à 0 (non payée : la ligne reste sur le bulletin à 0, sans compter dans le brut, ni dans les bases), ou Ne pas afficher (ligne retirée du bulletin, sans compter).
+- Transport à 0 ou masqué : exclu du brut et de la base CNPS (transport exclu de la base cotisable, paramètre transport.exclu_cnps).
+- Service worker : terh-v72.
+
+16. ANALYSE EXPERT ET CORRECTIONS (paie-hok.js, paie-bulletin-ocean.js)
+Bugs trouvés en testant les 38 bulletins de septembre comme dans l'application :
+- Particularités non appliquées dans l'application : elles étaient indexées par le nom court de la feuille Excel
+  (« NGONO T. ») alors que la fiche porte le nom complet. Correspondance désormais par mots, avec initiales
+  (« T » = « TSALA ») et sans civilités (« Mme »).
+- Clés en double dans l'appel du calcul : « logement » et « manuels » étaient écrasés (prime de caisse de DJONTU et
+  logement fixé de NGONO T. perdus). Doublons supprimés.
+- Rappels et avances du mois ne passaient pas par les particularités : repris (rappel, avance) pour les salariés concernés.
+- Retenues saisies à la main de moins d'un franc ignorées (CFC) : elles sont maintenant reproduites exactement
+  (CFC NGONO T. 1 670, IRPP BETCHAGUE 2 033, etc.).
+- Formule en erreur : un avertissement en rouge apparaît sur le bulletin (au lieu d'un bulletin sans signalement).
+Résultat : 38 bulletins de septembre identiques à l'Excel (brut, CNPS, net, ±1 FCFA) par le chemin de l'application.
+Sans particularités mensuelles (fiche + absence seulement) : 8 / 38 : c'est normal, les exceptions de chaque mois doivent être saisies.
+- Service worker : terh-v73.
+
+17. DONNÉES DE PAIE HORS DU CODE (paie-hok.js, donnees/)
+- Le code ne contient plus aucune donnée de salarié. Les particularités de septembre 2026 (exceptions du mois, prime permanente)
+  sont dans donnees/particularites-septembre-2026.json.
+- Pour les utiliser : Paramètres Hôtel Océan → coller le contenu de « permanentes » dans « Particularités permanentes »,
+  et celui de « du_mois » dans « Particularités du mois », puis enregistrer.
+- Chaque mois : saisir les exceptions du mois dans « Particularités du mois » (clé = période), ou les retirer ensuite.
+- Service worker : terh-v74.
+
+18. VERSION ANGLAISE DE LA PAIE (paie-i18n.js, paie-detail.js, index.html)
+- Nouveau module de traduction : grille de saisie, paramètres Hôtel Océan, éditeur de rubriques et bulletins imprimés
+  (Océan et Sage) passent en anglais quand la langue est EN. Les montants, le calcul et les données ne changent jamais.
+- Libellés suivis d'une valeur traduits (« TEL. : », « N° CNPS : », « BP : », « BULLETIN DE PAIE DU… TO… »).
+- Sigles officiels conservés : IRPP, CAC, CFC, CNPS, RAV, TC, FNE.
+- Limite : les libellés non présents dans le dictionnaire restent en français ; à compléter au fil de l'usage.
+- Service worker : terh-v75.
