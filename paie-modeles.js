@@ -344,6 +344,10 @@
     cadre.id = 'pm-cadre';
     cadre.style.cssText = 'max-width:960px;width:100%;border-radius:12px;padding:16px';
     ov.appendChild(cadre);
+    // Un clic sur le fond ne ferme pas l'éditeur et n'est pas transmis aux fenêtres placées dessous
+    ['click', 'pointerdown', 'mousedown', 'touchstart'].forEach(function (t) {
+      ov.addEventListener(t, function (e) { if (e.target === ov) e.stopPropagation(); });
+    });
     document.body.appendChild(ov);
 
     // Aperçu du logo : zone = 190 mm x 60 mm affichée à 2 px par mm ; glisser le logo ou saisir X, Y, hauteur
@@ -360,8 +364,42 @@
         '<label>Hauteur (mm) <input type="number" min="3" step="1" data-logo-n="logoH" value="' + p.h + '" style="width:80px"></label>' +
         '</div></div>';
     }
+    // Aperçu réel du bulletin, avec des données d'exemple : gabarit Hôtel Océan ou modèle Sage (selon le modèle choisi)
+    function documentApercu(m) {
+      if (!m) return '';
+      var corps = '', mot = root.PaieMoteur, corpsOk = false;
+      var enveloppe = function (c) {
+        return '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#fff}</style></head><body><div style="width:190mm;margin:8mm auto">' + c + '</div></body></html>';
+      };
+      if (m.gabarit === 'ocean') {
+        if (!root.PaieBulletinOcean || !root.PaieHok) return '';
+        var H = root.PaieHok.calculer({ salaireBase: 126945, logement: 34910, assiduite: 6347, transport: 15000, ansAnciennete: 5, congePris: false, rappel: 0, avance: 0 });
+        corps = root.PaieBulletinOcean.html({ modele: m, hok: H, nom: 'EXEMPLE SALARIÉ', periode: '01/10/2026 au 31/10/2026', employeur: m.societe || '',
+          lignes: [], salarie: { matricule: 'B000', emploi: 'CHEF UNITÉ APPROVISIONNEMENT', niveau: 'C', categorie: '8', secu: '390-0100000-0', anciennete: '5 an(s) 11 mois' }, cumuls: {}, conges: {} });
+        corpsOk = !!corps;
+      } else {
+        if (!root.PaieBulletinSage || !mot) return '';
+        var lignes = [
+          { code: '1000', lib: 'Salaire de base mensuel', nombre: 173.33, base: 865, taux: null, gain: 150000, cnps: true, cfc: true, irpp: true },
+          { code: '1510', lib: "Prime d'assiduité", nombre: null, base: null, taux: null, gain: 7500, cnps: true, cfc: true, irpp: true }
+        ];
+        var R = mot.calculer(lignes, { taux: root.PAIE_TAUX_CACHE || {} });
+        corps = root.PaieBulletinSage.html({ modele: m, bulletin: {}, nom: 'EXEMPLE SALARIÉ', periode: '01/10/2026 au 31/10/2026', paiement: '', employeur: m.societe || '',
+          lignes: lignes, resultat: R, cumuls: {}, conges: {}, salarie: { matricule: 'B000', emploi: 'CHEF UNITÉ APPROVISIONNEMENT', niveau: 'C', categorie: '8', secu: '390-0100000-0', anciennete: '5 an(s) 11 mois' },
+          mat: 'B000', cnps: '390-0100000-0', lieu: '', anciennete: '5 an(s) 11 mois' });
+        corpsOk = !!corps;
+      }
+      return corpsOk ? enveloppe(corps) : '';
+    }
+    function apercuBloc(m) {
+      var doc = documentApercu(m);
+      return '<div style="margin-top:14px"><h4 style="margin:0 0 6px">Aperçu du bulletin (données d\'exemple)</h4>' +
+        '<div style="width:420px;max-width:100%;height:594px;overflow:hidden;border:1px solid #9aa5b5;background:#fff">' +
+        '<iframe data-apercu-bulletin title="Aperçu du bulletin" srcdoc="' + esc(doc) + '" style="width:794px;height:1123px;border:0;transform:scale(.53);transform-origin:0 0"></iframe></div></div>';
+    }
     function majApercu() {
       var m = trouve(); if (!m) return;
+      var fr = cadre.querySelector('[data-apercu-bulletin]'); if (fr) fr.srcdoc = documentApercu(m);
       var p = positionLogo(m), img = cadre.querySelector('[data-logo-drag]');
       if (img) { img.style.left = (p.x * 2) + 'px'; img.style.top = (p.y * 2) + 'px'; img.style.height = (p.h * 2) + 'px'; }
       var champs = { logoX: p.x, logoY: p.y, logoH: p.h };
@@ -434,7 +472,7 @@
       var options = liste.map(function (x) {
         return '<option value="' + esc(x.id) + '"' + (x.id === courant ? ' selected' : '') + '>' + esc(x.nom) + (x.defaut ? ' (par défaut)' : '') + '</option>';
       }).join('');
-      var entete = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="fermer">✕ Fermer</button></div>';
+      var entete = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;position:sticky;top:0;background:#fff;z-index:5;padding:6px 0;border-bottom:1px solid #e3e8ef"><b style="flex:1;font-size:16px">📄 Bulletins modèles</b><button type="button" data-act="fermer">✕ Fermer</button></div>';
       var barre = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><label>Modèle <select data-act="choisir">' + options + '</select></label>' +
         '<button type="button" data-act="nouveau">➕ Nouveau</button><button type="button" data-act="dupliquer">⧉ Dupliquer</button>' +
         '<button type="button" data-act="defaut">★ Définir par défaut</button><button type="button" data-act="ocean">🏨 Ajouter le gabarit Hôtel Océan</button><button type="button" data-act="supprimer">✕ Supprimer</button>' +
@@ -475,6 +513,7 @@
         (cat.length ? '<div style="max-height:260px;overflow:auto;border:1px solid #cdd5e0;border-radius:8px"><table><thead><tr><th></th><th>Code</th><th>Libellé</th><th></th></tr></thead><tbody>' + lignesRub + '</tbody></table></div>' +
           '<div style="margin-top:6px"><button type="button" data-act="tout">Tout cocher</button></div>'
           : '<p style="color:#a93226">Aucune rubrique dans le catalogue : créez-les d\'abord dans « ➕ Gains &amp; retenues » → « Catalogue des rubriques de paie ».</p>') +
+        apercuBloc(m) +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:14px"><button type="button" class="p" data-act="enregistrer">💾 Enregistrer le modèle</button><span data-msg style="margin-left:auto"></span></div>';
     }
 

@@ -49,7 +49,9 @@
     };
     // Centre : logo du modèle (dans l'en-tête) puis nom de la société
     var h = (mod && mod.logoH) ? Number(mod.logoH) : 18;
-    var logo = (mod && mod.logo && mod.logoPos !== 'aucun')
+    // Position libre (X, Y en mm, réglée dans l'éditeur) : logo placé à cet endroit ; sinon logo centré dans l'en-tête
+    var libre = (mod && mod.logo && mod.logoPos !== 'aucun' && mod.logoX !== undefined && mod.logoY !== undefined);
+    var logo = (mod && mod.logo && mod.logoPos !== 'aucun' && !libre)
       ? '<img src="' + mod.logo + '" alt="" style="height:' + h + 'mm;width:auto;display:block;margin:0 auto 4px">' : '';
     var centre = '<td style="border:0;width:26%;text-align:center;vertical-align:middle">' + logo +
       '<div style="font-weight:700;font-size:13px;font-family:Arial,sans-serif">' + esc(o.employeur || '') + '</div></td>';
@@ -132,7 +134,9 @@
       rubriques: function () { return tableau(o); },
       pied: function () { return pied(o, mod); }
     };
-    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + 
+    var libreLogo = (mod.logo && mod.logoPos !== 'aucun' && mod.logoX !== undefined && mod.logoY !== undefined)
+      ? '<img src="' + mod.logo + '" alt="" style="position:absolute;left:' + (Number(mod.logoX) || 0) + 'mm;top:' + (Number(mod.logoY) || 0) + 'mm;height:' + (Number(mod.logoH) || 15) + 'mm;width:auto">' : '';
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + libreLogo + 
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 
