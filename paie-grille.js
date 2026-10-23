@@ -480,8 +480,8 @@
         var s = sEmp(e), d = derives(e), bg = idx % 2 ? '#f7f9fc' : '#fff';
         var champ = function (k, w) { return '<td><input data-hs="' + k + '" type="number" step="any" value="' + esc(s[k]) + '" style="' + IN + ';width:' + w + 'px;text-align:right"></td>'; };
         return '<tr data-emp="' + esc(e.id) + '" style="background:' + bg + '">' +
-          '<td style="padding:3px 6px;white-space:nowrap">' + esc(e.nom) + '</td>' +
-          '<td><select data-p style="' + IN + ';width:160px"' + (s.profilManuel ? '' : ' title="Choisi d\'après le poste : ' + esc(e.poste || 'non renseigné') + '"') + '>' + (function () {
+          '<td style="padding:3px 6px;white-space:nowrap;width:190px;max-width:190px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;z-index:1;background:' + bg + '" title="' + esc(e.nom) + '">' + esc(e.nom) + '</td>' +
+          '<td style="position:sticky;left:190px;z-index:1;background:' + bg + '"><select data-p style="' + IN + ';width:160px"' + (s.profilManuel ? '' : ' title="Choisi d\'après le poste : ' + esc(e.poste || 'non renseigné') + '"') + '>' + (function () {
             var auto = profilAuto(st, e.poste), actif = s.profilManuel ? s.profil : (auto ? auto.id : '');
             return '<option value=""' + (actif ? '' : ' selected') + '>— aucun profil (poste : ' + esc(e.poste || 'non renseigné') + ') —</option>' +
               st.profils.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === actif ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('');
@@ -509,7 +509,7 @@
         })() +
         '<p style="margin:0 0 8px;color:#555">Saisissez les jours <b>ou</b> les heures : l\'autre se calcule. Les heures supplémentaires suivent le cours : samedi et 8 premières heures à 120 %, 8 suivantes à 130 %, au-delà de 16 h à 140 %, dimanche 140 %, nuit 150 % (un seul taux si dimanche et nuit), férié 200 %. Taux horaire = salaire de base ÷ 173,33.</p>' +
         '<div style="max-height:62vh;overflow:auto;border:1px solid #cdd5e0;border-radius:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
-        '<thead><tr style="position:sticky;top:0;background:#1f5fbf;color:#fff">' + colonnes.map(function (c) { return '<th style="padding:5px 6px;text-align:left;white-space:nowrap">' + c + '</th>'; }).join('') + '</tr></thead>' +
+        '<thead><tr style="position:sticky;top:0;background:#1f5fbf;color:#fff">' + colonnes.map(function (c, ci) { var fige = ci < 2 ? 'position:sticky;z-index:3;left:' + (ci === 0 ? 0 : 190) + 'px;background:#1f5fbf;' : ''; return '<th style="padding:5px 6px;text-align:left;white-space:nowrap;' + fige + '">' + c + '</th>'; }).join('') + '</tr></thead>' +
         '<tbody>' + (lignes || '<tr><td colspan="15" style="padding:10px;color:#777">Aucun salarié dans la fiche.</td></tr>') + '</tbody></table></div>' +
         '<div style="margin-top:6px;text-align:right">Total brut de la grille : <b data-total></b></div>';
     }
@@ -545,7 +545,9 @@
           p.rubriques.map(function (r, ri) {
             return '<tr>' +
               '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="code" value="' + esc(r.code) + '" style="' + IN + ';width:70px"></td>' +
-              '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="lib" value="' + esc(r.lib) + '" style="' + IN + ';width:260px"></td>' +
+              '<td><input data-pi="' + pi + '" data-ri="' + ri + '" data-rf="lib" value="' + esc(r.lib) + '" style="' + IN + ';width:260px">' +
+              (String(r.code || '').trim() === '' ? '<div style="color:#b03a2e;font-size:11px">⚠ Code manquant : cette rubrique n\'est pas calculée</div>' : '') +
+              ((p.modele || 'ocean') === 'ocean' && String(r.code || '').trim() !== '' && codesReservesOcean().indexOf(String(r.code).trim()) >= 0 ? '<div style="color:#b03a2e;font-size:11px">⚠ Code réservé au modèle Hôtel Océan : cette ligne ne sera pas reprise</div>' : '') + '</td>' +
               '<td><select data-pi="' + pi + '" data-ri="' + ri + '" data-rf="nature" style="' + IN + '">' + Object.keys(NATURES).map(function (k) {
                 return '<option value="' + k + '"' + (r.nature === k ? ' selected' : '') + '>' + NATURES[k] + '</option>';
               }).join('') + '</select></td>' +
@@ -605,13 +607,28 @@
         if (!confirm('Supprimer le profil « ' + st.profils[pi].nom + ' » ?')) return;
         st.profils.splice(pi, 1); rendre();
       } else if (a === 'addrub') {
-        st.profils[pi].rubriques.push({ code: '', lib: '', nature: 'salaire', expr: '0', fiche: false }); rendre();
+        st.profils[pi].rubriques.push({ code: codeLibreDepart(st.profils[pi].modele || 'ocean'), lib: 'Nouvelle rubrique', nature: 'salaire', expr: '0', fiche: false }); touche = true; rendre();
       } else if (a === 'delrub') {
         st.profils[pi].rubriques.splice(ri, 1); rendre();
       }
     });
 
     // Saisie grille : seule la ligne concernée est recalculée (le champ garde le focus)
+    cadre.addEventListener('focusin', function (ev) {
+      if (mode === 'grille' && ev.target.matches && ev.target.matches('input')) ev.target.select();
+    });
+    cadre.addEventListener('keydown', function (ev) {
+      var t = ev.target;
+      if (ev.key !== 'Enter' || mode !== 'grille' || !t.matches || !t.matches('input')) return;
+      var tr = t.closest('tr[data-emp]'); if (!tr) return;
+      var sel = t.dataset.v != null ? '[data-v]' : (t.dataset.hs != null ? '[data-hs="' + t.dataset.hs + '"]' : (t.dataset.base != null ? '[data-base]' : null));
+      if (!sel) return;
+      ev.preventDefault();
+      var suivant = tr.nextElementSibling;
+      while (suivant && !suivant.querySelector(sel)) suivant = suivant.nextElementSibling;
+      var cible = suivant && suivant.querySelector(sel);
+      if (cible) { cible.focus(); cible.select(); }
+    });
     cadre.addEventListener('input', function (ev) {
       var t = ev.target;
       if (mode === 'grille') {
@@ -654,6 +671,10 @@
         (ro.ajoutees.length ? '<optgroup label="Rubriques ajoutées dans les paramètres Océan (calculées par leur formule)">' +
           ro.ajoutees.map(function (r) { return opt('ajout:' + r.code, r.code + ' — ' + r.lib, true); }).join('') + '</optgroup>' : '') +
         '<optgroup label="Nouvelle rubrique">' + opt('nouvelle', '+ Créer une rubrique (code libre à partir de 40)', false) + '</optgroup>';
+    }
+    function codesReservesOcean() {
+      var ro = root.PaieHok && root.PaieHok.rubriquesOcean ? root.PaieHok.rubriquesOcean() : { auto: [] };
+      return ro.auto.map(function (r) { return String(r.code); });
     }
     function codeLibreDepart(modele) {
       var ro = root.PaieHok && root.PaieHok.rubriquesOcean ? root.PaieHok.rubriquesOcean() : { auto: [], ajoutees: [] };

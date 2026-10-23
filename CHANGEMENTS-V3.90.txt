@@ -1,0 +1,10 @@
+VERSION 3.90 : RUBRIQUES DE LA GRILLE ET RUBRIQUES DE BASE VISIBLES (paie-grille.js, paie-detail.js)
+CAUSES CORRIGÉES
+- « + Ajouter une rubrique vide » dans Paramètres de la grille créait une ligne sans code : elle était ignorée, d'où l'impression qu'on ne peut pas ajouter de rubrique. La ligne reçoit désormais un code libre (40 et suivants pour l'Océan).
+- Les rubriques du profil dont le code est calculé par le modèle Océan (1 à 6, 10 à 15, 17, 22, 26 à 29) étaient écartées sans message. Un avis les signale maintenant dans le bulletin et une alerte s'affiche sur la ligne de la grille.
+- Les rubriques de base du bulletin (1 à 6 et 10 à 15) étaient masquées quand leur montant était nul. Elles restent affichées en haut, comme les rubriques ajoutées et les rubriques issues de la grille, même à zéro.
+AFFICHAGE
+- Rubriques issues de la grille : toujours visibles dans le tableau du bas, même à zéro.
+- Ligne sans code dans les paramètres de la grille : avertissement « Code manquant ».
+- Code réservé au modèle Océan dans les paramètres de la grille : avertissement sur la ligne.
+Service worker : terh-v121.

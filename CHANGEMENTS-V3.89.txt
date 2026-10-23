@@ -1,0 +1,16 @@
+VERSION 3.89 : RUBRIQUES AJOUTÉES VISIBLES + SAISIE PLUS RAPIDE (paie-detail.js, paie-grille.js)
+CAUSE CORRIGÉE
+- Une rubrique ajoutée à la main n'a pas de montant : le filtre « non nulles » la masquait en bas, et la liste du haut (Hôtel Océan) la masquait comme rubrique nulle non cochée. Elle restait dans le bulletin sans être visible.
+CORRECTIONS
+- Une rubrique ajoutée (« + Ajouter une rubrique vide » ou depuis le catalogue) reste toujours visible dans le tableau du bas, même à zéro.
+- Modèle Hôtel Océan : la rubrique ajoutée est cochée automatiquement dans « Rubriques nulles » et apparaît donc dans le tableau du haut. Si son code change, l'affichage suit le nouveau code.
+- Un avis indique le nombre de rubriques nulles masquées par le filtre, avec le bouton « Afficher toutes ».
+SAISIE
+- Après un ajout, la fenêtre fait défiler jusqu'à la nouvelle ligne et place le curseur sur le champ Code.
+- Entrée dans un champ du tableau bas : passe à la ligne suivante, même colonne.
+- Un champ numérique est sélectionné au focus : la saisie remplace la valeur.
+GRILLE DE SAISIE (jours / heures)
+- Colonnes Salarié et Profil figées à gauche pendant le défilement horizontal.
+- Entrée : passe au salarié suivant, même colonne (Valeur, Samedi, HS, Base…).
+- Champs sélectionnés au focus.
+Service worker : terh-v120.

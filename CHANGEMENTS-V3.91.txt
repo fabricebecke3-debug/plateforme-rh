@@ -1,0 +1,6 @@
+VERSION 3.91 : UN SEUL LIBELLÉ POUR LE SALAIRE DE BASE (paie-detail.js, paie-rubriques.js)
+- À l'écran, le salaire de base s'appelle « Salaire de base » pour les modèles Sage et Hôtel de l'Océan (au lieu de « Salaire de base mensuel » et « Salaire de Base »).
+- Les données déjà enregistrées sont normalisées à l'ouverture de la fenêtre.
+- Impression : le bulletin Sage garde le libellé officiel « Salaire de base mensuel » ; le bulletin Océan garde son libellé officiel.
+- Catalogue Sage : retrait de la rubrique 30 « Salaire de base mensuel » rattachée au salaire de base de l'Océan (doublon).
+Service worker : terh-v122.

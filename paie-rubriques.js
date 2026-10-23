@@ -14,7 +14,6 @@
 
   // Modèle inspiré des rubriques Sage du bulletin de référence
   var MODELE = [
-    { code: '30', modele: '1', libelle: 'Salaire de base mensuel', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'heures', taux_defaut: null },
     { code: '31', libelle: 'Sursalaire', type: 'gain', imposable: true, cnps: true, cfc: true, mode: 'fixe', taux_defaut: null },
     { code: '32', modele: '4', libelle: 'Indemnité de transport', type: 'gain', imposable: true, cnps: false, cfc: false, mode: 'fixe', taux_defaut: null, transport: true },
     { code: '33', modele: '2', libelle: 'Indemnité de logement', type: 'gain', imposable: true, cnps: true, cfc: false, mode: 'fixe', taux_defaut: null, logement: true },
