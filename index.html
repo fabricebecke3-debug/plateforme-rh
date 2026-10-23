@@ -2068,6 +2068,8 @@ function extractFromOcr(textRaw){
     if(!mois)mois=out.t==='TEMPORAIRE'?12:out.t==='CDD'?6:12;
     const d=new Date(out.deb+'T00:00:00');const jour=d.getDate();d.setMonth(d.getMonth()+mois);if(d.getDate()!==jour)d.setDate(0);d.setDate(d.getDate()-1);out.fin=LD(d);
   }
+  const matM=text.match(/matricule\s*(?:n[°o]\s*\.?|:)?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,19})/i);
+  if(matM&&!/^cnps$/i.test(matM[1])) out.mat=matM[1];
   const telM=text.match(/(?:T[ée]l(?:[ée]phone)?|TEL|Mobile|Portable)\s*:?\s*\*{0,2}\s*(\d[\d\s\.\-]{7,15}\d)/i);
   if(telM){const clean=telM[1].replace(/[\s\.\-]/g,'');if(clean.length>=8&&clean.length<=15)out.tel=clean;}
   const cnpsM=text.match(/\bCNPS\s*:?\s*\*{0,2}\s*([0-9][\d\-\s]{6,20}[0-9])/i);
@@ -2076,14 +2078,15 @@ function extractFromOcr(textRaw){
   const hasF=/\bMme\b|\bMADAME\b|\bMLLE\b/i.test(text);
   if(/\bn[ée]e\b|n[ée]\(e\)/i.test(text)&&/\bn[ée]e\s+le/i.test(text))out.g='F';else if(hasF&&!hasM)out.g='F';else if(hasM&&!hasF)out.g='M';
   if(out.g0){out.g=out.g0;}delete out.g0;
-  const map={n:'f_n',p:'f_p',t:'f_t',deb:'f_deb',fin:'f_fin',dn:'f_dn',dv:'f_dv',tel:'f_tel',cnps:'f_cnps',g:'f_g'};
+  const map={n:'f_n',p:'f_p',t:'f_t',deb:'f_deb',fin:'f_fin',dn:'f_dn',dv:'f_dv',tel:'f_tel',cnps:'f_cnps',g:'f_g',mat:'f_mat'};
   Object.entries(out).forEach(([k,v])=>{const id=map[k];if(id&&$(id))$(id).value=v;});
   if(out.deb||out.t)finManuelle=false;
   updateCnpsInfo();
   autoCalcFin();
+  enfToggle();
   RXK=new Set(Object.keys(out));renderScan();toast(Object.keys(out).length?'Préremplis : '+Object.keys(out).map(k=>SCAN_LBL[k]||k).join(', '):'Aucune donnée reconnue');
 }
-async function aiExtract(text){if(!aiReady||!aiEngine)return;const prompt=`Extracteur de contrat. JSON uniquement :\n{"nom":"","poste":"","genre":"M ou F","date_naissance":"YYYY-MM-DD","type_contrat":"CDI ou CDD ou TEMPORAIRE ou OCCASIONNEL","debut":"YYYY-MM-DD","fin":"YYYY-MM-DD","telephone":"","cnps":""}\nNOM=SALARIÉ pas Directeur.\n\nTEXTE :\n${text.slice(0,5000)}\n\nJSON :`;try{const res=await aiEngine.chat.completions.create({messages:[{role:'user',content:prompt}],temperature:0.05,max_tokens:500});let raw=res.choices[0].message.content.trim();raw=raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'');const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('Pas de JSON');const data=JSON.parse(m[0]);const map={nom:'f_n',poste:'f_p',genre:'f_g',date_naissance:'f_dn',type_contrat:'f_t',debut:'f_deb',fin:'f_fin',telephone:'f_tel',cnps:'f_cnps'};let filled=0;Object.entries(data).forEach(([k,v])=>{if(!v||String(v).trim()==='')return;const id=map[k];const kk=Object.keys(SCAN_ID).find(x=>SCAN_ID[x]===id);if(id&&$(id)&&(!$(id).value||(kk&&!RXK.has(kk)))){$(id).value=String(v).trim();if(kk)RXK.add(kk);filled++;}});updateCnpsInfo();renderScan();if(filled)toast('IA : '+filled+' champ(s) ajouté(s)');}catch(e){console.warn('IA :',e);}}
+async function aiExtract(text){if(!aiReady||!aiEngine)return;const prompt=`Extracteur de contrat. JSON uniquement :\n{"nom":"","poste":"","genre":"M ou F","date_naissance":"YYYY-MM-DD","type_contrat":"CDI ou CDD ou TEMPORAIRE ou OCCASIONNEL","debut":"YYYY-MM-DD","fin":"YYYY-MM-DD","telephone":"","cnps":"","matricule":""}\nNOM=SALARIÉ pas Directeur.\n\nTEXTE :\n${text.slice(0,5000)}\n\nJSON :`;try{const res=await aiEngine.chat.completions.create({messages:[{role:'user',content:prompt}],temperature:0.05,max_tokens:500});let raw=res.choices[0].message.content.trim();raw=raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'');const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('Pas de JSON');const data=JSON.parse(m[0]);const map={nom:'f_n',poste:'f_p',genre:'f_g',date_naissance:'f_dn',type_contrat:'f_t',debut:'f_deb',fin:'f_fin',telephone:'f_tel',cnps:'f_cnps',matricule:'f_mat'};let filled=0;Object.entries(data).forEach(([k,v])=>{if(!v||String(v).trim()==='')return;const id=map[k];const kk=Object.keys(SCAN_ID).find(x=>SCAN_ID[x]===id);if(id&&$(id)&&(!$(id).value||(kk&&!RXK.has(kk)))){$(id).value=String(v).trim();if(kk)RXK.add(kk);filled++;}});updateCnpsInfo();enfToggle();renderScan();if(filled)toast('IA : '+filled+' champ(s) ajouté(s)');}catch(e){console.warn('IA :',e);}}
 
 /* ============ PARAMÈTRES ============ */
 function fillParamsUI(){
@@ -5676,7 +5679,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
 
   // Pagination et export CSV des listes (délégation : fonctionne pour tous les modules)
   document.addEventListener('click', function(e){
-    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), employeur: ((typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{}).societe||'', constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {id:String(x.id), nom:x.n||x.nom, mat:(typeof MAT!=='undefined'&&MAT[x.id])||'', cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
+    if(e.target.closest && e.target.closest('[data-paie-detail]')){ if(window.PaieDetail) PaieDetail.ouvrir({bulletin: identiteBulletinLue(), employeur: ((typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{}).societe||(curCo()||{}).nom||'', constantes: window.PAIE_CST_CACHE || [], taux: window.PAIE_TAUX_CACHE, rubriques: window.PAIE_RUB_CACHE, employes: (typeof EN==='function'?EN():[]).filter(function(x){return (x.n||x.nom);}).map(function(x){return {id:String(x.id), nom:x.n||x.nom, mat:(typeof MAT!=='undefined'&&MAT[x.id])||'', cnps:x.cnps||'', entree:x.entree||'', lieu:x.lieu||'', sb:x.sb||'', hor:x.hor||''};})}); return; }
     const pg=e.target.closest && e.target.closest('[data-mod-page]');
     if(pg){ const k=pg.dataset.modPage; MSTATE[k].page=(MSTATE[k].page||0)+Number(pg.dataset.d); renderModule(k); return; }
     const cv=e.target.closest && e.target.closest('[data-mod-csv]');

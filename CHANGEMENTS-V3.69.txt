@@ -1,0 +1,13 @@
+VERSION 3.69 : BLOC ENFANTS VISIBLE APRÈS SCAN ; MATRICULE LU DANS LES CONTRATS
+===============================================================================
+1. ENFANTS (index.html)
+- Le bloc « Enfants » apparaît dès que le genre est Féminin, y compris quand le genre est rempli par le scanner de contrat
+  (ce remplissage ne déclenchait pas l'affichage).
+
+2. MATRICULE (index.html)
+- Lecture du texte du contrat : « Matricule : XXXX », « Matricule n° XXXX ». « Matricule CNPS » est ignoré.
+- Lecture par l'IA (contrat image ou scan) : champ matricule ajouté à la demande.
+- Le matricule lu est rempli dans « Matricule interne » ; il est vérifié à l'enregistrement (refus si déjà attribué).
+- Un contrat qui ne contient pas le mot « matricule » ne donne rien : la saisie manuelle reste possible.
+
+Service worker : terh-v97.

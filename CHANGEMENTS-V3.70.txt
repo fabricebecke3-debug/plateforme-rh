@@ -1,0 +1,15 @@
+VERSION 3.70 : ORDRE PAR CODE DANS LE BULLETIN DÉTAILLÉ ; EMPLOYEUR = SOCIÉTÉ ; CONTRÔLE DES CODES
+===============================================================================
+1. ORDRE PAR CODE (paie-detail.js)
+- Le bulletin (calcul et impression) range les rubriques par code croissant : 1000, 1040, 1430… puis 8100, 9019… ;
+  les rubriques sans code vont en dernier. Le tri est stable (ordre de saisie conservé à code égal).
+- L'éditeur garde l'ordre de saisie : seul le bulletin imprimé est trié.
+
+2. CONTRÔLES AVANT IMPRESSION (paie-detail.js)
+- Rubrique sans code : signalée.
+- Même code pour deux libellés différents : signalé.
+
+3. EMPLOYEUR (index.html)
+- Si aucun bulletin n'a été importé, le champ Employeur prend le nom de la société active (au lieu de rester vide).
+
+Service worker : terh-v98.

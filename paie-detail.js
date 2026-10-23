@@ -284,7 +284,7 @@
       if (s.plafondCFPat !== undefined && s.plafondCFPat !== '' && !isNaN(+s.plafondCFPat)) saisies.plafondCFPat = +s.plafondCFPat;
       if (s.baseCFC !== null && s.baseCFC !== '' && !isNaN(+s.baseCFC)) saisies.baseCFC = +s.baseCFC;
       if (tauxSage && Object.keys(tauxSage).length) saisies.taux = tauxSage;
-      return PaieMoteur.calculer(etat.lignes, saisies);
+      return PaieMoteur.calculer(ordreCodes(etat.lignes), saisies);
     }
     function rendre(sansTable) {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
@@ -364,7 +364,7 @@
       else if (x === 'saveEcart') { enregistrerEcarts(b); }
       else if (x === 'fiche') { if (etat.fiche) { appliquerFiche(etat.fiche); rendre(); } else alert('Choisissez d\'abord le salarié.'); }
       else if (x === 'cst') { if (root.PaieConstantes) root.PaieConstantes.ouvrir(); else alert('paie-constantes.js n\'est pas chargé.'); }
-      else if (x === 'simul') { if (root.PaieSimulation) root.PaieSimulation.ouvrir({ lignes: etat.lignes, saisies: { taux: tauxSage || {} }, nom: etat.nom }); else alert('paie-pointage-simulation.js n\'est pas chargé.'); }
+      else if (x === 'simul') { if (root.PaieSimulation) root.PaieSimulation.ouvrir({ lignes: ordreCodes(etat.lignes), saisies: { taux: tauxSage || {} }, nom: etat.nom }); else alert('paie-pointage-simulation.js n\'est pas chargé.'); }
       else if (x === 'hokp') { if (root.PaieHok) root.PaieHok.ouvrir(); else alert('paie-hok.js n\'est pas chargé.'); }
       else if (x === 'mod') { if (root.PaieModeles) root.PaieModeles.ouvrir(); else alert('paie-modeles.js n\'est pas chargé.'); }
       else if (x === 'livre') {
@@ -378,8 +378,8 @@
         var R = calcul();
         var modele = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : ((root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null), html;
         var rendreBulletin = (modele && modele.gabarit === 'ocean' && root.PaieBulletinOcean) ? root.PaieBulletinOcean : root.PaieBulletinSage;
-        if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: etat.lignes, resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: etat.lignes, conges: etat.conges, periode: etat.periode, presence: (root.PaieGrille && root.PaieGrille.absencePour && etat.fiche) ? root.PaieGrille.absencePour(etat.fiche.id, etat.periode) : null, congesPlateforme: (root.TERH_congesPour && etat.fiche) ? root.TERH_congesPour(etat.fiche.id) : [] }) : null });
-        else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: etat.lignes, saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
+        if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: ordreCodes(etat.lignes), resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: ordreCodes(etat.lignes), conges: etat.conges, periode: etat.periode, presence: (root.PaieGrille && root.PaieGrille.absencePour && etat.fiche) ? root.PaieGrille.absencePour(etat.fiche.id, etat.periode) : null, congesPlateforme: (root.TERH_congesPour && etat.fiche) ? root.TERH_congesPour(etat.fiche.id) : [] }) : null });
+        else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: ordreCodes(etat.lignes), saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
         if (root.PaieI18n && html) html = root.PaieI18n.html(html);
         var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
         if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}' : ''), { apercu: true });
@@ -402,6 +402,16 @@
     });
     rendre();
   }
+  // Ordre des rubriques : par code croissant (1000, 1040… puis 8100, 9019…) ; sans code en dernier. Tri stable.
+  function ordreCodes(lignes) {
+    return (lignes || []).map(function (l, i) { return { l: l, i: i }; }).sort(function (a, b) {
+      var ca = String(a.l.code || '').trim(), cb = String(b.l.code || '').trim();
+      if (!ca && cb) return 1; if (ca && !cb) return -1;
+      var na = parseFloat(ca), nb2 = parseFloat(cb);
+      var d = (isFinite(na) && isFinite(nb2)) ? na - nb2 : (ca < cb ? -1 : ca > cb ? 1 : 0);
+      return d || a.i - b.i;
+    }).map(function (x) { return x.l; });
+  }
   // Contrôles affichés avant impression : plafond CNPS, net négatif, brut nul, retenues supérieures au brut
   // Éléments lus dans les colonnes importées de la fiche (le modèle de bulletin choisit ceux à générer)
   var ELEMENTS_FICHE = [
@@ -417,6 +427,13 @@
   function controles(R, lignes, cnps) {
     var msg = [];
     if (!R) return msg;
+    var vus = {};
+    (lignes || []).forEach(function (l) {
+      var c = String(l.code || '').trim();
+      if (!c) msg.push('Une rubrique n\'a pas de code : « ' + (l.lib || 'sans libellé') + ' ».');
+      else if (vus[c] && vus[c] !== (l.lib || '')) msg.push('Le code ' + c + ' désigne deux rubriques : « ' + vus[c] + ' » et « ' + (l.lib || '') + ' ».');
+      else vus[c] = l.lib || '';
+    });
     if (!String(cnps || '').trim()) msg.push('N° CNPS manquant : il est lu sur la fiche du salarié.');
     if (R.brut <= 0) msg.push('Brut nul : aucune rubrique de gain n\'est saisie.');
     if (R.net < 0) msg.push('Net négatif : les retenues dépassent le brut. Vérifiez les avances et les retenues.');
