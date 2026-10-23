@@ -63,3 +63,12 @@ Service worker : terh-v60. Aucune migration SQL nécessaire.
 - Le logo est placé dans l'en-tête (taille = hauteur du logo dans le modèle, 18 mm par défaut). Le réglage de position libre du logo
   ne s'applique plus au bulletin Océan.
 - Service worker : terh-v65.
+
+9. GRILLE DE SAISIE : SALAIRE DE BASE PROPORTIONNÉ AUX JOURS (paie-grille.js)
+- Nouvelle rubrique par défaut « Salaire de base (proratisé aux jours) » = base × (jours ÷ jours du mois).
+  Elle était absente : sans elle le brut restait à 0 même avec un salaire renseigné.
+- Ajoutée automatiquement aux profils créés par poste et aux profils existants (une seule fois).
+- La colonne « Salaire de base » affiche le salaire de la fiche quand aucune valeur n'est saisie dans la grille.
+- Si la colonne reste vide, le salaire n'est pas dans la fiche : réimporter le fichier du personnel
+  (import V3.62 : colonne « SALAIRE DE BASE » ou « SALAIRE DE BASE MENSUEL (complet) »), ou le saisir dans la fiche.
+- Service worker : terh-v66.

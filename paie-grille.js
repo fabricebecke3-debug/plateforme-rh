@@ -47,7 +47,9 @@
     { code: '1150', lib: 'Heures sup. 150 % (nuit)', nature: 'salaire', expr: 'base/diviseur_hs*1.5*hs_nuit' },
     { code: '1160', lib: 'Heures sup. 200 % (jour férié)', nature: 'salaire', expr: 'base/diviseur_hs*2*hs_ferie' }
   ];
-  function rubs(liste) { return liste.concat(RUB_HS.map(copie)); }
+  // Salaire de base proratisé au nombre de jours saisis (fraction = jours ÷ jours du mois)
+  var RUB_SALAIRE = { code: '1000', lib: 'Salaire de base (proratisé aux jours)', nature: 'salaire', expr: 'base*fraction' };
+  function rubs(liste) { return [copie(RUB_SALAIRE)].concat(liste.concat(RUB_HS.map(copie))); }
 
   // Valeurs de départ : montants de vos fichiers Excel ; heures sup. selon le cours
   var DEFAUT = {
@@ -75,6 +77,16 @@
     st.profils_nettoyes = true;
     return true;
   }
+  // Profils existants : ajoute la rubrique de salaire de base (une seule fois)
+  function ajouterSalaire(st) {
+    if (!st || !Array.isArray(st.profils) || st.salaire_ajoute) return false;
+    st.profils.forEach(function (p) {
+      p.rubriques = Array.isArray(p.rubriques) ? p.rubriques : [];
+      if (!p.rubriques.some(function (r) { return /fraction/.test(r.expr || ''); })) p.rubriques.unshift(copie(RUB_SALAIRE));
+    });
+    st.salaire_ajoute = true;
+    return true;
+  }
   function charger() {
     var st = null;
     try {
@@ -83,7 +95,8 @@
     } catch (e) { st = null; }
     if (!st || !Array.isArray(st.profils)) st = copie(DEFAUT);
     st.saisies = st.saisies || {};
-    if (nettoyer(st)) enregistrerLocal(st);
+    var chg = nettoyer(st), sal = ajouterSalaire(st);
+    if (chg || sal) enregistrerLocal(st);
     return st;
   }
   function enregistrerLocal(st) {
@@ -344,7 +357,7 @@
     function creerProfilsPostes() {
       var n = 0;
       [...new Set(emps.map(function (e) { return e.poste; }).filter(Boolean))].sort().forEach(function (po) {
-        if (!profilMots(st, po)) { st.profils.push({ id: nouvelId('p'), nom: po, postes: [po], rubriques: [] }); n++; }
+        if (!profilMots(st, po)) { st.profils.push({ id: nouvelId('p'), nom: po, postes: [po], rubriques: rubs([]) }); n++; }
       });
       return n;
     }
@@ -428,7 +441,7 @@
           '<td data-jours style="text-align:right;color:#555">' + (d.j === '' ? '' : d.j) + '</td>' +
           '<td data-heures style="text-align:right;color:#555">' + (d.h === '' ? '' : d.h) + '</td>' +
           champ('samedi', 60) + champ('hs120', 60) + champ('hs130', 60) + champ('hs140', 60) + champ('hs_dim', 60) + champ('hs_nuit', 60) + champ('hs_ferie', 60) +
-          '<td><input data-base type="number" step="any" value="' + esc(s.base) + '" style="' + IN + ';width:100px;text-align:right"></td>' +
+          '<td><input data-base type="number" step="any" value="' + esc((s.base !== '' && s.base != null) ? s.base : (e.sb || '')) + '" style="' + IN + ';width:100px;text-align:right"></td>' +
           '<td data-brut style="text-align:right;font-weight:700;white-space:nowrap">' + brutDe(e) + '</td></tr>';
       }).join('');
       var metaMois = '<label>Mois <input type="month" data-mois value="' + esc(st.mois || moisCourant()) + '" style="' + IN + '"></label>' +
@@ -616,7 +629,7 @@
     if (pont && pont.load) {
       Promise.resolve(pont.load()).then(function (l) {
         // Ne remplace jamais une saisie faite pendant le chargement
-        if (!touche && l && Array.isArray(l.profils) && document.getElementById(id)) { st = l; st.saisies = st.saisies || {}; var net = nettoyer(st); if (creerProfilsPostes() || net) { enregistrerLocal(st); if (pont.save) Promise.resolve(pont.save(st)).catch(function () {}); } rendre(); }
+        if (!touche && l && Array.isArray(l.profils) && document.getElementById(id)) { st = l; st.saisies = st.saisies || {}; var net = nettoyer(st); if (ajouterSalaire(st)) net = true; if (creerProfilsPostes() || net) { enregistrerLocal(st); if (pont.save) Promise.resolve(pont.save(st)).catch(function () {}); } rendre(); }
       }).catch(function () {});
     }
   }
