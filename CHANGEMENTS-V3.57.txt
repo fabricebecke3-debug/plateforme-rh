@@ -42,3 +42,24 @@ Service worker : terh-v60. Aucune migration SQL nécessaire.
 - Ligne d'astérisques sous l'en-tête : présente dans le rendu. Si elle n'apparaît pas à l'impression, vider le cache du site
   (le navigateur peut garder une version précédente).
 - Service worker : terh-v63.
+
+7. IMPORT DU PERSONNEL : REMPLISSAGE DES BONS CHAMPS (index.html, parseEffectif)
+- Avant : seuls nom, poste, genre, naissance, contrat, téléphone, CNPS et visite étaient remplis. Le salaire, l'horaire,
+  le lieu, l'établissement, la catégorie, l'échelon, les dates d'entrée et d'ancienneté étaient rangés en
+  « informations complémentaires » et n'allaient pas dans la fiche.
+- Maintenant reconnus à l'import (en-têtes flexibles) : SALAIRE DE BASE (ou SALAIRE), HORAIRE, PÉRIODICITÉ,
+  CONVENTION, CATÉGORIE, ÉCHELON / NIVEAU, INDICE, COEFFICIENT, DATE D'ANCIENNETÉ, DATE D'ENTRÉE DANS LA PROFESSION,
+  DATE D'ENTRÉE (EMBAUCHE), TYPE D'ENTRÉE, ÉTABLISSEMENT (ou SITE / LIEU), LIEU DE TRAVAIL.
+- Si la date d'ancienneté manque mais que la colonne ANCIENNETÉ contient « X an(s) Y mois », elle est calculée à partir de aujourd'hui.
+- Si la date d'entrée manque, elle prend le début du contrat.
+- Les colonnes déjà reconnues ne sont plus réutilisées par la recherche de dates de « dernière visite » : une date de naissance
+  ou de contrat ne peut plus être rangée dans la visite médicale.
+- Rapport d'import : liste les champs de fiche reconnus.
+- Service worker : terh-v64.
+
+8. EN-TÊTE DU BULLETIN OCÉAN (paie-bulletin-ocean.js)
+- Mise en page comme le modèle officiel : chaque ligne de la République (FR) et de la République (EN) est suivie d'une ligne
+  d'astérisques dont la longueur suit le texte. Logo au centre, nom de la société sous le logo.
+- Le logo est placé dans l'en-tête (taille = hauteur du logo dans le modèle, 18 mm par défaut). Le réglage de position libre du logo
+  ne s'applique plus au bulletin Océan.
+- Service worker : terh-v65.

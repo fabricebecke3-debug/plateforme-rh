@@ -33,20 +33,29 @@
   }
   function cell(t, style) { return '<td style="' + TD + (style || '') + '">' + t + '</td>'; }
 
+  // Ligne d'astérisques proportionnelle au texte (comme sur le modèle officiel)
+  function etoiles(t) {
+    var n = Math.max(4, Math.round(String(t).length * 0.75));
+    return new Array(n + 1).join('*');
+  }
   function entete(o, mod) {
     var per = bornes(o.periode);
+    var E = (o.hok && o.hok.entreprise) || {};
     var colonne = function (lignes) {
-      return '<td style="width:36%;vertical-align:top;text-align:center;font-size:8.5px;line-height:1.35">' +
-        lignes.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</td>';
+      return '<td style="width:37%;vertical-align:top;text-align:center;font-family:\'Times New Roman\',Times,serif;font-size:9.5px;line-height:1.25">' +
+        lignes.map(function (l) {
+          return '<div>' + esc(l) + '</div><div style="font-size:9px;letter-spacing:0.5px;line-height:1.1">' + etoiles(l) + '</div>';
+        }).join('') + '</td>';
     };
-    var centre = '<div style="font-weight:700;font-size:15px">' + esc(o.employeur || '') + '</div>';
-    var astérisques = '<div style="text-align:center;font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;margin:2px 0 4px">' +
-      new Array(120).join('*') + '</div>';
-    return '<table style="width:100%;border-collapse:collapse;margin-bottom:6px"><tr>' +
-      colonne(ENTETE_FR) +
-      '<td style="width:28%;text-align:center;vertical-align:middle">' + centre + '</td>' +
-      colonne(ENTETE_EN) +
-      '</tr></table>' + astérisques +
+    // Centre : logo du modèle (dans l'en-tête) puis nom de la société
+    var h = (mod && mod.logoH) ? Number(mod.logoH) : 18;
+    var logo = (mod && mod.logo && mod.logoPos !== 'aucun')
+      ? '<img src="' + mod.logo + '" alt="" style="height:' + h + 'mm;width:auto;display:block;margin:0 auto 4px">' : '';
+    var centre = '<td style="width:26%;text-align:center;vertical-align:middle">' + logo +
+      '<div style="font-weight:700;font-size:13px;font-family:Arial,sans-serif">' + esc(o.employeur || '') + '</div></td>';
+    return '<table style="width:100%;border-collapse:collapse;margin-bottom:8px"><tr>' +
+      colonne(ENTETE_FR) + centre + colonne(ENTETE_EN) +
+      '</tr></table>' +
       '<div style="font-size:11px;font-weight:700;margin:4px 0 6px">BULLETIN DE PAIE DU ' +
         esc(vide(per.debut)) + ' AU ' + esc(vide(per.fin)) + '</div>';
   }
@@ -122,7 +131,7 @@
       rubriques: function () { return tableau(o); },
       pied: function () { return pied(o, mod); }
     };
-    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + (root.PaieModeles && root.PaieModeles.logoHtml ? root.PaieModeles.logoHtml(mod) : '') +
+    return '<div class="bs-bulletin" style="position:relative;font-family:Arial,sans-serif;color:#000;font-size:10px;width:100%">' + 
       blocs.map(function (b) { return rendu[b] ? rendu[b]() : ''; }).join('') + '</div>';
   }
 

@@ -2280,6 +2280,40 @@ function parseEffectif(rows){
   for(let c=0;c<W;c++){const t=nA(top[c]),s=subHead?nA(sub[c]):'';if(t)g=t;else if(!s)g='';lab[c]=s?((t||g)+' | '+s):t;}
   const find=(re,ex)=>lab.findIndex(l=>l&&re.test(l)&&!(ex&&ex.test(l)));
   const col={n:nc,p:find(/POSTE|FONCTION/),tel:find(/TEL|PORTABLE|MOBILE/,/URGENC|PREVENIR|SECOND|DOMICILE|BUREAU|AUTRE|FIXE/),g:find(/^GENRE|SEXE/),cnps:find(/CNPS/,/STATUT/),dv:find(/VISITE|MEDIC|APTITUDE/,/STATUT|PROCHAINE|JOURS|RESTANT/),dn:find(/NAISS/,/LIEU|VILLE/),t:find(/^TYPE|TYPE (DE )?CONTRAT|NATURE (DU )?CONTRAT|^CONTRAT$|CATEGORIE CONTRAT/,/STATUT|JOURS|RESTANT/),da:find(/ARRET/,/MOTIF/),ma:find(/MOTIF/),pn:(/PRENOM/.test(lab[nc]||'')?-1:find(/^PRENOMS?$/))};
+  /* Champs de fiche (salaire, horaire, lieu, dates, classification) repérés par leur en-tête */
+  Object.assign(col,{
+    sb:find(/SALAIRE DE BASE|^SALAIRE$|^SALAIRE BASE$/,/BRUT|NET|IMPOSABLE|CNPS/),
+    hor:find(/HORAIRE|HEURES? (PAR )?MOIS|H\/MOIS/),
+    per:find(/PERIODICITE/),
+    conv:find(/CONVENTION/),
+    cat:find(/CATEGORIE/),
+    niv:find(/^ECHELON$|^NIVEAU$/),
+    ind:find(/^INDICE$/),
+    coef:find(/COEFFICIENT/),
+    dane:find(/DATE D.?ANCIENNETE/),
+    dep:find(/PROFESSION/,/NAISS/),
+    entree:find(/DATE D.?ENTREE|DATE D.?EMBAUCHE|^EMBAUCHE$/,/PROFESSION|ESSAI/),
+    tent:find(/TYPE D.?ENTREE/),
+    etab:find(/ETABLISSEMENT|^SITE \/ LIEU/),
+    lieu:find(/LIEU (DE )?TRAVAIL|^VILLE$/,/SITE/),
+    anc:find(/^ANCIENNETE/,/DATE/)
+  });
+  /* Valeurs de fiche d'une ligne : salaire, horaire, classification, dates (jamais placées dans une autre colonne) */
+  const fiche=function(r){
+    const txt=c=>c>=0?String(r[c]??'').replace(/\s+/g,' ').trim():'';
+    const num=c=>{if(c<0)return undefined;const v=parseFloat(String(r[c]??'').replace(/[\s\u00a0]/g,'').replace(',','.'));return isNaN(v)?undefined:v;};
+    const dat=c=>c>=0?pdate(r[c]):'';
+    const x={};
+    const sb=num(col.sb);if(sb)x.sb=sb;
+    const hor=num(col.hor);if(hor)x.hor=hor;
+    const per=txt(col.per).toLowerCase();if(per)x.per=/quinz/.test(per)?'quinzaine':/semaine/.test(per)?'semaine':'mois';
+    ['conv','cat','niv','ind','coef','tent','etab','lieu'].forEach(k=>{const v=txt(col[k]);if(v)x[k]=v;});
+    const d1=dat(col.dane);if(d1)x.dane=d1;
+    const d2=dat(col.dep);if(d2)x.dep=d2;
+    const d3=dat(col.entree);if(d3)x.entree=d3;
+    if(!x.dane&&col.anc>=0){const a=txt(col.anc),m=/(\d+)\s*an/.exec(a),mo=/(\d+)\s*mois/.exec(a);if(m)x.dane=LD(addM(T,-((+m[1])*12+(mo?+mo[1]:0))));}
+    return x;
+  };
   /* champs complémentaires : toute colonne connue du catalogue XF est rattachée à la fiche */
   const xcol={},usedX=new Set(Object.values(col).filter(x=>x>=0));
   lab.forEach((l,c)=>{if(!l||usedX.has(c))return;for(const f of XF){if(xcol[f[0]]!==undefined)continue;if(f[4].test(l)&&!(f[5]&&f[5].test(l))){xcol[f[0]]=c;usedX.add(c);break;}}});
@@ -2289,19 +2323,20 @@ function parseEffectif(rows){
   const body=rows.slice(hi+(subHead?2:1)),colL=c=>{let x='',n=c+1;while(n>0){x=String.fromCharCode(65+(n-1)%26)+x;n=Math.floor((n-1)/26);}return x;};
   let mode='en-têtes';
   if(!pairs.length||!pairs.some(p=>body.some(r=>pdate(r[p.dc])))){
-    const skip=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dv,col.dn,col.da,col.ma,col.t,...Object.values(xcol)].filter(x=>x>=0)),cand=[];
+    const skip=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dv,col.dn,col.da,col.ma,col.t,...Object.values(xcol),...Object.values(col)].filter(x=>x>=0)),cand=[];
     for(let c=0;c<W;c++){if(skip.has(c))continue;let n=0,ok=0;body.forEach(r=>{const v=r[c];if(v===''||v==null)return;n++;if(pdate(v))ok++;});if(n>=3&&ok/n>=.6)cand.push(c);}
     pairs.length=0;for(let i=0;i+1<cand.length;i+=2)pairs.push({dc:cand[i],fc:cand[i+1],year:(lab[cand[i]]||'').match(/20\d\d/)?.[0]||''});
     mode='contenu des cellules (en-têtes non reconnus)';
   }
   const isPend=v=>/^EN ?COURS$/.test(nA(v));
   if(col.dv<0||!body.some(r=>pdate(r[col.dv]))){
-    const pc=new Set(pairs.flatMap(p=>[p.dc,p.fc])),skip2=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dn,col.da,col.ma,col.t,...Object.values(xcol)].filter(x=>x>=0));
+    const pc=new Set(pairs.flatMap(p=>[p.dc,p.fc])),skip2=new Set([nc,col.p,col.tel,col.g,col.cnps,col.dn,col.da,col.ma,col.t,...Object.values(xcol),...Object.values(col)].filter(x=>x>=0));
     for(let c=0;c<W;c++){if(pc.has(c)||skip2.has(c))continue;let n=0,ok=0,dd=0;body.forEach(r=>{const v=r[c];if(v===''||v==null)return;n++;if(pdate(v)){ok++;dd++;}else if(isPend(v))ok++;});if(dd>=3&&n&&ok/n>=.6){col.dv=c;mode+=' · visite lue par le contenu (col. '+colL(c)+')';break;}}
   }
   const T0=LD(T),out=[],rep={corr:[],nodates:[],unkG:[],dup:[],multi:0,cdi:0,found:[]};
   const nm={n:'Nom',p:'Poste',tel:'Téléphone',g:'Sexe',cnps:'N° CNPS',dv:'Date visite',dn:'Date naissance',t:'Type contrat',da:'Date arrêt'};
   Object.keys(nm).forEach(k=>{if(col[k]>=0)rep.found.push(nm[k]);});
+  [['sb','Salaire de base'],['hor','Horaire'],['per','Périodicité'],['conv','Convention'],['cat','Catégorie'],['niv','Échelon'],['ind','Indice'],['coef','Coefficient'],['dane',"Date d'ancienneté"],['dep','Date entrée profession'],['entree',"Date d'entrée"],['tent',"Type d'entrée"],['etab','Établissement'],['lieu','Lieu de travail']].forEach(([k,l])=>{if(col[k]>=0)rep.found.push(l);});
   const xcust=[];
   {const us=new Set([...Object.values(col).filter(x=>x>=0),...Object.values(xcol),...pairs.flatMap(p=>[p.dc,p.fc])]);rep.unknown=[];lab.forEach((l,c)=>{if(!l||us.has(c)||/^N$|^N ?O?$|^N°?$|^NO$/.test(l))return;
     if(/^SOCIETE$/.test(l)){rep.unknown.push(colL(c)+' « '+l+' » (code société, ignoré)');return;}
@@ -2341,6 +2376,7 @@ function parseEffectif(rows){
     const gRaw=col.g>=0?nA(r[col.g]):'';if(!gRaw)rep.unkG.push(name);
     let cn=String(r[col.cnps]??'').trim();if(cnpsStatut(cn)==='En cours')cn='';
     const o={n:name,p:normPoste(col.p>=0?r[col.p]:''),g:/^F/.test(gRaw)?'F':'M',dn:col.dn>=0?pdate(r[col.dn]):'',t,deb:cur?cur.deb:'',fin:t==='CDI'?'':(cur?cur.fin:''),tel:String(r[col.tel]??'').replace(/[\s.]/g,''),cnps:cn,dv:col.dv>=0?pdate(r[col.dv]):'',darret:col.da>=0?pdate(r[col.da]):'',marret:col.ma>=0?String(r[col.ma]??'').trim():'',_dur:cur?Math.round((P(cur.fin)-P(cur.deb))/day)+1:0,_explicit:isCDI||!!tx,_year:cur?cur.year:'',_blocks:blocks,_x:xRow(r,xcol,xcust)};
+    Object.assign(o,fiche(r));if(!o.entree&&o.deb)o.entree=o.deb;
     if(t==='CDI')rep.cdi++;
     if(!o.deb&&t!=='CDI')rep.nodates.push(name);
     out.push(o);
