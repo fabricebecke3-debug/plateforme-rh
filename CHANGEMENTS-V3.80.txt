@@ -1,0 +1,6 @@
+VERSION 3.80 : BULLETIN HÔTEL OCÉAN, BARRE ET ORIGINE DES LIGNES (paie-detail.js)
+- Pour le modèle Hôtel Océan, les boutons « Constantes Sage », « Rubriques », « Liste des rubriques » et « Exemple » sont masqués. Les rubriques Océan se gèrent dans « Paramètres Hôtel Océan ».
+- Les modèles Sage gardent tous leurs boutons.
+- Origine « Saisie » affichée « Saisie (tableau libre en bas) » : ces montants se saisissent dans le tableau « Rubriques libres » en bas de la fenêtre (colonne Gain).
+- Boutons conservés pour l'Océan : Modèles, Livre de paie, Simulation, Prime d'ancienneté, Composants de la fiche (à confirmer).
+- Service worker : terh-v118.

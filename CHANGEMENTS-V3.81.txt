@@ -1,0 +1,6 @@
+VERSION 3.81 : BULLETIN HÔTEL OCÉAN, RUBRIQUES CALCULÉES NON SAISISSABLES (paie-detail.js)
+- Une rubrique calculée par formule (logement 25 %, prime d'assiduité 5 %, prime d'ancienneté 10 % du salaire de base, etc.) n'a plus de champs de saisie : la ligne affiche « Calculé par formule » et le montant calculé dans la colonne Calculé.
+- Les rubriques lues sur la fiche (avance 26, rappels 29) sont aussi non saisissables ici.
+- Les rubriques libres (Saisie) restent saisissables dans le tableau libre.
+- La modification d'une formule se fait dans Paramètres Hôtel Océan.
+- Service worker : terh-v119.

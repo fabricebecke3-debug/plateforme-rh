@@ -432,7 +432,7 @@
           '<td style="padding:3px 6px;font-size:12px;color:#555">' + esc(ou[l.src] || '') + '</td></tr>';
       }).join('');
       var box = document.createElement('div');
-      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:12px';
       box.innerHTML = '<div style="background:#fff;color:#111;max-width:980px;width:100%;max-height:90vh;overflow:auto;border-radius:10px;padding:14px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center"><b>Détail du bulletin : ' + esc(e.nom) + '</b><button type="button" data-fd style="padding:4px 10px">✕ Fermer</button></div>' +
         '<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px"><thead><tr style="background:#eef2f8">' +
@@ -586,7 +586,7 @@
     }
 
     cadre.addEventListener('click', function (ev) {
-      var b = ev.target.closest('[data-g],[data-act]');
+      var b = ev.target.closest('[data-g],[data-act],[data-det]');
       if (!b) return;
       if (b.dataset.det !== undefined) { ouvrirDetail(b.dataset.det); return; }
       if (b.dataset.g === 'fermer') { ov.remove(); return; }

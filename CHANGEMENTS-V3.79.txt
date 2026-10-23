@@ -1,0 +1,6 @@
+VERSION 3.79 : GRILLE (bouton Détail) ET FENÊTRE DU BULLETIN
+- Grille : le bouton « Détail » ne réagissait pas (le clic n'était pas reconnu). Corrigé.
+- Grille : le panneau Détail s'affichait derrière la grille. Il passe au-dessus.
+- Bulletin détaillé : la fenêtre tient dans l'écran ; le contenu défile à l'intérieur, la barre du haut (Fermer) et le pied (Bulletin modèle, Ok, Annuler, Préc., Suiv.) restent visibles.
+- Montant saisi : dans la table « libres » du bas, la colonne Gain accepte un montant direct (vide = nombre × base × taux).
+- Service worker : terh-v117.
