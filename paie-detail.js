@@ -203,6 +203,10 @@
     ov.addEventListener('mousedown', function (e) { if (e.target === ov) e.stopImmediatePropagation(); });
     var cadre = document.createElement('div');
     cadre.className = 'pd-cadre';
+    // Fenêtre entière dans l'écran : le contenu défile à l'intérieur, la barre du haut et le pied restent visibles
+    cadre.style.maxHeight = 'calc(100vh - 24px)';
+    cadre.style.overflowY = 'auto';
+    cadre.style.boxSizing = 'border-box';
     cadre.style.cssText = 'background:#fff;color:#1a1a1a;max-width:1000px;width:100%;border-radius:12px;padding:16px;box-sizing:border-box';
     if (!document.getElementById('pd-style')) { var st = document.createElement('style'); st.id = 'pd-style';
       st.textContent = '.pd-cadre input,.pd-cadre select{background:#fff;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 6px;font-size:12px;min-width:0}' +
@@ -438,7 +442,7 @@
           '<td style="text-align:right">' + (l.taux == null ? '' : l.taux) + '</td>' +
           '<td style="text-align:right">' + (l.sens === 'Gain' ? fmtN(l.m) : '') + '</td>' +
           '<td style="text-align:right">' + (l.sens === 'Retenue' ? fmtN(l.m) : '') + '</td>' +
-          '<td>' + esc(l.src) + '</td>' +
+          '<td>' + esc(l.src === 'Saisie' ? 'Saisie (tableau libre en bas)' : l.src) + '</td>' +
           '<td>' + (modifiable ? '<button type="button" class="s" data-x="auto" data-c="' + esc(l.code) + '">Modifier</button>' : '') + '</td></tr>';
       }).join('');
       return '<div style="margin:6px 0"><b>Rubriques du bulletin Hôtel de l’Océan</b> <span style="font-size:12px;color:#555">(codes du modèle ; « Modifier » corrige la rubrique pour ce salarié et ce mois seulement)</span></div>' +
@@ -523,6 +527,8 @@
     function rendre(sansTable) {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
       var ocean = estOcean();
+      // Boutons propres à Sage masqués pour le modèle Hôtel Océan (les rubriques Océan se gèrent dans Paramètres Hôtel Océan)
+      cadre.querySelectorAll('[data-x="cst"],[data-x="rub"],[data-x="liste"],[data-x="exemple"]').forEach(function (b) { b.style.display = ocean ? 'none' : ''; });
       etat.filtre = etat.filtre || 'non-nulles';
       var fl = cadre.querySelector('[data-filtre]'); if (fl) fl.value = etat.filtre;
       var mq = cadre.querySelector('[data-modele]');
@@ -530,10 +536,25 @@
       var entete = ocean
         ? '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Désignation</th><th>Nombre jour</th><th>Base unitaire</th><th>Taux %</th><th>Gain</th><th title="Imposable">Imposable</th><th title="Retenue">Retenue</th><th>Éléments</th><th>Supprimer</th><th>Calculé</th></tr>'
         : '<tr class="pd-entete" style="background:#3d4550;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux salarial</th><th>Gain</th><th>Retenue</th><th>Taux pat.</th><th>Montant pat.</th><th title="Imposable">Imp.</th><th title="Retenue (sens)">Ret.</th><th>Éléments</th><th>Supprimer</th><th>Calculé</th></tr>';
+      // Rubriques Océan calculées par leur formule (ou lues sur la fiche) : ne se saisissent pas ici
+      var CALC = {};
+      if (ocean && root.PaieHok && root.PaieHok.rubriquesOcean) {
+        var ro0 = root.PaieHok.rubriquesOcean();
+        ro0.catalogue.concat(ro0.auto).forEach(function (x) { CALC[String(x.code)] = true; });
+      }
+      var ligneCalculee = function (l, g, i) {
+        var oui = function (v) { return v ? '✔' : '—'; };
+        return '<tr style="background:#f6f8fb"><td>' + echapper(l.code) + '</td><td>' + echapper(l.lib) + '</td>' +
+          '<td colspan="4" style="color:#555;font-size:12px">Calculé par formule : ne se saisit pas ici (modifiable dans Paramètres Hôtel Océan)</td>' +
+          '<td style="text-align:center">' + oui(l.irpp) + '</td><td style="text-align:center">' + oui(l.retenue) + '</td>' +
+          '<td><button type="button" class="s" data-x="elem" data-l="' + i + '">Éléments</button></td><td></td>' +
+          '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
+      };
       var corps = etat.lignes.map(function (l, i) {
         var g = PaieMoteur.gainLigne(l);
         if (!ligneVisible(l, g)) return '';
         if (!ocean) return ligneSage(l, i, g);
+        if (CALC[String(l.code)]) return ligneCalculee(l, g, i);
         var c = function (k, v) { return '<td style="text-align:center"><input type="checkbox" data-l="' + i + '" data-k="' + k + '"' + (v ? ' checked' : '') + '></td>'; };
         var n = function (k, v, w) { return '<td><input data-l="' + i + '" data-k="' + k + '" type="number" step="any" value="' + (v == null ? '' : v) + '" style="width:' + w + 'px"></td>'; };
         return '<tr>' + '<td><input data-l="' + i + '" data-k="code" value="' + echapper(l.code) + '" style="width:60px"></td>' +
