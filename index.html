@@ -2417,6 +2417,7 @@ function parseEffectif(rows){
   const xcust=[];
   {const us=new Set([...Object.values(col).filter(x=>x>=0),...Object.values(xcol),...pairs.flatMap(p=>[p.dc,p.fc])]);rep.unknown=[];lab.forEach((l,c)=>{if(!l||us.has(c)||/^N$|^N ?O?$|^N°?$|^NO$/.test(l))return;
     if(/^SOCIETE$/.test(l)){rep.unknown.push(colL(c)+' « '+l+' » (code société, ignoré)');return;}
+    if(/EXCEPTION|BASE CNPS|PRIME D|INDEMNIT|AUTRES PRIMES|CONG|ASSIDUIT|LOGEMENT|TRANSPORT|SALAIRE|BRUT|NET A|NET À|RAPPEL|AVANCE|ANCIENNET|JOURS D.ABSENCE|HEURES D.ABSENCE|CNPS|STATUT|ÂGE|AGE|RESTANT/i.test(l)){rep.unknown.push(colL(c)+' « '+l+' » (calcul de paie : calculé par l’appli, ignoré)');return;}
     xcust.push([c,(String(top[c]??'').trim()||l).slice(0,60)]);});}
   rep.nx=Object.keys(xcol).length+xcust.length;rep.xl=[...Object.keys(xcol).map(k=>XF.find(f=>f[0]===k)[1]),...xcust.map(x=>x[1])];
   rep.mode=mode;pairs.forEach(p=>rep.found.push('Contrat '+(p.year||'?')+' (col. '+colL(p.dc)+(p.fc>=0?'–'+colL(p.fc):'')+')'));

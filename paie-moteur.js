@@ -44,6 +44,11 @@
   function gainLigne(l) {
     if (typeof l.gain === 'number' && isFinite(l.gain)) return l.gain;
     var n = Number(l.nombre), b = Number(l.base), t = (l.taux == null || l.taux === '') ? 100 : Number(l.taux);
+    // Formule saisie dans la fenêtre Éléments (variables : nombre, base, taux en %)
+    var W = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    if (l.formule && String(l.formule).trim() && W.PaieHok && W.PaieHok.evaluer) {
+      try { var v = Number(W.PaieHok.evaluer(String(l.formule), { nombre: isFinite(n) ? n : 0, base: isFinite(b) ? b : 0, taux: t })); if (isFinite(v)) return v; } catch (e) { /* formule invalide : règle par défaut */ }
+    }
     if (!isFinite(n) || !isFinite(b)) return 0;
     return n * b * t / 100;
   }

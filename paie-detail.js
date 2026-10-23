@@ -20,6 +20,7 @@
     var f = function (n) { return String(n).padStart(2, '0'); }, aa = String(y).slice(2);
     return '01/' + f(m + 1) + '/' + aa + ' au ' + f(dernier) + '/' + f(m + 1) + '/' + aa;
   }
+  function esc(t) { return echapper(t); }
   function echapper(t) {
     return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -190,7 +191,7 @@
         '.pd-cadre button{background:#eef2f8;color:#1a1a1a;border:1px solid #9aa5b5;border-radius:6px;padding:4px 10px;cursor:pointer}' +
         '.pd-cadre button.p{background:#1f5fbf;color:#fff;border-color:#1f5fbf}'; document.head.appendChild(st); }
     cadre.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="flex:1;font-size:16px">🧾 Bulletin détaillé (rubriques)</b>' +
-      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="livre">📚 Livre de paie</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
+      '<button type="button" class="s" data-x="mod">📄 Modèles</button><button type="button" class="s" data-x="livre">📚 Livre de paie</button><button type="button" class="s" data-x="simul">🧮 Simulation</button><button type="button" class="s" data-x="cst">Constantes Sage</button><button type="button" class="s" data-x="anc">Prime d’ancienneté</button><button type="button" class="s" data-x="fiche">Composants de la fiche</button><button type="button" class="s" data-x="rub">⚙️ Rubriques</button><button type="button" class="s" data-x="liste">📋 Liste des rubriques</button><button type="button" class="s" data-x="exemple">Exemple</button><button type="button" class="s" data-x="close">✕ Fermer</button></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px">Salarié<select data-emp style="width:240px"><option value="">— choisir la fiche —</option>' + employes.map(function (x, i) { return '<option value="' + i + '">' + echapper(x.nom) + '</option>'; }).join('') + '</select></label>' +
       '<label style="font-size:12px">N° CNPS (fiche)<input data-f="cnps" value="' + echapper(etat.cnps) + '" style="width:160px"></label>' +
       '<label style="font-size:12px">Nom affiché<input data-f="nom" value="' + echapper(etat.nom) + '" style="width:200px"></label>' +
@@ -286,9 +287,168 @@
       if (tauxSage && Object.keys(tauxSage).length) saisies.taux = tauxSage;
       return PaieMoteur.calculer(ordreCodes(etat.lignes), saisies);
     }
+    // Le modèle de la fiche décide des colonnes : Océan (nombre jour, base unitaire, gain, retenue) ou Sage (montant salarial, sens)
+    function estOcean() {
+      try {
+        var m = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : null;
+        return !!(m && m.gabarit === 'ocean');
+      } catch (e) { return false; }
+    }
+    // Liste des rubriques, propre au modèle de la fiche (comme la « Liste des rubriques » de Sage)
+    function ouvrirListeRubriques() {
+      var ocean = estOcean(), rows = [];
+      if (ocean) {
+        var ro = (root.PaieHok && root.PaieHok.rubriquesOcean) ? root.PaieHok.rubriquesOcean() : { auto: [], ajoutees: [] };
+        var GAINS_OCEAN = { '1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '29': 1 };
+        ro.auto.forEach(function (r) { rows.push({ code: r.code, lib: r.lib, type: GAINS_OCEAN[r.code] ? 'Gain' : 'Retenue', memo: 'Modèle Océan', auto: true }); });
+        ro.ajoutees.forEach(function (r) { rows.push({ code: r.code, lib: r.lib, type: r.type === 'retenue' ? 'Retenue' : 'Gain', memo: 'Ajoutée (Océan)', auto: false, src: r }); });
+      } else {
+        var cat = (typeof catalogue !== 'undefined' && catalogue && catalogue.length) ? catalogue : [];
+        cat.forEach(function (r) { rows.push({ code: String(r.code), lib: r.libelle || '', type: r.type === 'retenue' ? 'Retenue' : 'Brut', memo: r.type === 'retenue' ? 'RET' : 'BRT', auto: false, src: r }); });
+      }
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+      var titre = ocean ? 'Liste des rubriques : modèle Hôtel de l’Océan' : 'Liste des rubriques : modèle Sage';
+      box.innerHTML = '<div style="background:#fff;color:#111;width:min(760px,96vw);max-height:86vh;display:flex;flex-direction:column;border-radius:10px;padding:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + titre + '</b><button type="button" data-fd style="padding:4px 10px">✕</button></div>' +
+        '<input data-q placeholder="Rechercher (code ou intitulé)" style="margin:8px 0;padding:6px">' +
+        '<div style="overflow:auto;flex:1"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#eef2f8">' +
+        '<th style="text-align:left;padding:4px">Code</th><th style="text-align:left">Intitulé</th><th style="text-align:left">Type</th><th style="text-align:left">Mémo</th></tr></thead><tbody data-tb></tbody></table></div>' +
+        '<p style="font-size:12px;color:#555;margin:6px 0 0">Cliquer sur une rubrique pour l’ajouter au bulletin. Les rubriques calculées par le modèle ne s’ajoutent pas.</p></div>';
+      var tb = box.querySelector('[data-tb]');
+      var dessiner = function (filtre) {
+        var f = (filtre || '').toLowerCase();
+        tb.innerHTML = rows.filter(function (r) { return !f || r.code.toLowerCase().indexOf(f) >= 0 || r.lib.toLowerCase().indexOf(f) >= 0; }).map(function (r) {
+          return '<tr data-i="' + rows.indexOf(r) + '" style="' + (r.auto ? 'color:#888;' : 'cursor:pointer;') + 'border-bottom:1px solid #eee">' +
+            '<td style="padding:4px">' + esc(r.code) + '</td><td>' + esc(r.lib) + (r.auto ? ' (calculée)' : '') + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.memo) + '</td></tr>';
+        }).join('');
+      };
+      dessiner('');
+      box.querySelector('[data-q]').addEventListener('input', function (e) { dessiner(e.target.value); });
+      tb.addEventListener('click', function (e) {
+        var tr = e.target.closest('tr[data-i]'); if (!tr) return;
+        var r = rows[+tr.dataset.i]; if (!r || r.auto) return;
+        var src = r.src || {};
+        etat.lignes.push({ code: r.code, lib: r.lib, nombre: null, base: null, taux: src.taux_defaut != null ? src.taux_defaut : null, gain: null,
+          cnps: src.cnps !== false, irpp: src.imposable !== false, cfc: src.cfc !== false, retenue: r.type === 'Retenue' });
+        box.remove(); rendre();
+      });
+      box.addEventListener('click', function (e) { if (e.target === box || (e.target.dataset && e.target.dataset.fd !== undefined)) box.remove(); });
+      document.body.appendChild(box);
+    }
+    // Fenêtre « Éléments » : champs propres à chaque modèle
+    function ouvrirElements(i) {
+      var l = etat.lignes[i]; if (!l) return;
+      var ocean = estOcean();
+      var champ = function (nom, label, val, type) {
+        return '<label style="display:block;margin:6px 0">' + label + '<br><input data-e="' + nom + '" type="' + (type || 'text') + '" step="any" value="' + esc(val == null ? '' : val) + '" style="width:100%;padding:5px"></label>';
+      };
+      var corps = ocean
+        ? champ('nombre', 'Nombre de jours', l.nombre, 'number') + champ('base', 'Base unitaire', l.base, 'number') +
+          champ('taux', 'Taux (%)', l.taux, 'number') + champ('gain', 'Gain (vide = nombre × base × taux)', l.gain, 'number') +
+          champ('commentaire', 'Commentaire', l.commentaire, 'text')
+        : champ('formule', 'Formule (vide = nombre × base × taux / 100 ; variables : nombre, base, taux en %)', l.formule || '', 'text') +
+          champ('nombre', 'Nombre', l.nombre, 'number') + champ('base', 'Base', l.base, 'number') +
+          champ('taux', 'Taux (%)', l.taux, 'number') + champ('gain', 'Montant (vide = calculé)', l.gain, 'number') +
+          '<fieldset style="margin-top:8px;border:1px solid #ccc;padding:6px"><legend>Rappels / régularisations</legend>' +
+          champ('rappelDu', 'Période du', l.rappelDu, 'date') + champ('rappelAu', 'Période au', l.rappelAu, 'date') + '</fieldset>';
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+      box.innerHTML = '<div style="background:#fff;color:#111;width:min(460px,96vw);max-height:88vh;overflow:auto;border-radius:10px;padding:14px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b>Éléments : ' + esc(l.code || '') + ' ' + esc(l.lib || '') + '</b><button type="button" data-fd style="padding:4px 10px">✕</button></div>' +
+        corps +
+        '<div style="text-align:right;margin-top:10px"><button type="button" data-ok style="padding:6px 14px">Enregistrer</button> <button type="button" data-fd style="padding:6px 14px">Annuler</button></div></div>';
+      var lire = function (nom) { var x = box.querySelector('[data-e="' + nom + '"]'); return x ? x.value : ''; };
+      var num = function (v) { return v === '' || v == null ? null : Number(v); };
+      box.addEventListener('click', function (e) {
+        if (e.target === box || (e.target.dataset && e.target.dataset.fd !== undefined)) { box.remove(); return; }
+        if (e.target.dataset && e.target.dataset.ok !== undefined) {
+          if (ocean) {
+            l.nombre = num(lire('nombre')); l.base = num(lire('base')); l.taux = num(lire('taux'));
+            l.gain = num(lire('gain')); l.commentaire = lire('commentaire');
+          } else {
+            l.formule = lire('formule'); l.nombre = num(lire('nombre')); l.base = num(lire('base')); l.taux = num(lire('taux'));
+            l.gain = num(lire('gain')); l.rappelDu = lire('rappelDu'); l.rappelAu = lire('rappelAu');
+          }
+          box.remove(); rendre();
+        }
+      });
+      document.body.appendChild(box);
+    }
+    // Cotisations patronales Sage (lignes en lecture seule, comme sur le bulletin Sage)
+    function lignesCotisationsSage(R) {
+      if (!R || !R.patronales) return [];
+      var P = R.patronales, D = R.detail || {}, T = Object.assign({ cnps_sal: 4.2, cnps_pat: 4.2, at_pat: 2.5, pf_pat: 7, fne_pat: 1, cfc_pat: 1.5 }, tauxSage || {});
+      var base = R.baseCNPS || D.basecot || 0;
+      return [
+        { code: '8100', lib: 'Pension vieillesse CNPS', base: base, tSal: T.cnps_sal, mSal: D.cnpsSal, tPat: T.cnps_pat, mPat: P.cnps },
+        { code: '8110', lib: 'Accident de travail', base: base, tSal: null, mSal: null, tPat: T.at_pat, mPat: P.at },
+        { code: '8120', lib: 'Prestations familiales', base: base, tSal: null, mSal: null, tPat: T.pf_pat, mPat: P.pf },
+        { code: '8130', lib: "Fonds national de l'emploi", base: base, tSal: null, mSal: null, tPat: T.fne_pat, mPat: P.fne },
+        { code: '8140', lib: 'Crédit foncier patronal', base: D.brut || R.brut || base, tSal: null, mSal: null, tPat: T.cfc_pat, mPat: P.cfc }
+      ];
+    }
+    // Zone Hôtel de l'Océan : toutes les rubriques du bulletin, avec leur code et leur origine
+    function calculOcean() {
+      var f = etat.fiche || {}, nom = f.nom || etat.nom || '';
+      var pres = (root.PaieGrille && root.PaieGrille.absencePour && f.id != null) ? root.PaieGrille.absencePour(f.id, etat.periode) : null;
+      var r = root.PaieHok.depuisLignes({ fiche: f, lignes: etat.lignes, periode: etat.periode, presence: pres });
+      var lignes = r.gains.map(function (g) { return { code: String(g.code), lib: g.lib, nb: g.nombre, base: g.base, taux: g.taux, m: g.gain, src: g.src || 'Modèle Océan', sens: 'Gain' }; })
+        .concat(r.retenues.map(function (x) { return { code: String(x.code), lib: x.lib, nb: null, base: x.base, taux: x.taux, m: x.ret, src: x.src || 'Modèle Océan', sens: 'Retenue' }; }));
+      return { r: r, lignes: lignes, nom: nom };
+    }
+    function zoneOcean() {
+      var c = calculOcean(), r = c.r;
+      var fmtN = function (v) { return v == null || v === '' ? '' : fmt(v); };
+      var lignes = c.lignes.map(function (l) {
+        var corrige = root.PaieHok.correctionRubrique(c.nom, etat.periode, l.code) !== null;
+        var modifiable = root.PaieHok.champCorrigeable(l.code) && l.src === 'Modèle Océan';
+        return '<tr><td>' + esc(l.code) + '</td><td>' + esc(l.lib) + (corrige ? ' <i style="color:#c0392b">(corrigé ce mois)</i>' : '') + '</td>' +
+          '<td style="text-align:right">' + fmtN(l.nb) + '</td><td style="text-align:right">' + fmtN(l.base) + '</td>' +
+          '<td style="text-align:right">' + (l.taux == null ? '' : l.taux) + '</td>' +
+          '<td style="text-align:right">' + (l.sens === 'Gain' ? fmtN(l.m) : '') + '</td>' +
+          '<td style="text-align:right">' + (l.sens === 'Retenue' ? fmtN(l.m) : '') + '</td>' +
+          '<td>' + esc(l.src) + '</td>' +
+          '<td>' + (modifiable ? '<button type="button" class="s" data-x="auto" data-c="' + esc(l.code) + '">Modifier</button>' : '') + '</td></tr>';
+      }).join('');
+      return '<div style="margin:6px 0"><b>Rubriques du bulletin Hôtel de l’Océan</b> <span style="font-size:12px;color:#555">(codes du modèle ; « Modifier » corrige la rubrique pour ce salarié et ce mois seulement)</span></div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#1f5fbf;color:#fff">' +
+        '<th>Code</th><th>Désignation</th><th>Nombre jour</th><th>Base unitaire</th><th>Taux %</th><th>Gain</th><th>Retenue</th><th>Origine</th><th></th></tr></thead><tbody>' + lignes + '</tbody>' +
+        '<tfoot><tr><td colspan="5" style="text-align:right"><b>Total brut</b></td><td style="text-align:right"><b>' + fmt(r.brut) + '</b></td><td style="text-align:right"><b>' + fmt(r.totalRetenues) + '</b></td><td colspan="2"><b>Net à payer : ' + fmt(Math.round(r.net)) + '</b></td></tr></tfoot></table>';
+    }
+    // Fenêtre de correction d'une rubrique calculée (pour ce salarié et ce mois)
+    function ouvrirAuto(code) {
+      var c = calculOcean();
+      var l = c.lignes.filter(function (x) { return x.code === String(code); })[0];
+      if (!l) return;
+      var corrige = root.PaieHok.correctionRubrique(c.nom, etat.periode, code);
+      var libelle = String(code) === '13' ? 'Base CNPS' : 'Montant';
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+      var valeur = corrige !== null ? corrige : (String(code) === '13' ? '' : (l.m == null ? '' : l.m));
+      box.innerHTML = '<div style="background:#fff;color:#111;width:min(440px,96vw);border-radius:10px;padding:14px">' +
+        '<div style="display:flex;justify-content:space-between"><b>' + esc(code) + ' — ' + esc(l.lib) + '</b><button type="button" data-fd style="padding:4px 10px">✕</button></div>' +
+        '<p style="font-size:12px;color:#555">Salarié : ' + esc(c.nom) + ' · Période : ' + esc(etat.periode || '') + '</p>' +
+        '<p style="font-size:12px;color:#555">Calcul automatique : <b>' + fmt(l.m) + '</b>' + (corrige !== null ? ' · corrigé : <b>' + fmt(corrige) + '</b>' : '') + '</p>' +
+        '<label style="display:block;margin:6px 0">' + libelle + '<input data-v type="number" step="any" value="' + esc(valeur) + '" style="width:100%;padding:6px"></label>' +
+        '<p style="font-size:12px;color:#555">Laisser vide puis enregistrer pour revenir au calcul automatique.</p>' +
+        '<div style="text-align:right"><button type="button" data-ok style="padding:6px 14px">Enregistrer</button> <button type="button" data-fd style="padding:6px 14px">Annuler</button></div></div>';
+      box.addEventListener('click', function (e) {
+        if (e.target === box || (e.target.dataset && e.target.dataset.fd !== undefined)) { box.remove(); return; }
+        if (e.target.dataset && e.target.dataset.ok !== undefined) {
+          var v = box.querySelector('[data-v]').value;
+          root.PaieHok.corrigerRubrique(c.nom, etat.periode, code, v === '' ? null : Number(v));
+          box.remove(); rendre();
+        }
+      });
+      document.body.appendChild(box);
+    }
     function rendre(sansTable) {
       var tbl = cadre.querySelector('[data-tbl]'), R = calcul();
-      var entete = '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux %</th><th>Gain</th><th title="Imposable">Imposable</th><th title="Retenue : avance sur salaire, cantine, etc.">Retenue</th><th></th></tr>';
+      var ocean = estOcean();
+      var entete = ocean
+        ? '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Désignation</th><th>Nombre jour</th><th>Base unitaire</th><th>Taux %</th><th>Gain</th><th title="Imposable">Imposable</th><th title="Retenue">Retenue</th><th>Éléments</th><th>Supprimer</th><th>Calculé</th></tr>'
+        : '<tr style="background:#1f5fbf;color:#fff"><th>Code</th><th>Rubrique</th><th>Nombre</th><th>Base</th><th>Taux salarial</th><th>Montant salarial</th><th>Taux patronal</th><th>Montant patronal</th><th title="Imposable">Imposable</th><th title="Gain ou retenue">Sens</th><th>Éléments</th><th>Supprimer</th><th>Calculé</th></tr>';
       var corps = etat.lignes.map(function (l, i) {
         var g = PaieMoteur.gainLigne(l);
         var c = function (k, v) { return '<td style="text-align:center"><input type="checkbox" data-l="' + i + '" data-k="' + k + '"' + (v ? ' checked' : '') + '></td>'; };
@@ -297,10 +457,23 @@
           '<td><input data-l="' + i + '" data-k="lib" value="' + echapper(l.lib) + '" style="width:200px"></td>' +
           n('nombre', l.nombre, 70) + n('base', l.base, 90) + n('taux', l.taux, 60) +
           '<td><input data-l="' + i + '" data-k="gain" type="number" step="any" value="' + (l.gain == null ? '' : l.gain) + '" style="width:100px" title="Saisir le gain, ou laisser vide pour nombre × base × taux"></td>' +
-          c('irpp', l.irpp) + c('retenue', l.retenue) +
-          '<td><button type="button" class="s" data-x="del" data-l="' + i + '">✕</button></td>' +
+          (ocean ? '' : '<td></td><td></td>') + c('irpp', l.irpp) + c('retenue', l.retenue) +
+          '<td><button type="button" class="s" data-x="elem" data-l="' + i + '">Éléments</button></td><td><button type="button" class="s" data-x="del" data-l="' + i + '">✕</button></td>' +
           '<td style="color:#666;font-size:11px">' + fmt(g) + '</td></tr>';
       }).join('');
+      if (!ocean) {
+        corps += lignesCotisationsSage(R).map(function (c) {
+          var f = function (v) { return v == null ? '' : fmt(v); };
+          var pct = function (v) { return v == null ? '' : String(v).replace('.', ',') + ' %'; };
+          return '<tr style="background:#f6f8fb;color:#333"><td>' + esc(c.code) + '</td><td>' + esc(c.lib) + '</td>' +
+            '<td></td><td style="text-align:right">' + f(c.base) + '</td><td style="text-align:right">' + pct(c.tSal) + '</td><td style="text-align:right">' + f(c.mSal) + '</td>' +
+            '<td style="text-align:right">' + pct(c.tPat) + '</td><td style="text-align:right">' + f(c.mPat) + '</td><td></td><td>Retenue patronale</td><td></td><td></td><td></td></tr>';
+        }).join('');
+      }
+      var oz = cadre.querySelector('[data-oz]');
+      if (!oz) { oz = document.createElement('div'); oz.setAttribute('data-oz', ''); tbl.parentNode.insertBefore(oz, tbl); }
+      oz.innerHTML = (ocean && root.PaieHok && root.PaieHok.depuisLignes) ? zoneOcean() : '';
+      if (ocean) oz.insertAdjacentHTML('beforeend', '<div style="margin:10px 0 4px"><b>Éléments saisis à la main (rubriques libres)</b></div>');
       if (!sansTable) tbl.innerHTML = '<thead>' + entete + '</thead><tbody>' + corps + '</tbody>';
       var alertes = ((etat.mat ? [] : ['Matricule interne manquant : renseignez-le ici ou dans la fiche du salarié.']).concat(controles(R, etat.lignes, etat.cnps))).map(function (m) { return '<div class="ban" style="margin:4px 0">⚠ ' + echapper(m) + '</div>'; }).join('');
       cadre.querySelector('[data-res]').innerHTML = alertes + bandeauEcarts() + '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(R.brut) + '</b></span>' +
@@ -358,6 +531,8 @@
       if (x === 'close') ov.remove();
       else if (x === 'add') { etat.lignes.push({ code: '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: false, cfc: false, irpp: true, retenue: false }); rendre(); }
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
+      else if (x === 'elem') { ouvrirElements(+b.dataset.l); }
+      else if (x === 'auto') { ouvrirAuto(b.dataset.c); }
       else if (x === 'cat') { }
       else if (x === 'rub') { openRubriques(); }
       else if (x === 'anc') { ajouterAnciennete(); }
@@ -372,6 +547,7 @@
         var lv = root.PaieLivre.depuisGrille({ societe: typeof etat.employeur === 'string' ? etat.employeur : ((etat.employeur && etat.employeur.nom) || ''), periode: etat.periode || '' });
         if (typeof root.printHTML === 'function') root.printHTML('Livre de paie', lv, '@page{size:A4 landscape;margin:8mm}', { apercu: true });
       }
+      else if (x === 'liste') { ouvrirListeRubriques(); }
       else if (x === 'exemple') { etat.lignes = EXEMPLE.map(function (l) { return Object.assign({}, l); }); rendre(); }
       else if (x === 'grille') { if (root.PaieGrille) root.PaieGrille.ouvrir(); else alert('paie-grille.js n\'est pas chargé.'); }
       else if (x === 'print') {

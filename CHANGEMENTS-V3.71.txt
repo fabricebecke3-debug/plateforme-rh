@@ -30,3 +30,60 @@ IMPRESSION DU BULLETIN OCÉAN : COULEURS VISIBLES (paie-bulletin-ocean.js, paie-
 - Les navigateurs n'impriment pas les couleurs de fond par défaut : l'en-tête bleu à texte blanc devenait invisible
   sur papier. Impression forcée des couleurs (print-color-adjust: exact) pour le bulletin Océan.
 - Service worker : terh-v101.
+
+RUBRIQUES DE LA GRILLE : NUMÉROTATION DU MODÈLE OCÉAN (paie-grille.js, paie-hok.js)
+- Dans chaque profil, un sélecteur « Choisir une rubrique du modèle Océan » propose d'abord la numérotation du modèle
+  (1 à 6, 10 à 28, 26, 29), puis les rubriques ajoutées dans les paramètres Océan, puis « Créer une rubrique » (code libre à partir de 40).
+- Les rubriques déjà calculées par le modèle Océan sont affichées sans être sélectionnables : une ligne de grille ne les
+  reprend jamais (plus de double comptage). Le moteur ignore aussi ces codes s'ils arrivent par une ligne de grille.
+- Import du personnel (index.html) : les colonnes de calcul de paie (exceptions, primes, brut, base CNPS, ancienneté en
+  double, statuts…) ne sont plus enregistrées comme informations complémentaires ; elles sont ignorées à l'import.
+- Les informations complémentaires déjà enregistrées avant cette version restent en base : à nettoyer séparément.
+- Service worker : terh-v102.
+
+MODÈLE DE PAIE PAR PROFIL ET DÉTAIL DES MONTANTS (paie-grille.js, paie-hok.js)
+- Chaque profil de la grille a un modèle de paie : Hôtel de l'Océan (codes 1, 2, 10…) ou Sage (catalogue 1000, 1435…).
+  Le sélecteur de rubriques n'affiche que les codes du modèle choisi ; on ne voit pas les codes d'un autre modèle.
+- Chaque ligne du calcul porte son origine : Modèle Océan, Grille, Particularité du mois, Paramètres Océan, Saisie.
+- Bouton « Détail » par salarié : liste chaque montant du bulletin avec son origine et l'endroit où le modifier.
+- Service worker : terh-v103.
+
+ZONE DE SAISIE DU BULLETIN DÉTAILLÉ : COLONNES PAR MODÈLE (paie-detail.js)
+- Le modèle de la fiche décide des colonnes : Océan (Nombre jour, Base unitaire, Taux, Gain, Retenue) ou Sage
+  (Nombre, Base, Taux salarial, Montant salarial, Sens G/R).
+- Non fait : colonnes patronales Sage (taux et montant patronal) et fenêtre « Éléments » (formule, rappels, régularisations).
+- Service worker : terh-v104.
+
+LISTE DES RUBRIQUES PAR MODÈLE (paie-detail.js)
+- Bouton « Liste des rubriques » dans le bulletin détaillé : liste propre au modèle de la fiche.
+  * Modèle Hôtel de l'Océan : numérotation du moteur (1 à 6, 10 à 28, 26, 29), rubriques calculées affichées sans être
+    sélectionnables, rubriques ajoutées dans les paramètres Océan sélectionnables.
+  * Modèle Sage : catalogue Sage (code, intitulé, type, mémo BRT/RET).
+- Recherche par code ou intitulé ; un clic ajoute la rubrique au bulletin.
+- Service worker : terh-v105.
+
+BULLETIN SAGE : COLONNES PATRONALES, FENÊTRE ÉLÉMENTS, PAR MODÈLE (paie-detail.js)
+- Modèle Sage : colonnes Taux patronal et Montant patronal ; lignes de cotisations patronales en lecture seule
+  (Pension vieillesse CNPS, Accident de travail, Prestations familiales, Fonds national de l'emploi, Crédit foncier patronal),
+  calculées par le moteur Sage.
+- Fenêtre « Éléments » par ligne : Formule, Nombre, Base, Taux (%), Montant (vide = calculé), Rappels / régularisations (période du, au).
+- Modèle Hôtel de l'Océan : fenêtre « Éléments » avec ses champs : Nombre de jours, Base unitaire, Taux (%), Gain, Commentaire.
+- Non fait : la période de rappel n'est pas encore prise en compte dans le calcul Sage (enregistrée seulement) ;
+  la formule saisie est affichée mais le calcul utilise nombre × base × taux.
+- Service worker : terh-v106.
+
+BULLETIN SAGE : FORMULE DE LA FENÊTRE ÉLÉMENTS RÉELLEMENT UTILISÉE (paie-moteur.js, paie-hok.js, paie-detail.js)
+- La formule saisie (variables nombre, base, taux en %) remplace nombre × base × taux / 100 ; vide = règle par défaut ;
+  formule invalide = règle par défaut.
+- Période de rappel : enregistrée sur la ligne ; le calcul ne la prend pas encore en compte (à définir : recalcul sur la période).
+- Vérification : bulletin 1002 de la capture Sage reproduit (brut 149 979, charges patronales 24 297, net 132 707).
+- Service worker : terh-v107.
+
+MODÈLE HÔTEL DE L'OCÉAN : TOUTES LES RUBRIQUES DANS LA ZONE DE SAISIE (paie-hok.js, paie-detail.js)
+- La zone affiche toutes les rubriques du bulletin Océan avec leur code (1 à 6, 10 à 28, 26, 29, et rubriques ajoutées),
+  leur nombre de jours, base unitaire, taux, gain ou retenue, et leur origine (modèle, grille, particularité, saisie).
+- « Modifier » sur une rubrique calculée : corrige sa valeur pour ce salarié et ce mois seulement (logement, assiduité,
+  transport, ancienneté, congé, base CNPS, IRPP, CAC, CFC, RAV, TC, FNE). Un montant vide rétablit le calcul.
+- Les corrections sont enregistrées dans les particularités du mois ; les autres salariés et les autres mois ne changent pas.
+- Correction d'un défaut : les fonctions d'échappement étaient absentes du bulletin détaillé (fenêtres Éléments et Liste des rubriques).
+- Service worker : terh-v108.

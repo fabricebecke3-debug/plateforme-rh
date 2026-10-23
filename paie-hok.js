@@ -134,6 +134,41 @@
     });
     return meilleure;
   }
+  // Rubriques calculées par le modèle Océan qu'on peut corriger pour un salarié et un mois
+  // (code -> champ des particularités du mois). Le bulletin reprend la valeur corrigée ; l'effacer rétablit le calcul.
+  var CHAMPS_CORRIGEABLES = { '2': 'logement', '3': 'assiduite', '4': 'transport', '5': 'ancMontant', '6': 'congeMontant',
+    '10': 'irpp', '11': 'cac', '12': 'cfc', '14': 'rav', '15': 'tc', '17': 'fne', '13': 'cnpsBase' };
+  var RETENUE_FIXE = { irpp: 1, cac: 1, cfc: 1, rav: 1, tc: 1, fne: 1 };
+  function champCorrigeable(code) { return CHAMPS_CORRIGEABLES.hasOwnProperty(String(code)); }
+  // Enregistre (valeur) ou efface (null) la correction d'une rubrique pour un salarié et un mois
+  function corrigerRubrique(nom, periode, code, valeur) {
+    var champ = CHAMPS_CORRIGEABLES[String(code)];
+    if (!champ) return false;
+    var store = chargerMois(), cle = cleperiode(periode);
+    store[cle] = store[cle] || {};
+    var k = trouverCle(store[cle], nom) || String(nom || '').trim();
+    var d = store[cle][k] = store[cle][k] || {};
+    var vide = (valeur === null || valeur === undefined || valeur === '');
+    if (RETENUE_FIXE[champ]) {
+      d.retenues = d.retenues || {};
+      if (vide) delete d.retenues[champ]; else d.retenues[champ] = nb(valeur);
+      if (!Object.keys(d.retenues).length) delete d.retenues;
+    } else {
+      if (vide) delete d[champ]; else d[champ] = nb(valeur);
+    }
+    if (!Object.keys(d).length) delete store[cle][k];
+    if (!Object.keys(store[cle]).length) delete store[cle];
+    enregistrerMois(store);
+    return true;
+  }
+  // Valeur corrigée enregistrée pour ce salarié et ce mois (null si le calcul s'applique)
+  function correctionRubrique(nom, periode, code) {
+    var champ = CHAMPS_CORRIGEABLES[String(code)];
+    if (!champ) return null;
+    var mo = particularite(nom, periode);
+    if (RETENUE_FIXE[champ]) return (mo.retenues && mo.retenues[champ] !== undefined) ? mo.retenues[champ] : null;
+    return (mo[champ] !== undefined) ? mo[champ] : null;
+  }
   // Particularités applicables à un salarié pour une période : permanentes, complétées/remplacées par celles du mois
   function particularite(nom, periode) {
     var perms = chargerPermanentes(), mois = chargerMois()[cleperiode(periode)] || {};
@@ -279,6 +314,18 @@
   // Formules standard (affichées dans l'éditeur ; le calcul est le même que par défaut)
   // Codes affichés : ceux du moteur Océan (1, 2, 10…) ; modifiables dans l'éditeur Océan
   var CODES_DEFAUT = {};
+  // Rubriques calculées par le modèle Océan : une ligne de grille ne doit jamais les reprendre (double comptage)
+  var CODES_AUTO = ['1', '2', '3', '4', '5', '6', '10', '11', '12', '13', '14', '15', '17', '22', '26', '27', '28', '29'];
+  // Liste pour le sélecteur de la grille : rubriques du modèle (auto) et rubriques ajoutées dans les paramètres Océan
+  function rubriquesOcean() {
+    var lp = charger().lignes || {}, codes = lp.codes || {};
+    var auto = CODES_AUTO.map(function (c) {
+      var d = FORMULES_DEFAUT[c];
+      return { code: String(codes[c] || CODES_DEFAUT[c] || c), lib: d ? d.lib : (c === '26' ? 'Avance sur salaire' : 'Rappels'), auto: true };
+    });
+    var ajoutees = (lp.ajoutees || []).map(function (r) { return { code: String(r.code), lib: r.lib || '', type: r.type || 'gain', auto: false }; });
+    return { auto: auto, ajoutees: ajoutees };
+  }
   var FORMULES_DEFAUT = {
     '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },
     '2': { lib: 'Indemnité de Logement', formule: 'p_logement*(smens+anc)', note: '25 % (salaire + ancienneté)' },
@@ -406,7 +453,7 @@
       v[varNom] = val; if (code === '1') v.sb = val;
       if (code === '5') v.anc = val;
       if (estMasquee(code)) return;
-      gains.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val });
+      gains.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || g[3], nombre: g[4], base: g[5], taux: g[6], gain: val, src: 'Modèle Océan' });
     });
     // Éléments libres (saisis à la main) puis rubriques ajoutées dans les paramètres
     var libres = [];
@@ -428,14 +475,14 @@
       return c;
     }
     (o.manuels || []).forEach(function (m) {
-      var g = { code: codeLibre(m.code, m.lib), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain) };
+      var g = { code: codeLibre(m.code, m.lib), lib: m.lib || 'Élément complémentaire', nombre: null, base: null, taux: null, gain: nb(m.gain), src: m.src || 'Saisie' };
       gains.push(g); libres.push({ gain: g.gain, cnps: m.cnps, irpp: m.irpp, cfc: m.cfc });
     });
     ajout.forEach(function (r) {
       if (r.type === 'retenue') return;
       var val = essayer(r.expr, 0, r.lib);
       v['R' + r.code] = val;
-      var g = { code: String(r.code), lib: r.lib || 'Rubrique', nombre: null, base: null, taux: null, gain: val };
+      var g = { code: String(r.code), lib: r.lib || 'Rubrique', nombre: null, base: null, taux: null, gain: val, src: 'Paramètres Océan' };
       gains.push(g); libres.push({ gain: val, cnps: r.cnps, irpp: r.irpp, cfc: r.cfc });
     });
 
@@ -496,15 +543,15 @@
       if (estZero(code)) val = 0;
       v[r[5]] = val;
       if (estMasquee(code)) return;
-      retenues.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val });
+      retenues.push({ code: codeAff(code), lib: (ov[code] && ov[code].lib) || r[1], base: r[2], taux: r[3], ret: val, src: 'Modèle Océan' });
     });
     (o.retenuesManuelles || []).forEach(function (r) {
-      retenues.push({ code: codeLibre(r.code, r.lib), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret) });
+      retenues.push({ code: codeLibre(r.code, r.lib), lib: r.lib || 'Retenue', base: null, taux: null, ret: nb(r.ret), src: 'Saisie' });
     });
     ajout.forEach(function (r) {
       if (r.type !== 'retenue') return;
       var val = essayer(r.expr, 0, r.lib);
-      retenues.push({ code: String(r.code), lib: r.lib || 'Retenue', base: null, taux: null, ret: val });
+      retenues.push({ code: String(r.code), lib: r.lib || 'Retenue', base: null, taux: null, ret: val, src: 'Paramètres Océan' });
     });
 
     // Retenues saisies à la main (particularités) : remplacent le calcul ; CAC = 10 % de l'IRPP si non saisie
@@ -606,17 +653,17 @@
     var montantLig = function (code) { var l = lig(code); return l ? nb(root.PaieMoteur && PaieMoteur.gainLigne ? PaieMoteur.gainLigne(l) : l.gain) : 0; };
     // Éléments libres : lignes saisies à la main et lignes de la grille (heures sup., rubriques ajoutées).
     // Le salaire de base (1000) reste calculé par le moteur à partir de la fiche et des absences.
-    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0; };
+    var estLibre = function (l) { return (!l.auto || l.grille) && !l.retenue && String(l.code) !== '1000' && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0; };
     var manuels = lignes.filter(estLibre)
-      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false }; });
-    var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0; })
+      .map(function (l) { return { code: String(l.code), lib: l.lib || '', gain: gain(l), cnps: l.cnps !== false, irpp: l.irpp !== false, cfc: l.cfc !== false, src: l.grille ? 'Grille' : 'Saisie' }; });
+    var retenuesManuelles = lignes.filter(function (l) { return !l.auto && l.retenue && CODES_FIXES.indexOf(String(l.code)) < 0 && CODES_AUTO.indexOf(String(l.code)) < 0; })
       .map(function (l) { return { code: String(l.code), lib: l.lib || '', ret: gain(l) }; });
     var part = particularite(f.nom || o.nom, o.periode);
     var libres = manuels.concat(part.manuels || []).map(function (m) { return { code: m.code, lib: m.lib }; })
       .concat(retenuesManuelles.map(function (r) { return { code: r.code, lib: r.lib }; }));
     var pCodes = memoriserCodes(charger(), libres);
     return calculer({
-      manuels: manuels.concat(part.manuels || []),
+      manuels: manuels.concat((part.manuels || []).map(function (m) { return Object.assign({}, m, { src: 'Particularité du mois' }); })),
       ancMontant: part.ancMontant, congeMontant: part.congeMontant, cnpsInclutTransport: part.cnpsInclutTransport,
       cnpsBase: part.cnpsBase, retenues: part.retenues,
       logement: (f.logement !== undefined && f.logement !== '') ? f.logement : part.logement,
@@ -815,6 +862,6 @@
     });
   }
 
-  root.PaieHok = { memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
+  root.PaieHok = { corrigerRubrique: corrigerRubrique, correctionRubrique: correctionRubrique, champCorrigeable: champCorrigeable, evaluer: function (src, vars) { return evaluerFormule(src, { v: vars || {}, p: charger() }); }, rubriquesOcean: rubriquesOcean, memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PaieHok;
 })(typeof window !== 'undefined' ? window : globalThis);

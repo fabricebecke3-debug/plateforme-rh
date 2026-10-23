@@ -398,15 +398,48 @@
       var y = +m[1], mo = +m[2], last = new Date(y, mo, 0).getDate(), mm = String(mo).padStart(2, '0');
       return '01/' + mm + '/' + y + ' au ' + String(last).padStart(2, '0') + '/' + mm + '/' + y;
     }
-    function netDe(e) {
-      var s = st.saisies[e.id];
-      if (!saisieValide(s) || !root.PaieHok) return '';
+    function calcDe(e) {
+      var s0 = st.saisies[e.id];
+      if (!saisieValide(s0) || !root.PaieHok) return null;
       var per = periodeDe(st.mois || moisCourant());
       var f = Object.assign({}, e.fiche || {});
-      if (s.base !== '' && s.base != null) f.sb = s.base;
-      var lignes = lignesDe(st, s, e.fiche).filter(function (l) { return !l.erreur; });
-      var r = root.PaieHok.depuisLignes({ fiche: f, lignes: lignes, periode: per, presence: absencePour(e.id, per) });
-      return fmt(Math.round(r.net));
+      if (s0.base !== '' && s0.base != null) f.sb = s0.base;
+      var lignes = lignesDe(st, s0, e.fiche).filter(function (l) { return !l.erreur; });
+      return root.PaieHok.depuisLignes({ fiche: f, lignes: lignes, periode: per, presence: absencePour(e.id, per) });
+    }
+    function netDe(e) {
+      var r = calcDe(e);
+      return r ? fmt(Math.round(r.net)) : '';
+    }
+    // Détail : chaque montant avec son origine et l'endroit où le modifier
+    function ouvrirDetail(id) {
+      var e = emps.filter(function (x) { return String(x.id) === String(id); })[0];
+      if (!e) return;
+      var r = calcDe(e);
+      if (!r) { alert('Aucune saisie pour ce salarié : rien à détailler.'); return; }
+      var ou = {
+        'Modèle Océan': 'Automatique : formules et paramètres Hôtel Océan',
+        'Paramètres Océan': 'Paramètres Hôtel Océan › Rubriques et formules',
+        'Particularité du mois': 'Paramètres Hôtel Océan › Particularités du mois',
+        'Grille': 'Grille de saisie : profil du salarié (colonne Valeur / rubrique)',
+        'Saisie': 'Bulletin : ligne saisie à la main, ou fiche du salarié'
+      };
+      var lignes = r.gains.map(function (g) { return { code: g.code, lib: g.lib, m: g.gain, src: g.src || 'Modèle Océan' }; })
+        .concat(r.retenues.map(function (x) { return { code: x.code, lib: x.lib, m: x.ret, src: x.src || 'Modèle Océan' }; }));
+      var html = lignes.map(function (l) {
+        return '<tr><td style="padding:3px 6px">' + esc(l.code) + '</td><td style="padding:3px 6px">' + esc(l.lib) + '</td>' +
+          '<td style="padding:3px 6px;text-align:right">' + fmt(l.m) + '</td><td style="padding:3px 6px">' + esc(l.src) + '</td>' +
+          '<td style="padding:3px 6px;font-size:12px;color:#555">' + esc(ou[l.src] || '') + '</td></tr>';
+      }).join('');
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+      box.innerHTML = '<div style="background:#fff;color:#111;max-width:980px;width:100%;max-height:90vh;overflow:auto;border-radius:10px;padding:14px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b>Détail du bulletin : ' + esc(e.nom) + '</b><button type="button" data-fd style="padding:4px 10px">✕ Fermer</button></div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px"><thead><tr style="background:#eef2f8">' +
+        '<th style="text-align:left;padding:4px 6px">Code</th><th style="text-align:left">Libellé</th><th style="text-align:right">Montant</th><th style="text-align:left">Origine</th><th style="text-align:left">Où modifier</th></tr></thead><tbody>' + html + '</tbody></table>' +
+        '<p style="font-size:12px;color:#555">Net à payer : <b>' + fmt(Math.round(r.net)) + '</b>. Chaque montant se modifie à sa source indiquée ci-dessus.</p></div>';
+      box.addEventListener('click', function (ev) { if (ev.target === box || ev.target.dataset.fd !== undefined) box.remove(); });
+      document.body.appendChild(box);
     }
     function derives(e) {
       var s = sEmp(e);
@@ -442,7 +475,7 @@
     }
 
     function vueGrille() {
-      var colonnes = ['Salarié', 'Profil', 'Saisie en', 'Valeur', 'Jours', 'Heures', 'Samedi (h)', 'HS 120 %', 'HS 130 %', 'HS 140 %', 'Dimanche (h)', 'Nuit (h)', 'Férié (h)', 'Salaire de base', 'Brut', 'Net'];
+      var colonnes = ['Salarié', 'Profil', 'Saisie en', 'Valeur', 'Jours', 'Heures', 'Samedi (h)', 'HS 120 %', 'HS 130 %', 'HS 140 %', 'Dimanche (h)', 'Nuit (h)', 'Férié (h)', 'Salaire de base', 'Brut', 'Net', 'Détail'];
       var lignes = emps.map(function (e, idx) {
         var s = sEmp(e), d = derives(e), bg = idx % 2 ? '#f7f9fc' : '#fff';
         var champ = function (k, w) { return '<td><input data-hs="' + k + '" type="number" step="any" value="' + esc(s[k]) + '" style="' + IN + ';width:' + w + 'px;text-align:right"></td>'; };
@@ -460,7 +493,8 @@
           champ('samedi', 60) + champ('hs120', 60) + champ('hs130', 60) + champ('hs140', 60) + champ('hs_dim', 60) + champ('hs_nuit', 60) + champ('hs_ferie', 60) +
           '<td><input data-base type="number" step="any" value="' + esc((s.base !== '' && s.base != null) ? s.base : (e.sb || '')) + '" style="' + IN + ';width:100px;text-align:right"></td>' +
           '<td data-brut style="text-align:right;font-weight:700;white-space:nowrap">' + brutDe(e) + '</td>' +
-          '<td data-net style="text-align:right;font-weight:700;white-space:nowrap;color:#1e8449">' + netDe(e) + '</td></tr>';
+          '<td data-net style="text-align:right;font-weight:700;white-space:nowrap;color:#1e8449">' + netDe(e) + '</td>' +
+          '<td><button type="button" data-det="' + esc(e.id) + '" style="' + BTN + '">Détail</button></td></tr>';
       }).join('');
       var metaMois = '<label>Mois <input type="month" data-mois value="' + esc(st.mois || moisCourant()) + '" style="' + IN + '"></label>' +
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';
@@ -501,6 +535,9 @@
           '<input data-pn="' + pi + '" value="' + esc(p.nom) + '" style="' + IN + ';flex:1">' +
           '<label>Postes concernés (mots-clés de la fiche, séparés par des virgules)<input data-pk="' + pi + '" value="' + esc((p.postes || []).join(', ')) + '" style="' + IN + ';width:300px"></label>' +
           '<button type="button" data-act="delprof" data-pi="' + pi + '" style="' + BTN + '">✕ Supprimer le profil</button></div>' +
+          '<div style="margin:6px 0"><b>Modèle de paie :</b> <select data-pm="' + pi + '" style="' + IN + '">' +
+          '<option value="ocean"' + ((p.modele || 'ocean') === 'ocean' ? ' selected' : '') + '>Modèle Hôtel de l’Océan (codes 1, 2, 10…)</option>' +
+          '<option value="sage"' + (p.modele === 'sage' ? ' selected' : '') + '>Modèle Sage (catalogue 1000, 1435…)</option></select></div>' +
           '<div style="margin:6px 0"><b>Remplir ce profil :</b> <select data-copie="' + pi + '" style="' + IN + '"><option value="">— copier les rubriques depuis un autre profil… —</option>' +
           st.profils.map(function (x, k) { return k === pi ? '' : '<option value="' + k + '">' + esc(x.nom) + '</option>'; }).join('') + '</select></div>' +
           '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#eef2f8">' +
@@ -517,7 +554,8 @@
               '<td style="text-align:center"><input type="checkbox" data-pi="' + pi + '" data-ri="' + ri + '" data-rf="fiche"' + (r.fiche ? ' checked' : '') + '></td>' +
               '<td><button type="button" data-act="delrub" data-pi="' + pi + '" data-ri="' + ri + '" style="' + BTN + '">✕</button></td></tr>';
           }).join('') + '</tbody></table>' +
-          '<div style="margin-top:6px"><button type="button" data-act="addrub" data-pi="' + pi + '" style="' + BTN + '">+ Ajouter une rubrique à ce profil</button></div></div>';
+          '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select data-pick="' + pi + '" style="' + IN + ';min-width:360px">' + listeRubriques(p.modele || 'ocean') + '</select>' +
+          '<button type="button" data-act="addrub" data-pi="' + pi + '" style="' + BTN + '">+ Ajouter une rubrique vide</button></div></div>';
       }).join('');
       return bloc + '<button type="button" data-act="addprof" style="' + BTN + '">+ Nouveau profil</button>';
     }
@@ -550,6 +588,7 @@
     cadre.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-g],[data-act]');
       if (!b) return;
+      if (b.dataset.det !== undefined) { ouvrirDetail(b.dataset.det); return; }
       if (b.dataset.g === 'fermer') { ov.remove(); return; }
       if (b.dataset.g === 'param' || b.dataset.g === 'grille') { mode = b.dataset.g; rendre(); return; }
       if (b.dataset.g === 'export') { try { var nom = exporterXls(st, emps); msg('Fichier téléchargé : ' + nom); } catch (e) { msg('Export impossible : ' + e.message, true); } return; }
@@ -599,8 +638,44 @@
         touche = true;
       }
     });
+    // Sélecteur de rubrique : d'abord la numérotation du modèle Océan, puis création d'un code libre
+    function listeRubriques(modele) {
+      if (modele === 'sage') {
+        var cat = (root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : [];
+        return '<option value="">— choisir une rubrique du modèle Sage —</option>' +
+          cat.map(function (r) { return '<option value="sage:' + esc(r.code) + '">' + esc(r.code) + ' — ' + esc(r.libelle || '') + '</option>'; }).join('') +
+          '<optgroup label="Nouvelle rubrique"><option value="nouvelle">+ Créer une rubrique Sage</option></optgroup>';
+      }
+      var ro = root.PaieHok && root.PaieHok.rubriquesOcean ? root.PaieHok.rubriquesOcean() : { auto: [], ajoutees: [] };
+      var opt = function (v, t, dis) { return '<option value="' + esc(v) + '"' + (dis ? ' disabled' : '') + '>' + esc(t) + '</option>'; };
+      return opt('', '— choisir une rubrique du modèle Océan —', false) +
+        '<optgroup label="Déjà calculées par le modèle Océan (ne pas saisir ici)">' +
+        ro.auto.map(function (r) { return opt('auto:' + r.code, r.code + ' — ' + r.lib + ' (automatique)', true); }).join('') + '</optgroup>' +
+        (ro.ajoutees.length ? '<optgroup label="Rubriques ajoutées dans les paramètres Océan (calculées par leur formule)">' +
+          ro.ajoutees.map(function (r) { return opt('ajout:' + r.code, r.code + ' — ' + r.lib, true); }).join('') + '</optgroup>' : '') +
+        '<optgroup label="Nouvelle rubrique">' + opt('nouvelle', '+ Créer une rubrique (code libre à partir de 40)', false) + '</optgroup>';
+    }
+    function codeLibreDepart(modele) {
+      var ro = root.PaieHok && root.PaieHok.rubriquesOcean ? root.PaieHok.rubriquesOcean() : { auto: [], ajoutees: [] };
+      var pris = {};
+      if (modele === 'sage') { ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []).forEach(function (r) { pris[String(r.code)] = true; }); }
+      else { ro.auto.concat(ro.ajoutees).forEach(function (r) { pris[r.code] = true; }); }
+      st.profils.forEach(function (p) { (p.rubriques || []).forEach(function (r) { pris[String(r.code)] = true; }); });
+      var n = 40; while (pris[String(n)]) n++; return String(n);
+    }
     cadre.addEventListener('change', function (ev) {
       var t = ev.target;
+      if (t.dataset && t.dataset.pick !== undefined) {
+        var pi = +t.dataset.pick, v = t.value, modele = st.profils[pi].modele || 'ocean';
+        if (v === 'nouvelle') { st.profils[pi].rubriques.push({ code: codeLibreDepart(modele), lib: 'Nouvelle rubrique', nature: 'salaire', expr: '0', fiche: false }); touche = true; rendre(); }
+        else if (v.indexOf('sage:') === 0) {
+          var code = v.slice(5), cat = (root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : [];
+          var hit = cat.filter(function (r) { return String(r.code) === code; })[0] || { code: code, libelle: '' };
+          st.profils[pi].rubriques.push({ code: String(hit.code), lib: hit.libelle || '', nature: 'salaire', expr: '0', fiche: false }); touche = true; rendre();
+        }
+        return;
+      }
+      if (t.dataset && t.dataset.pm !== undefined) { st.profils[+t.dataset.pm].modele = t.value; touche = true; rendre(); return; }
       if (mode === 'grille') {
         if (t.dataset.mois != null) { st.mois = t.value; touche = true; totaux(); cadre.querySelectorAll('tr[data-emp]').forEach(function (tr) { var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0]; if (e) majLigne(e); }); enregistrerLocal(st); return; }
         var tr = t.closest('tr');
