@@ -2,7 +2,7 @@
  * PaieModeles.ouvrir()  : éditeur (nom, couleur, logo et sa position, rubriques affichées et leur ordre,
  *                         disposition des blocs, colonnes du tableau, pied légal, charges patronales).
  * PaieModeles.actif()   : modèle par défaut, utilisé à l'impression du bulletin détaillé.
- * Sauvegarde : localStorage 'terh_paie_modeles' + table parametres (clé paie_modeles_json) via window.TERH_paieModeles.
+ * Sauvegarde : localStorage 'terh_paie_modeles' + table parametres (clé paie_modeles_json) via window.PRH_paieModeles.
  */
 (function (root) {
   'use strict';
@@ -100,13 +100,13 @@
   }
   function sauver(liste) {
     try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(liste)); } catch (e) {}
-    var pont = root.TERH_paieModeles;
+    var pont = root.PRH_paieModeles;
     if (pont && pont.save) {
       Promise.resolve(pont.save(liste)).catch(function (e) { console.error('Modèles : sauvegarde base impossible', e); });
     }
   }
   function synchroniser() {
-    var pont = root.TERH_paieModeles;
+    var pont = root.PRH_paieModeles;
     if (!pont || !pont.load) return Promise.resolve(null);
     return Promise.resolve(pont.load()).then(function (l) {
       if (!Array.isArray(l) || !l.length) return null;

@@ -2,7 +2,7 @@
  * Chaque salarié est traité avec SON modèle de paie (PaieModeles.pourSalarie), comme son bulletin :
  *  - modèle Sage  : PaieGrille.lignesPour -> PaieMoteur.calculer -> PaieBulletinSage.lignesTableau (codes 1000, 8100, 9019…)
  *  - modèle Océan : PaieHok.depuisLignes (codes 1 à 28, rappels 29, avance 26 — mêmes totaux que le bulletin Océan)
- * PaieLivre.depuisGrille(opts)     : livre de tous les salariés de la fiche (TERH_fichesPaie).
+ * PaieLivre.depuisGrille(opts)     : livre de tous les salariés de la fiche (PRH_fichesPaie).
  * PaieLivre.generer(salaries, opts): mise en page. salaries = [{matricule, nom, fiche, lignes, modele?, presence?}]
  */
 (function (root) {
@@ -197,7 +197,7 @@
   // Salariés du mois, chacun avec le modèle qui lui est affecté (comme son bulletin)
   function depuisGrille(opts) {
     opts = opts || {};
-    var fiches = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).slice().sort(function (a, b) {
+    var fiches = (root.PRH_fichesPaie ? root.PRH_fichesPaie() : []).slice().sort(function (a, b) {
       return String(a.matricule || '').localeCompare(String(b.matricule || ''), 'fr', { numeric: true });
     });
     var taux = root.PAIE_TAUX_CACHE || {};

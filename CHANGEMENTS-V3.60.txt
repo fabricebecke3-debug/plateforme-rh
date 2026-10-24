@@ -14,7 +14,7 @@ VERSION 3.60 : LIVRE DE PAIE « VENTILATION PAR SALARIÉ » (format Sage)
   coût 159 978, IRPP 3 365, CAC 337, CFC 1 121, taxe communale 770, redevance 1 950 : tous exacts.
 
 3. BOUTON (paie-detail.js, index.html)
-- « 📚 Livre de paie » dans la barre du bulletin détaillé. Lit les fiches du mois (TERH_fichesPaie).
+- « 📚 Livre de paie » dans la barre du bulletin détaillé. Lit les fiches du mois (PRH_fichesPaie).
 
 4. POINTS OUVERTS
 - La ligne « Cotisations salariales » du livre Sage (29 305 pour le salarié 8000) n'est pas reproduite :

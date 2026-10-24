@@ -49,7 +49,17 @@
   ];
   // Salaire de base proratisé au nombre de jours saisis (fraction = jours ÷ jours du mois)
   var RUB_SALAIRE = { code: '1000', lib: 'Salaire de base (proratisé aux jours)', nature: 'salaire', expr: 'base*fraction' };
-  function rubs(liste) { return [copie(RUB_SALAIRE)].concat(liste.concat(RUB_HS.map(copie))); }
+  function rubs(liste, modele) { var base = (modele || 'ocean') === 'ocean' ? [] : [copie(RUB_SALAIRE)]; return base.concat(liste.concat(RUB_HS.map(copie))); }
+  // Une fois : retire la rubrique 1000 saisie automatiquement dans les profils du modèle Hôtel de l'Océan
+  function retirerSalaireOcean(st) {
+    if (!st || !Array.isArray(st.profils) || st.salaire_ocean_retire) return false;
+    st.profils.forEach(function (p) {
+      if ((p.modele || 'ocean') !== 'ocean' || !Array.isArray(p.rubriques)) return;
+      p.rubriques = p.rubriques.filter(function (r) { return !(String(r.code) === '1000' && /^base\*fraction$/.test(String(r.expr || '').trim())); });
+    });
+    st.salaire_ocean_retire = true;
+    return true;
+  }
 
   // Valeurs de départ : montants de vos fichiers Excel ; heures sup. selon le cours
   var DEFAUT = {
@@ -82,10 +92,20 @@
     if (!st || !Array.isArray(st.profils) || st.salaire_ajoute) return false;
     st.profils.forEach(function (p) {
       p.rubriques = Array.isArray(p.rubriques) ? p.rubriques : [];
-      if (!p.rubriques.some(function (r) { return /fraction/.test(r.expr || ''); })) p.rubriques.unshift(copie(RUB_SALAIRE));
+      if ((p.modele || 'ocean') !== 'ocean' && !p.rubriques.some(function (r) { return /fraction/.test(r.expr || ''); })) p.rubriques.unshift(copie(RUB_SALAIRE));
     });
     st.salaire_ajoute = true;
     return true;
+  }
+  var MOIS_NOMS = ['JANVIER','FÉVRIER','MARS','AVRIL','MAI','JUIN','JUILLET','AOÛT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DÉCEMBRE'];
+  // « 2026-10 » -> « OCTOBRE 2026 » (libellé lisible pour l'affichage et les noms de fichiers)
+  function libMois(m) {
+    var a = /^(\d{4})-(\d{2})$/.exec(String(m || ''));
+    return a ? MOIS_NOMS[+a[2] - 1] + ' ' + a[1] : String(m || '');
+  }
+  function nomFichierPaie(m, ext) {
+    var a = /^(\d{4})-(\d{2})$/.exec(String(m || ''));
+    return 'FICHIER DE PAIE DU MOIS DE ' + (a ? MOIS_NOMS[+a[2] - 1] + ' ' + a[1] : String(m || '')) + '.' + ext;
   }
   // ===== Clôture mensuelle =====
   // Un mois clôturé est figé dans sa propre archive (paie_cloture_<mois>). Clôturer retire ses saisies
@@ -96,9 +116,9 @@
     if (root.PaieI18n && root.PaieI18n.T) return root.PaieI18n.T(t, v);
     var o = t; if (v) Object.keys(v).forEach(function (x) { o = o.split('{' + x + '}').join(v[x]); }); return o;
   }
-  function clotures() { return root.TERH_paieClotures || null; }
+  function clotures() { return root.PRH_paieClotures || null; }
   // Droits : administrateur et éditeur gèrent la clôture ; le lecteur consulte et télécharge seulement
-  function peutGerer() { var r = root.TERH_role ? root.TERH_role() : ''; return r === 'admin' || r === 'editeur' || r === 'super_owner'; }
+  function peutGerer() { var r = root.PRH_role ? root.PRH_role() : ''; return r === 'admin' || r === 'editeur' || r === 'super_owner'; }
   function refuserSiLecteur() { return peutGerer() ? null : Promise.reject(new Error(T('Droits insuffisants : réservé à l\'administrateur et à l\'éditeur.'))); }
   function estClos(m) { return !!(m && CLOS[m]); }
   function chargerClos() {
@@ -162,15 +182,15 @@
     var source = (VUE && VUE.mois === m) ? Promise.resolve(VUE) : (estClos(m) && c ? Promise.resolve(c.lireMois(m)) : Promise.resolve(charger()));
     return source.then(function (snap) {
       if (!snap) throw new Error(T('Mois introuvable : {m}', { m: m }));
-      return JSON.stringify({ type: 'terh-paie-mois', version: 1, mois: m, exporte: new Date().toISOString(), donnees: snap }, null, 2);
+      return JSON.stringify({ type: 'prh-paie-mois', version: 1, mois: m, exporte: new Date().toISOString(), donnees: snap }, null, 2);
     });
   }
   function importerTexte(texte) {
     var refus = refuserSiLecteur(); if (refus) return refus;
     var c = clotures(); if (!c) return Promise.reject(new Error(T('Import indisponible : base non connectée.')));
     var f; try { f = JSON.parse(texte); } catch (e) { return Promise.reject(new Error(T('Fichier illisible.'))); }
-    if (!f || f.type !== 'terh-paie-mois' || !/^\d{4}-\d{2}$/.test(String(f.mois)) || !f.donnees || !Array.isArray(f.donnees.profils)) {
-      return Promise.reject(new Error(T('Ce fichier n\'est pas une paie mensuelle TERH.')));
+    if (!f || (f.type !== 'prh-paie-mois' && f.type !== 'terh-paie-mois') || !/^\d{4}-\d{2}$/.test(String(f.mois)) || !f.donnees || !Array.isArray(f.donnees.profils)) {
+      return Promise.reject(new Error(T('Ce fichier n\'est pas une paie mensuelle PLATEFORME RH.')));
     }
     var m = f.mois;
     if (estClos(m) && !root.confirm(T('Remplacer l\'archive du mois {m} par le fichier importé ?', { m: m }))) return Promise.resolve(null);
@@ -189,8 +209,8 @@
     } catch (e) { st = null; }
     if (!st || !Array.isArray(st.profils)) st = copie(DEFAUT);
     st.saisies = st.saisies || {};
-    var chg = nettoyer(st), sal = ajouterSalaire(st);
-    if (chg || sal) enregistrerLocal(st);
+    var chg = nettoyer(st), sal = ajouterSalaire(st), oc = retirerSalaireOcean(st);
+    if (chg || sal || oc) enregistrerLocal(st);
     return st;
   }
   function enregistrerLocal(st) {
@@ -202,7 +222,7 @@
     if (VUE) return Promise.reject(new Error(T('Consultation d\'un mois clôturé : lecture seule.')));
     if (estClos(st && st.mois)) return Promise.reject(new Error(T('Mois {m} clôturé : rouvrez-le pour le modifier.', { m: st.mois })));
     enregistrerLocal(st);
-    var pont = root.TERH_paieGrille;
+    var pont = root.PRH_paieGrille;
     if (pont && pont.save) {
       return Promise.resolve(pont.save(st)).catch(function (e) { console.error('Grille : sauvegarde base impossible', e); throw e; });
     }
@@ -382,7 +402,7 @@
   // Appelé par le bulletin détaillé à la sélection d'un salarié (et à chaque modification)
   function lignesPour(id) {
     var st = charger();
-    var fiche = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).filter(function (x) { return String(x.id) === String(id); })[0] || null;
+    var fiche = (root.PRH_fichesPaie ? root.PRH_fichesPaie() : []).filter(function (x) { return String(x.id) === String(id); })[0] || null;
     return lignesDe(st, st.saisies[String(id)], fiche).filter(function (l) { return !l.erreur; });
   }
 
@@ -430,7 +450,7 @@
       '<Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F5FBF" ss:Pattern="Solid"/><Alignment ss:WrapText="1"/></Style>' +
       '<Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style><Style ss:ID="b"><Font ss:Bold="1"/></Style></Styles>' +
       (feuilles || '<Worksheet ss:Name="Vide"><Table/></Worksheet>') + '</Workbook>';
-    var nomFichier = 'Simulation_salaires_' + (st.mois || moisCourant()) + '.xls';
+    var nomFichier = nomFichierPaie(st.mois || moisCourant(), 'xls');
     var blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -441,6 +461,30 @@
     return nomFichier;
   }
 
+  // Excel des bulletins du lot : matricule, nom, période, rubriques (montants), brut, net
+  function xlsLot(bons, mois) {
+    var codes = [], libs = {};
+    bons.forEach(function (r) { ((r.resultat && r.resultat.rubriques) || []).forEach(function (x) { var c = String(x.code); if (codes.indexOf(c) < 0) { codes.push(c); libs[c] = (x.retenue ? '- ' : '') + (x.lib || ''); } }); });
+    codes.sort(function (x, y) { return (+x || 0) - (+y || 0); });
+    var cel = function (v, st2) { var num = typeof v === 'number' && isFinite(v); return '<Cell' + (st2 ? ' ss:StyleID="' + st2 + '"' : '') + '><Data ss:Type="' + (num ? 'Number' : 'String') + '">' + esc(num ? String(v) : (v == null ? '' : String(v))) + '</Data></Cell>'; };
+    var ligneH = '<Row>' + cel('Matricule', 'h') + cel('Nom', 'h') + cel('Période', 'h') + codes.map(function (c) { return cel(c + ' ' + libs[c], 'h'); }).join('') + cel('Brut', 'h') + cel('Net', 'h') + '</Row>';
+    var lignes = bons.map(function (r) {
+      var f = r.fiche || {}, R = r.resultat || {}, par = {};
+      ((R.rubriques) || []).forEach(function (x) { par[String(x.code)] = Number(x.gain) || 0; });
+      return '<Row>' + cel(f.mat || '') + cel(f.nom || r.nom || '') + cel(r.periode || per0(mois)) + codes.map(function (c) { return cel(par[c] != null ? Math.round(par[c]) : '', 'n'); }).join('') + cel(Math.round(R.brut || 0), 'n') + cel(Math.round(R.net || 0), 'n') + '</Row>';
+    }).join('');
+    var xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+      '<Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F5FBF" ss:Pattern="Solid"/><Alignment ss:WrapText="1"/></Style><Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style></Styles>' +
+      '<Worksheet ss:Name="Bulletins"><Table>' + ligneH + lignes + '</Table></Worksheet></Workbook>';
+    var nom = nomFichierPaie(mois, 'xls');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([xml], { type: 'application/vnd.ms-excel' }));
+    a.download = nom; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    return nom;
+  }
+  function per0(mois) { var m = /^(\d{4})-(\d{2})$/.exec(String(mois || '')); if (!m) return ''; var last = new Date(+m[1], +m[2], 0).getDate(); return '01/' + m[2] + '/' + m[1] + ' au ' + String(last).padStart(2, '0') + '/' + m[2] + '/' + m[1]; }
+
   function evenementMaj(id) {
     try { root.dispatchEvent(new CustomEvent('paie-grille-maj', { detail: { id: String(id) } })); } catch (e) {}
   }
@@ -450,14 +494,14 @@
     if (document.getElementById(id)) return;
     var st = charger();
     var touche = false;
-    var emps = (root.TERH_fichesPaie ? root.TERH_fichesPaie() : []).map(function (x) {
+    var emps = (root.PRH_fichesPaie ? root.PRH_fichesPaie() : []).map(function (x) {
       return { id: String(x.id), nom: x.nom || '', sb: x.sb || '', poste: x.poste || '', fiche: x };
     });
     // Chaque poste de la liste a son profil : créé automatiquement (vide) s'il n'existe pas, à remplir ensuite
     function creerProfilsPostes() {
       var n = 0;
       [...new Set(emps.map(function (e) { return e.poste; }).filter(Boolean))].sort().forEach(function (po) {
-        if (!profilMots(st, po)) { st.profils.push({ id: nouvelId('p'), nom: po, postes: [po], rubriques: rubs([]) }); n++; }
+        if (!profilMots(st, po)) { st.profils.push({ id: nouvelId('p'), nom: po, postes: [po], rubriques: rubs([], 'ocean') }); n++; }
       });
       return n;
     }
@@ -495,6 +539,11 @@
     }
     // Net à payer du salarié pour le mois de la grille : même calcul que le bulletin (salaire saisi ici prioritaire)
     function periodeDe(mois) {
+      var pp = st.periode;
+      if (pp && pp.debut && pp.fin) {
+        var d1 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pp.debut), d2 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pp.fin);
+        if (d1 && d2) return d1[3] + '/' + d1[2] + '/' + d1[1] + ' au ' + d2[3] + '/' + d2[2] + '/' + d2[1];
+      }
       var m = /(\d{4})-(\d{2})/.exec(mois || ''); if (!m) return '';
       var y = +m[1], mo = +m[2], last = new Date(y, mo, 0).getDate(), mm = String(mo).padStart(2, '0');
       return '01/' + mm + '/' + y + ' au ' + String(last).padStart(2, '0') + '/' + mm + '/' + y;
@@ -597,10 +646,16 @@
           '<td data-net style="text-align:right;font-weight:700;white-space:nowrap;color:#1e8449">' + netDe(e) + '</td>' +
           '<td><button type="button" data-det="' + esc(e.id) + '" style="' + BTN + '">Détail</button></td></tr>';
       }).join('');
+      var pDeb = (st.periode && st.periode.debut) || '', pFin = (st.periode && st.periode.fin) || '';
       var metaMois = '<label>Mois <input type="month" data-mois value="' + esc(st.mois || moisCourant()) + '" style="' + IN + '"></label>' +
+        '<label>Période du <input type="date" data-pdeb value="' + esc(pDeb) + '" style="' + IN + '"></label>' +
+        '<label>au <input type="date" data-pfin value="' + esc(pFin) + '" style="' + IN + '"></label>' +
+        '<small style="color:#555">' + (pDeb && pFin ? 'Période personnalisée' : 'Période du mois (vider les dates pour y revenir)') + '</small>' +
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';
       return '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' + metaMois +
-        '<button type="button" data-g="export" style="' + BTN + '">📊 Exporter au format Excel</button></div>' +
+        '<button type="button" data-g="export" style="' + BTN + '">📊 Exporter au format Excel</button>' +
+        '<button type="button" data-g="lot" style="' + BTN_P + '">🖨️ Bulletins du mois (lot) : imprimer / PDF</button>' +
+        '<button type="button" data-g="lotxls" style="' + BTN + '">📊 Bulletins du mois (lot) : Excel</button></div>' +
         (function () {
           // Postes des salariés qu'aucun profil ne reconnaît (ajoutez le mot-clé dans « Postes concernés »)
           var sans = {};
@@ -696,14 +751,14 @@
       var lec = estLecture(), g = peutGerer();
       var liste = Object.keys(CLOS).sort().reverse();
       var opts = '<option value="">Consulter un mois clôturé…</option>' + liste.map(function (m) {
-        return '<option value="' + esc(m) + '"' + (VUE && VUE.mois === m ? ' selected' : '') + '>' + esc(m) + '</option>';
+        return '<option value="' + esc(m) + '"' + (VUE && VUE.mois === m ? ' selected' : '') + '>' + esc(libMois(m)) + '</option>';
       }).join('');
       var etat;
       if (VUE) {
-        etat = '<b style="color:#b03a2e">' + esc(T('👁 Consultation du mois {m} (lecture seule)', { m: VUE.mois })) + '</b> ' +
+        etat = '<b style="color:#b03a2e">' + esc(T('👁 Consultation du mois {m} (lecture seule)', { m: libMois(VUE.mois) })) + '</b> ' +
           '<button type="button" data-cl="retour" style="' + BTN + '">↩ Retour au mois en cours</button>';
       } else if (lec) {
-        etat = '<b style="color:#b03a2e">' + esc(T('🔒 Mois {m} clôturé (lecture seule)', { m: st.mois })) + '</b> ' +
+        etat = '<b style="color:#b03a2e">' + esc(T('🔒 Mois {m} clôturé (lecture seule)', { m: libMois(st.mois) })) + '</b> ' +
           (g ? '<button type="button" data-cl="rouvrir" style="' + BTN + '">🔓 Rouvrir ce mois</button>' : '');
       } else {
         etat = g ? '<button type="button" data-cl="cloturer" style="' + BTN + '">' + esc(T('🔒 Clôturer le mois {m}', { m: st.mois || moisCourant() })) + '</button>'
@@ -722,11 +777,37 @@
       cadre.querySelectorAll('[data-act]').forEach(function (b) { b.disabled = lec; });
       var en = cadre.querySelector('[data-g="enregistrer"]'); if (en) en.disabled = lec;
     }
+    // Bulletins de tout le mois : salariés dont la saisie est complète ; plage de matricules facultative
+    function lancerLot(format) {
+      if (!root.PaieDetail || !root.PaieDetail.bulletinsEnLot) { msg('Le module des bulletins n\'est pas chargé.', true); return; }
+      var mois = st.mois || moisCourant(), per = periodeDe(mois);
+      var toutes = (root.PRH_fichesPaie ? root.PRH_fichesPaie() : []).filter(function (f) { return saisieValide(st.saisies[String(f.id)]); });
+      var de = prompt('Matricule de (vide = premier) :', ''); if (de === null) return;
+      var a = prompt('Matricule à (vide = dernier) :', ''); if (a === null) return;
+      var fiches = toutes.filter(function (f) {
+        var m = String(f.mat || '').trim();
+        if (de.trim() && m < de.trim()) return false;
+        if (a.trim() && m > a.trim()) return false;
+        return true;
+      });
+      if (!fiches.length) { msg('Aucun bulletin à générer : saisie incomplète ou plage vide.', true); return; }
+      if (!root.confirm(fiches.length + ' bulletin(s) pour ' + libMois(mois) + '. Continuer ?')) return;
+      var ops = (typeof root.PRH_bulletinOpts === 'function') ? root.PRH_bulletinOpts() : {};
+      msg('Génération de ' + fiches.length + ' bulletin(s)…');
+      root.PaieDetail.bulletinsEnLot({ fiches: fiches, periode: per, bulletin: ops.bulletin, employeur: ops.employeur, taux: ops.taux, rubriques: ops.rubriques }).then(function (res) {
+        var bons = res.filter(function (r) { return r && r.html; }), mauvais = res.length - bons.length;
+        if (!bons.length) { msg('Aucun bulletin généré.', true); return; }
+        if (format === 'xls') { var nomX = xlsLot(bons, mois); msg('Fichier téléchargé : ' + nomX + (mauvais ? ' — ' + mauvais + ' bulletin(s) en erreur' : '')); return; }
+        var corps = bons.map(function (r) { return '<div style="page-break-after:always">' + r.html + '</div>'; }).join('');
+        root.printHTML('Bulletins de paie — ' + libMois(mois), corps, bons[0].css, { apercu: true });
+        msg(bons.length + ' bulletin(s) envoyés à l\'impression' + (mauvais ? ' — ' + mauvais + ' en erreur' : '') + '.');
+      }).catch(function (e) { msg('Lot impossible : ' + ((e && e.message) || e), true); });
+    }
     function telechargerMois() {
       return exporterMois(st.mois).then(function (txt) {
         var a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
-        a.download = 'paie_' + (VUE ? VUE.mois : st.mois) + '.json';
+        a.download = nomFichierPaie(VUE ? VUE.mois : st.mois, 'json');
         a.click();
       });
     }
@@ -768,6 +849,7 @@
       if (b.dataset.det !== undefined) { ouvrirDetail(b.dataset.det); return; }
       if (b.dataset.g === 'fermer') { ov.remove(); return; }
       if (b.dataset.g === 'param' || b.dataset.g === 'grille') { mode = b.dataset.g; rendre(); return; }
+      if (b.dataset.g === 'lot' || b.dataset.g === 'lotxls') { lancerLot(b.dataset.g === 'lotxls' ? 'xls' : 'pdf'); return; }
       if (b.dataset.g === 'export') { try { var nom = exporterXls(st, emps); msg('Fichier téléchargé : ' + nom); } catch (e) { msg('Export impossible : ' + e.message, true); } return; }
       if (b.dataset.g === 'enregistrer') {
         var err = verifier();
@@ -777,7 +859,7 @@
       }
       var a = b.dataset.act, pi = +b.dataset.pi, ri = +b.dataset.ri;
       touche = true;
-      if (a === 'addprof') { st.profils.push({ id: nouvelId('p'), nom: 'Nouveau profil', postes: [], rubriques: rubs([]) }); rendre(); }
+      if (a === 'addprof') { st.profils.push({ id: nouvelId('p'), nom: 'Nouveau profil', postes: [], rubriques: rubs([], 'ocean') }); rendre(); }
       else if (a === 'delprof') {
         if (!confirm('Supprimer le profil « ' + st.profils[pi].nom + ' » ?')) return;
         st.profils.splice(pi, 1); rendre();
@@ -873,7 +955,12 @@
       }
       if (t.dataset && t.dataset.pm !== undefined) { st.profils[+t.dataset.pm].modele = t.value; touche = true; rendre(); return; }
       if (mode === 'grille') {
-        if (t.dataset.mois != null) { st.mois = t.value; touche = true; totaux(); cadre.querySelectorAll('tr[data-emp]').forEach(function (tr) { var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0]; if (e) majLigne(e); }); enregistrerLocal(st); return; }
+        if (t.dataset.pdeb != null || t.dataset.pfin != null) {
+          st.periode = { debut: cadre.querySelector('[data-pdeb]').value, fin: cadre.querySelector('[data-pfin]').value };
+          if (!st.periode.debut && !st.periode.fin) st.periode = null;
+          touche = true; totaux(); cadre.querySelectorAll('tr[data-emp]').forEach(function (tr) { var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0]; if (e) majLigne(e); }); enregistrerLocal(st); rendre(); return;
+        }
+        if (t.dataset.mois != null) { st.mois = t.value; st.periode = null; touche = true; totaux(); cadre.querySelectorAll('tr[data-emp]').forEach(function (tr) { var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0]; if (e) majLigne(e); }); enregistrerLocal(st); return; }
         var tr = t.closest('tr');
         if (!tr || !tr.dataset.emp) return;
         var e = emps.filter(function (x) { return x.id === tr.dataset.emp; })[0];
@@ -915,7 +1002,7 @@
 
     rendre();
     chargerClos().then(function () { rendre(); });
-    var pont = root.TERH_paieGrille;
+    var pont = root.PRH_paieGrille;
     if (pont && pont.load) {
       Promise.resolve(pont.load()).then(function (l) {
         // Ne remplace jamais une saisie faite pendant le chargement

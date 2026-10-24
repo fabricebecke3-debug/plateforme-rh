@@ -1,0 +1,5 @@
+VERSION 3.110 : BULLETINS DU MOIS EN LOT (paie-detail.js, paie-grille.js, index.html)
+- Nouveau bouton « Bulletins du mois (lot) : imprimer / PDF » dans la grille : tous les salariés dont la saisie est complète sont calculés un par un avec le même moteur que le bouton « Aperçu / imprimer » du bulletin, puis envoyés ensemble à l'impression (un bulletin par page). Pour un PDF, choisir « Enregistrer au format PDF » dans la boîte d'impression.
+- Plage de matricules facultative (de / à), avec confirmation du nombre de bulletins.
+- Nouveau bouton « Bulletins du mois (lot) : Excel » : un fichier FICHIER DE PAIE DU MOIS DE … .xls, une ligne par salarié (matricule, nom, période, montant de chaque rubrique, brut, net).
+- Les bulletins en erreur sont signalés et n'empêchent pas le reste du lot.

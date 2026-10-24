@@ -1,5 +1,5 @@
 /* =====================================================================
- * TERH · dipe-plus.js — améliorations du module « DIPE depuis les bulletins »
+ * PLATEFORME RH · dipe-plus.js — améliorations du module « DIPE depuis les bulletins »
  * Fichier d'appoint (comme sage-data.json) : à garder à côté de index.html.
  *
  *  ✔ Lecture du salaire COTISABLE recopié tel quel depuis Sage (aucun calcul ni estimation)
@@ -19,13 +19,13 @@
  * ===================================================================== */
 (function(){
 'use strict';
-const T=window.TERH_DIPE=window.TERH_DIPE||{};
+const T=window.PRH_DIPE=window.PRH_DIPE||{};
 T.version='2026.10.12';
 T.custom=T.custom||{};
 /* chargement à la demande de cnps-ia.js (triangulation, IA, assistant CNPS) */
 T.ia=function(cb,fallback){
-  const run=()=>{try{window.TERH_CNPSIA.attach(T.ctx);cb(window.TERH_CNPSIA);}catch(e){console.error('cnps-ia',e);try{(T.ctx&&T.ctx.say)&&T.ctx.say('Module IA CNPS : erreur '+e.message);}catch(x){}if(fallback)fallback();}};
-  if(window.TERH_CNPSIA&&window.TERH_CNPSIA.analyze)return run();
+  const run=()=>{try{window.PRH_CNPSIA.attach(T.ctx);cb(window.PRH_CNPSIA);}catch(e){console.error('cnps-ia',e);try{(T.ctx&&T.ctx.say)&&T.ctx.say('Module IA CNPS : erreur '+e.message);}catch(x){}if(fallback)fallback();}};
+  if(window.PRH_CNPSIA&&window.PRH_CNPSIA.analyze)return run();
   const sc=document.createElement('script');sc.src='cnps-ia.js?t='+Date.now();sc.onload=run;
   sc.onerror=()=>{console.warn('cnps-ia.js introuvable');try{(T.ctx&&T.ctx.say)&&T.ctx.say('cnps-ia.js introuvable : placez-le à côté de index.html (triangulation/IA désactivées)');}catch(x){}if(fallback)fallback();};
   document.head.appendChild(sc);};
@@ -85,7 +85,7 @@ const cleanN=s=>{let w=String(s||'').replace(/\s+/g,' ').trim().split(' ').filte
   if(w.length>=2&&w.length%2===0){const h=w.length/2;if(w.slice(0,h).map(nz).join(' ')===w.slice(h).map(nz).join(' '))w=w.slice(0,h);}return w.join(' ');};
 /* cherche la personne dans le référentiel PAR SON NOM (exact d'abord, puis orthographe approchante) */
 T.refFind=function(names,cur){
-  const C=window.TERH_CNPSREF,list=(C&&C.S&&C.S.list)||[];
+  const C=window.PRH_CNPSREF,list=(C&&C.S&&C.S.list)||[];
   const A=(names||[]).filter(Boolean).map(tkz).filter(a=>a.length);
   if(!A.length)return {o:null,amb:false,near:[]};
   for(const fz of [false,true]){
@@ -100,7 +100,7 @@ T.refFind=function(names,cur){
   const near=list.filter(o=>{const B=tkz(o.n);return A.some(a=>a.some(x=>x.length>=4&&B.some(y=>tokEq(x,y,true))));}).slice(0,3);
   return {o:null,amb:false,near};};
 T.refSyncRows=function(R,E,MAT){
-  const C=window.TERH_CNPSREF;if(!C||!C.S||!C.S.list||!C.S.list.length)return 0;
+  const C=window.PRH_CNPSREF;if(!C||!C.S||!C.S.list||!C.S.list.length)return 0;
   E=E||[];MAT=MAT||{};let n=0;
   const dropW=(r,re)=>{if(r.warn)r.warn=r.warn.split(' · ').filter(x=>!re.test(x)).join(' · ');};
   const addW=(r,t)=>{r.warn=String(r.warn||'').includes(t)?r.warn:(r.warn?r.warn+' · ':'')+t;};
@@ -503,12 +503,12 @@ T.mount=function(ctx){
   async function aiRead(a){
     const sl=a.x.slip,row=a.x.row,txt=sl._t||row._t||'';
     if(!txt)return {err:'pas de texte lu pour ce bulletin'};
-    if(typeof window.TERH_callAI!=='function')return {err:'service IA non disponible dans cette page'};
+    if(typeof window.PRH_callAI!=='function')return {err:'service IA non disponible dans cette page'};
     const prompt='Tu lis le texte brut (extrait d\'un PDF) d\'un bulletin de paie camerounais (Sage). Réponds UNIQUEMENT par un objet JSON, sans texte autour : {"matricule":"","brut":0,"base_pension_vieillesse_cnps":0,"jours":0}.\n'+
       '- matricule : la valeur sous l\'en-tête « Matricule » (pas le N° de Sécurité Sociale).\n- brut : le montant de « Total Brut » (entier, sans séparateur).\n'+
       '- base_pension_vieillesse_cnps : le PREMIER montant (colonne Base) de la ligne « Pension vieillesse CNPS » ; null si cette ligne n\'existe pas.\n- jours : nombre de jours payés si indiqué, sinon null.\n'+
       'N\'invente RIEN : si tu n\'es pas sûr, mets null. Recopie les montants tels qu\'écrits (146990.000 → 146990).\n\nTEXTE DU BULLETIN :\n'+maskTxt(txt,row);
-    let r;try{r=await window.TERH_callAI({raw:true,messages:[{role:'user',content:prompt}],max_tokens:300},30000);}catch(e){return {err:e.message||String(e)};}
+    let r;try{r=await window.PRH_callAI({raw:true,messages:[{role:'user',content:prompt}],max_tokens:300},30000);}catch(e){return {err:e.message||String(e)};}
     const data=r&&r.data,error=r&&r.error;
     if(error||!data||!data.text)return {err:(error&&error.message)||'pas de réponse de l\'IA'};
     let j=null;try{j=JSON.parse((/\{[\s\S]*\}/.exec(data.text)||[''])[0]);}catch(e){}
@@ -545,7 +545,7 @@ T.mount=function(ctx){
   T.report=function(auto){
     const log=(window.__slipLog||[]).filter(x=>x&&x.row);
     if(!log.length){if(!auto)say('Aucun bulletin lu : lancez d\'abord « Lire les bulletins »');return;}
-    const refOk=!!(window.TERH_CNPSREF&&TERH_CNPSREF.S&&TERH_CNPSREF.S.list&&TERH_CNPSREF.S.list.length);
+    const refOk=!!(window.PRH_CNPSREF&&PRH_CNPSREF.S&&PRH_CNPSREF.S.list&&PRH_CNPSREF.S.list.length);
     const an=log.map(x=>{const r=x.row,sl=x.slip,p=[];
       if(!x.matched)p.push('🆕 non rattaché à une ligne existante (nouvelle ligne)');
       if(!(sl.cot>0))p.push('⚠️ cotisable non lu sur le bulletin (ligne « Pension vieillesse CNPS » introuvable ou valeur 0) → ligne BLOQUÉE jusqu\'à correction, pas exclue');
@@ -706,7 +706,7 @@ T.mount=function(ctx){
     if(!confirm(nm+' matricule(s) et '+ciu.length+' N° CNPS seront enregistrés dans les fiches employés (un N° déjà renseigné n\'est remplacé que s\'il diffère du référentiel CNPS : '+nfix+' correction(s)). Continuer ?'))return;
     let ko=0;
     try{if(nm){Object.assign(MAT,mats);await ctx.wr('matricules_json',MAT);}}catch(e){ko++;console.error(e);}
-    for(const [e,c] of ciu){try{const cf=(window.TERH_CNPSREF&&TERH_CNPSREF.fmt)?TERH_CNPSREF.fmt(c):c;await updateEmp(e.id,{...e,cnps:cf});e.cnps=cf;}catch(er){ko++;console.error(er);}}
+    for(const [e,c] of ciu){try{const cf=(window.PRH_CNPSREF&&PRH_CNPSREF.fmt)?PRH_CNPSREF.fmt(c):c;await updateEmp(e.id,{...e,cnps:cf});e.cnps=cf;}catch(er){ko++;console.error(er);}}
     say(ko?'⚠ Enregistré avec '+ko+' erreur(s) (voir la console)':'✅ Fiches mises à jour');};
 
   /* --- texte lu + apprentissage de libellé --- */
@@ -781,8 +781,8 @@ T.mount=function(ctx){
 
   /* --- N° CNPS du référentiel : appliqué automatiquement --- */
   T.refSync=silent=>{const n=T.refSyncRows(R,E,MAT);if(n&&!silent)say('📚 '+n+' N° CNPS remplacé(s) par ceux du référentiel CNPS');return n;};
-  $('dpx_refsync').onclick=async()=>{try{if(window.TERH_CNPSREF)await TERH_CNPSREF.load();}catch(e){}
-    if(!(window.TERH_CNPSREF&&TERH_CNPSREF.S.list.length)){say('Référentiel CNPS vide : importez-le d\'abord (bouton 📚 « Référentiel CNPS » du module)');return;}
+  $('dpx_refsync').onclick=async()=>{try{if(window.PRH_CNPSREF)await PRH_CNPSREF.load();}catch(e){}
+    if(!(window.PRH_CNPSREF&&PRH_CNPSREF.S.list.length)){say('Référentiel CNPS vide : importez-le d\'abord (bouton 📚 « Référentiel CNPS » du module)');return;}
     const n=T.refSync(true);render();say(n?'📚 '+n+' N° CNPS remplacé(s) par ceux du référentiel':'📚 Tous les N° CNPS sont déjà ceux du référentiel');};
   $('dpx_refback').onclick=()=>{let k=0;R.forEach(r=>{if(r.cnpsSrc==='absent'&&digits(r.cnpsWas).length===11&&!r.cnpsWasOwned){r.cnps=digits(r.cnpsWas);r.cnpsManual=true;r.cnpsSrc='hors';r.cnpsNoRef=false;k++;}});
     render();say(k?'↩ '+k+' N° repris (hors référentiel, marqués comme saisis par vous)':'Aucun N° à reprendre (ceux qui appartiennent à quelqu\'un d\'autre ne sont jamais repris)');};
@@ -810,7 +810,7 @@ T.mount=function(ctx){
     Promise.resolve(x.step2({ask:true})).catch(e=>{console.error(e);say('Étape ② : '+e.message);}).then(()=>T.banner());});
   /* le module appelle draw() après lecture : on le remplace par notre rendu */
   ctx.setDraw(render);
-  try{const C0=window.TERH_CNPSREF;if(C0&&C0.load)Promise.resolve(C0.load()).then(()=>{const n=T.refSync(true);if(n){render();const ab=R.filter(r=>r.cnpsSrc==='absent'||r.cnpsSrc==='ambigu').length;say('📚 '+n+' N° CNPS corrigé(s) d\'après le référentiel CNPS'+(ab?' · ⚠ '+ab+' personne(s) introuvable(s)/homonymes : N° vide, à saisir':''));}}).catch(()=>{});}catch(e){}
+  try{const C0=window.PRH_CNPSREF;if(C0&&C0.load)Promise.resolve(C0.load()).then(()=>{const n=T.refSync(true);if(n){render();const ab=R.filter(r=>r.cnpsSrc==='absent'||r.cnpsSrc==='ambigu').length;say('📚 '+n+' N° CNPS corrigé(s) d\'après le référentiel CNPS'+(ab?' · ⚠ '+ab+' personne(s) introuvable(s)/homonymes : N° vide, à saisir':''));}}).catch(()=>{});}catch(e){}
   $('dpx_info').textContent='🧩 dipe-plus.js v'+T.version+' actif — brut lu sur « Total Brut », cotisable sur la colonne Base de « Pension vieillesse CNPS » (aucun calcul) · N° CNPS : référentiel CNPS en priorité.';
   g('d_flt').onchange=render;g('d_drop').onchange=render;
   const stat=el.querySelector('#d_s');
@@ -820,7 +820,7 @@ T.mount=function(ctx){
 };
 
 /* traductions anglaises de cette interface */
-try{(window.TERH_I18N_add||function(o){window.TERH_I18N=Object.assign(window.TERH_I18N||{},o);})({
+try{(window.PRH_I18N_add||function(o){window.PRH_I18N=Object.assign(window.PRH_I18N||{},o);})({
  'Nom, CNPS, matricule…':'Name, CNPS, employee no.…','Tout (filtre)':'All (filtered)','Aucun':'None','Supprimer la sélection':'Delete selection','Supprimer…':'Delete…',
  'les lignes vides (sans CNPS ni brut)':'empty rows (no CNPS nor gross)','les lignes sans bulletin (brut 0)':'rows without payslip (gross 0)','les anciens absents des bulletins':'old rows missing from payslips','les doublons (même CNPS ou matricule)':'duplicates (same CNPS or employee no.)','toutes les lignes à corriger':'all rows to fix',
  'Annuler':'Undo','Compléter les manquants':'Complete missing data','Générer les matricules manquants':'Generate missing employee numbers','Enregistrer dans les fiches':'Save to employee records','Relire avec les libellés appris':'Re-read with learned labels','Mes libellés':'My labels',

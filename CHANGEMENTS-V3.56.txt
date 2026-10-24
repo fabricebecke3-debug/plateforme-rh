@@ -10,7 +10,7 @@ Corrections trouvées avant mise en production (contrôle du fichier du personne
 - Avant : sans date saisie, l'ancienneté valait 0 : la prime d'ancienneté (6 % ou 10 %) disparaissait
   des bulletins de l'Hôtel de l'Océan et l'ancienneté n'apparaissait pas sur les bulletins Sage.
 
-2. FICHE DE PAIE (index.html, TERH_fichesPaie)
+2. FICHE DE PAIE (index.html, PRH_fichesPaie)
 - Date d'entrée : si la fiche n'en a pas, la colonne « DATE D'EMBAUCHE » du fichier importé est utilisée
   (elle était lue mais jamais reprise).
 - Matricule : si la plateforme n'a pas attribué de matricule, celui du fichier est utilisé.

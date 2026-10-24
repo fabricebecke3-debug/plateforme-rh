@@ -1,0 +1,7 @@
+VERSION 3.108 : NOM PLATEFORME RH, FICHIERS DE PAIE NOMMÉS PAR MOIS, RUBRIQUE 1000 RETIRÉE DU MODÈLE OCÉAN
+- « TERH » remplacé par « PLATEFORME RH » dans l'application (identifiants internes, titres, textes, commentaires).
+- Téléchargement d'un mois : « FICHIER DE PAIE DU MOIS DE OCTOBRE 2026 » (.json pour la réimportation, .xls pour l'export Excel).
+- Import : accepte les fichiers exportés en 3.108 et les anciens fichiers.
+- Le salaire de base (code 1000) n'est plus ajouté automatiquement aux profils du modèle Hôtel de l'Océan : c'est le modèle qui le calcule (rubrique 1, au prorata des jours). Les profils existants sont nettoyés une seule fois.
+- Liste des mois clôturés et titres : affichage « OCTOBRE 2026 » au lieu de « 2026-10 ».
+Les clés de stockage locales (terh_...) sont conservées pour ne pas perdre les données existantes.

@@ -608,7 +608,7 @@ nav b{max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 <div id="am">
   <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,var(--ac),var(--cd));color:#fff">
     <div><b>🤖 Assistant RH</b><div id="ams" style="font-size:10px;opacity:.85">WebLLM · Local + Cloud</div></div>
-    <button onclick="addMsg('assistant',aiDiag());TERH_aiPing()" title="Pourquoi l'IA ne répond pas ?" style="background:none;border:0;color:#fff;font-size:16px;cursor:pointer">🩺</button><button onclick="document.getElementById('am').classList.remove('on')" style="background:none;border:0;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    <button onclick="addMsg('assistant',aiDiag());PRH_aiPing()" title="Pourquoi l'IA ne répond pas ?" style="background:none;border:0;color:#fff;font-size:16px;cursor:pointer">🩺</button><button onclick="document.getElementById('am').classList.remove('on')" style="background:none;border:0;color:#fff;font-size:20px;cursor:pointer">✕</button>
   </div>
   <div id="al" style="display:none;padding:10px 16px;background:color-mix(in srgb,var(--wa) 15%,var(--card));border-bottom:1px solid var(--bd);font-size:12px">
     <div id="alt">Chargement…</div>
@@ -672,7 +672,7 @@ const TK=x=>/^-?\d[\d ]*(,\d+)?$|^-?\d+(\.\d+)?$/.test(x)?{n:parseFloat(x.replac
 const PF=f=>{const a=f.trim().split(/\s+/);if(!/^(=|\+|-|\*|\/|Div)$/.test(a[0]))a.unshift('=');const o=[];for(let i=0;i+1<a.length;i+=2)o.push([a[i],TK(a[i+1])]);return o;};
 const FO=c=>(c.o||[]).map(o=>o[0]+' '+(o[1].n!==undefined?o[1].n:o[1].v)).join(' ');
 const FIELDS=[['titre','Titre','text'],['fs','Taille police','number'],['head','Couleur des en-têtes','color'],['bord','Couleur des bordures','color'],['conv','Convention','text'],['siret','N° SIRET','text'],['ape','APE / NAF','text'],['net','Libellé net à payer','text'],['sig','Signature / mention droite','text'],['mention','Mention en bas','text'],['adr','Adresse employeur','area']],TG=[['ent','Bloc salarié (matricule, ancienneté…)'],['conges','Tableau congés'],['pat','Part patronale'],['cum','Cumuls']];
-function bul(b){const P=window.TERH_P;if(!P){b.innerHTML='Ouvrez d\'abord Paie & droit.';return;}
+function bul(b){const P=window.PRH_P;if(!P){b.innerHTML='Ouvrez d\'abord Paie & droit.';return;}
  const sg={ent:1,conges:1,pat:1,cum:1,...(P.MOD.sg||{})};
  b.innerHTML='<div style="display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:10px" id="sgg"><div id="sgf">'+FIELDS.map(f=>'<label style="display:block;margin:4px 0">'+f[1]+'<br>'+(f[2]==='area'?'<textarea data-k="'+f[0]+'" rows="3" style="width:100%">'+E(sg[f[0]]||'')+'</textarea>':'<input data-k="'+f[0]+'" type="'+f[2]+'" value="'+E(sg[f[0]]??'')+'" style="width:100%">')+'</label>').join('')+TG.map(f=>'<label style="display:block"><input type="checkbox" data-t="'+f[0]+'" '+(sg[f[0]]?'checked':'')+'> '+f[1]+'</label>').join('')+'<p><button class="p" id="sgs">💾 Enregistrer</button> <button class="s" id="sgp">🖨️ Imprimer</button></p></div><div id="sgv" style="border:1px solid var(--bd,#ddd);background:#fff;color:#111;padding:8px;overflow:auto"></div></div><style>@media(max-width:700px){#sgg{grid-template-columns:1fr!important}}</style>';
  const pv=()=>{P.MOD={...P.MOD,m:'sage',sg};b.querySelector('#sgv').innerHTML=P.prev();};
@@ -687,7 +687,7 @@ function edit(code,isR,after){const S=SAGE,x=isR?S.rub.find(r=>r.c===code):S.con
  o.querySelector('#es').onclick=async()=>{try{let n=JSON.parse(o.querySelector('#ej').value);const f=o.querySelector('#ef');if(f&&f.value.trim()!==FO(x))n.o=PF(f.value);n.c=code;
   if(isR){const i=S.rub.findIndex(r=>r.c===code);S.rub[i]=n;CU.rub=(CU.rub||[]).filter(r=>r.c!==code).concat(n);}else{S.con[code]=n;CU.con[code]=n;}
   await SV('sage_custom_json',CU);o.remove();after();}catch(e){alert('Erreur : '+e.message);}};}
-async function addItem(isR,after){const P=window.TERH_P,c=(prompt('Code ('+(isR?'ex. 1500':'ex. MACONST')+')')||'').trim().toUpperCase();if(!c)return;const l=prompt('Intitulé')||c;
+async function addItem(isR,after){const P=window.PRH_P,c=(prompt('Code ('+(isR?'ex. 1500':'ex. MACONST')+')')||'').trim().toUpperCase();if(!c)return;const l=prompt('Intitulé')||c;
  if(isR){const ty=(prompt('Type : gain ou retenue')||'gain').toLowerCase().startsWith('r')?'r':'g',f=prompt('Formule (ex. Nombre x Base x Taux, ou Montant pris tel quel)')||'Montant pris tel quel';
   const r={c,l,imp:'<>0',t:ty==='g'?'B':'NS',cl:ty==='g'?'BRT':'RET',raw:'',f:[f],custom:1};SAGE.rub.push(r);CU.rub=(CU.rub||[]).concat(r);
   if(P){const cus=[...(P.CUS||[])];if(!cus.find(x=>x.id===c)){cus.push({id:c,n:l,t:ty});P.CUS=cus;await SV('rubriques_json',cus);}}}
@@ -706,7 +706,7 @@ const draw=()=>{const k=q.value.trim().toLowerCase();if(mode==='b'){bul(b);retur
 const def=x=>x.o&&x.o.length?x.o.map(o=>o[0]+' '+(o[1].n!==undefined?o[1].n:o[1].v)).join(' '):(x.q||[]).map(y=>y.b?y.j+' '+y.b.join(' ')+(y.alors?' → '+y.alors:''):y.alors?'→ '+y.alors:y.sinon?'sinon '+y.sinon:'').join(' ; ');
 w.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>{mode=x.dataset.m;draw();});w.querySelector('#sgn').onclick=()=>addItem(mode==='r',draw);w.querySelector('#sgt').onclick=()=>{w.remove();if(typeof openPaie==='function')openPaie('cfg');else alert('Ouvrez Paie → Taux');};b.addEventListener('click',e=>{const t=e.target.closest('[data-e]');if(t)edit(t.dataset.e,mode==='r',draw);});q.oninput=()=>{if(mode==='t')mode='c';draw();};w.querySelector('#sgx').onclick=()=>w.remove();draw();}
 const openSage=async()=>{try{await SAGE_LOAD();}catch(e){alert('Données Sage introuvables : placez le fichier sage-data.json à côté de index.html.\n('+e.message+')');return;}open();};
-window.TERH_sage=openSage;const bt=document.createElement('button');bt.id='sageb';bt.textContent='📚 Sage';bt.title='Rubriques, constantes et formules Sage Paie';bt.style.cssText='position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:90;border-radius:99px;padding:8px 12px;font-weight:600;cursor:pointer;border:1px solid var(--bd,#ccc);background:var(--card,#fff);color:var(--tx,#111);box-shadow:0 2px 10px rgba(0,0,0,.25)';bt.onclick=openSage;document.body.appendChild(bt);})();</script>
+window.PRH_sage=openSage;const bt=document.createElement('button');bt.id='sageb';bt.textContent='📚 Sage';bt.title='Rubriques, constantes et formules Sage Paie';bt.style.cssText='position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:90;border-radius:99px;padding:8px 12px;font-weight:600;cursor:pointer;border:1px solid var(--bd,#ccc);background:var(--card,#fff);color:var(--tx,#111);box-shadow:0 2px 10px rgba(0,0,0,.25)';bt.onclick=openSage;document.body.appendChild(bt);})();</script>
 <script>
 /* ============ CONFIG ============ */
 const SB_URL='https://cbaepeugbemwmclgfnxz.supabase.co';
@@ -769,7 +769,7 @@ async function pgAll(mk,sec){
 }
 window.pgAll=pgAll;
 /* Ecran bloquant : compte non rattache a une societe (aucune donnee chargee) */
-function TERH_noCo(on){let o=document.getElementById('terh-noco');if(!on){if(o)o.remove();return;}
+function PRH_noCo(on){let o=document.getElementById('terh-noco');if(!on){if(o)o.remove();return;}
  if(!o){o=document.createElement('div');o.id='terh-noco';o.style.cssText='position:fixed;inset:0;z-index:99999;background:var(--bg,#f5f7fb);color:var(--tx,#111);display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;overflow:auto';document.body.appendChild(o);}
  const slow=!!window.__roleFail,em=(MY_USER&&MY_USER.email)||'';
  o.innerHTML='<div style="max-width:440px;background:var(--card,#fff);border:1px solid var(--bd,#ddd);border-radius:14px;padding:24px;box-shadow:0 6px 30px rgba(0,0,0,.15)"><div style="font-size:42px">🔒</div><h2 style="margin:8px 0">'+(slow?'Connexion lente':'Compte en attente de rattachement')+'</h2><p>'+(slow?'Vos droits n’ont pas pu être lus. Réessayez dans un instant.':'Votre compte n’est rattaché à aucune société. Aucune donnée n’est affichée tant qu’un administrateur ne vous a pas donné accès à votre société.')+'</p>'+(em?'<p style="font-size:13px;opacity:.75">Compte : '+String(em).replace(/[<>&]/g,'')+'</p>':'')+'<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="p" id="noco-r" type="button">🔄 Actualiser</button><button class="s" id="noco-o" type="button">Se déconnecter</button></div></div>';
@@ -1336,7 +1336,7 @@ const TCACHE={_o:null,open(){return this._o||(this._o=new Promise(ok=>{try{const
  key(){return (typeof _uid!=='undefined'&&_uid?_uid:'u')+'|'+(CO||'-')+'|'+MY_ROLE+'|'+VMODE;}};
 let loadTok=0;
 async function loadAll(){
-  try{ if(window.TERH_docsEntreprise) window.TERH_docsEntreprise(true).catch(()=>{}); }catch(e){}
+  try{ if(window.PRH_docsEntreprise) window.PRH_docsEntreprise(true).catch(()=>{}); }catch(e){}
   const tok=++loadTok;
   if(!MULTI||!COS.length||(isOwnerUser()&&!CO))await ensureCompanies();
   else if(Date.now()-(window.__cosAt||0)>1500){/* relecture sûre : sans elle, une société modifiée reste affichée avec ses anciennes valeurs */
@@ -1344,10 +1344,10 @@ async function loadAll(){
   }
   window.__cosAt=Date.now();
   /* GARDE : un utilisateur (hors proprietaire) sans societe ne charge AUCUNE donnee */
-  if(!isOwnerUser()&&(!MULTI||!CO||!MEMS.length||!COS.length)){E=[];CG=[];HIST=[];ROLES=[];DISC=[];try{bumpEN();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}try{TERH_noCo(true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return;}
-  try{TERH_noCo(false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+  if(!isOwnerUser()&&(!MULTI||!CO||!MEMS.length||!COS.length)){E=[];CG=[];HIST=[];ROLES=[];DISC=[];try{bumpEN();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}try{PRH_noCo(true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return;}
+  try{PRH_noCo(false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   let _fail=false,_errMsg='';let _fromCache=false;try{if(!E.length){const c=await Promise.race([TCACHE.get(TCACHE.key()),new Promise(ok=>setTimeout(()=>ok(null),600))]);if(c&&c.emp&&c.emp.length&&tok===loadTok){E=outqApply(c.emp.map(toApp));CG=(c.cg||[]).map(x=>({id:x.id,employe_id:x.employe_id,n:(E.find(e=>e.id===String(x.employe_id))||{}).n||'—',poste:(E.find(e=>e.id===String(x.employe_id))||{}).p||'',deb:x.date_debut,fin:x.date_fin,type:x.type,statut:x.statut,com:x.commentaire||'',jours:x.date_debut&&x.date_fin?Math.round((P(x.date_fin)-P(x.date_debut))/day)+1:0}));_fromCache=true;bumpEN();try{refreshCurrent();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
-  const _slow=setTimeout(()=>{try{if(!_fromCache)TERH_loadBanner('⏳ Connexion lente au serveur… chargement en cours, patientez quelques secondes.',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}},12000);const safe=async(label,p)=>{try{const r=await p;if(r.error){console.warn(label,r.error);if(label==='employes'){_fail=true;_errMsg=r.error.message||String(r.error);}return{data:[]};}return r;}catch(e){console.warn(label,e);if(label==='employes'){_fail=true;_errMsg=(e&&e.message)||String(e);}return{data:[]};}};
+  const _slow=setTimeout(()=>{try{if(!_fromCache)PRH_loadBanner('⏳ Connexion lente au serveur… chargement en cours, patientez quelques secondes.',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}},12000);const safe=async(label,p)=>{try{const r=await p;if(r.error){console.warn(label,r.error);if(label==='employes'){_fail=true;_errMsg=r.error.message||String(r.error);}return{data:[]};}return r;}catch(e){console.warn(label,e);if(label==='employes'){_fail=true;_errMsg=(e&&e.message)||String(e);}return{data:[]};}};
   const [emp,par,cg,usr]=await Promise.all([
     safe('employes',pgAll(()=>MY_ROLE==='lecteur'?scq(db.from('employes_lecteur').select('*')).order('nom',{ascending:true}):scq(db.from('employes').select('*')).order('nom',{ascending:true}),'id')),
     safe('parametres',(MY_ROLE==='admin'||MY_ROLE==='super_owner')?scq1(db.from('parametres').select('*').not('cle','like','corpus%')):scq1(db.from('parametres').select('*')).in('cle',PUBLIC_PARAMS)),
@@ -1356,8 +1356,8 @@ async function loadAll(){
   ]);
   clearTimeout(_slow);
   if(tok!==loadTok)return;
-  if(_fail&&E.length){toast('⚠ Actualisation impossible (réseau ?) : données précédentes conservées');try{TERH_loadBanner('⚠ Actualisation impossible : '+_errMsg+' — données précédentes conservées.',true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return;}
-  try{if(_fail)TERH_loadBanner('⚠ Les données n\'ont pas pu être chargées : '+_errMsg+'. Si le message parle de droits (RLS / permission), exécutez corrections-supabase.sql dans Supabase.',true);else if(!(emp.data||[]).length){if(['own','p','x','grp'].includes(window.__curV))TERH_loadBanner('',false);else TERH_loadBanner('ℹ️ Aucun employé dans « '+(curCo()?.nom||'cette société')+' » pour le moment. Si vous en attendiez : vérifiez la société choisie en haut de l\'écran, ou vos droits d\'accès.',true);}else TERH_loadBanner('',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+  if(_fail&&E.length){toast('⚠ Actualisation impossible (réseau ?) : données précédentes conservées');try{PRH_loadBanner('⚠ Actualisation impossible : '+_errMsg+' — données précédentes conservées.',true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return;}
+  try{if(_fail)PRH_loadBanner('⚠ Les données n\'ont pas pu être chargées : '+_errMsg+'. Si le message parle de droits (RLS / permission), exécutez corrections-supabase.sql dans Supabase.',true);else if(!(emp.data||[]).length){if(['own','p','x','grp'].includes(window.__curV))PRH_loadBanner('',false);else PRH_loadBanner('ℹ️ Aucun employé dans « '+(curCo()?.nom||'cette société')+' » pour le moment. Si vous en attendiez : vérifiez la société choisie en haut de l\'écran, ou vos droits d\'accès.',true);}else PRH_loadBanner('',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   E=outqApply((emp.data||[]).map(toApp));
   if(!_fail&&(emp.data||[]).length){try{TCACHE.set(TCACHE.key(),{emp:emp.data,cg:cg.data||[],t:Date.now()});}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
   CG=(cg.data||[]).map(c=>({id:c.id,employe_id:c.employe_id,n:(E.find(x=>x.id===String(c.employe_id))||{}).n||'—',poste:(E.find(x=>x.id===String(c.employe_id))||{}).p||'',deb:c.date_debut,fin:c.date_fin,type:c.type,statut:c.statut,com:c.commentaire||'',jours:c.date_debut&&c.date_fin?Math.round((P(c.date_fin)-P(c.date_debut))/day)+1:0}));
@@ -1381,7 +1381,7 @@ try{fillCoSel();drawBanners();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e
   applyOwnerOverrides();loadUiTexts();
   bumpEN();
   /* chaque étape est isolée : une erreur d'affichage ne bloque plus l'application des droits (applyPerms) */
-  for(const step of [refreshCurrent,fillParamsUI,applyPerms,txApplyAll]){try{step();}catch(e){console.error('[TERH] '+(step.name||'étape')+' :',e);try{logErr('Affichage '+(step.name||'?')+' : '+(e&&e.message));}catch(_){try{logErr('erreur ignorée : '+(((_)&&_.message)||_))}catch(_){}}}}
+  for(const step of [refreshCurrent,fillParamsUI,applyPerms,txApplyAll]){try{step();}catch(e){console.error('[PLATEFORME RH] '+(step.name||'étape')+' :',e);try{logErr('Affichage '+(step.name||'?')+' : '+(e&&e.message));}catch(_){try{logErr('erreur ignorée : '+(((_)&&_.message)||_))}catch(_){}}}}
 }
 async function loadMyRole(s){
   // 1) Rôle base — les 3 requêtes partent EN MÊME TEMPS (avant : l'une après l'autre = 3 allers-retours réseau)
@@ -1394,10 +1394,10 @@ async function loadMyRole(s){
   };
   /* serveur lent : on réessaie (jusqu'à 3 fois) au lieu de retomber silencieusement en « lecteur » */
   let _rr=await _fetchRole(9000);
-  for(let k=0;k<2&&_rr[0].error&&_rr[2].error;k++){try{TERH_loadBanner('⏳ Serveur lent : lecture de vos droits en cours (essai '+(k+2)+'/3)…',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}await new Promise(ok=>setTimeout(ok,1500));_rr=await _fetchRole(20000);}
+  for(let k=0;k<2&&_rr[0].error&&_rr[2].error;k++){try{PRH_loadBanner('⏳ Serveur lent : lecture de vos droits en cours (essai '+(k+2)+'/3)…',false);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}await new Promise(ok=>setTimeout(ok,1500));_rr=await _fetchRole(20000);}
   const [{data},r1,whoRes]=_rr;
   window.__roleFail=!!(_rr[0].error&&_rr[2].error);
-  if(window.__roleFail){try{TERH_loadBanner('⚠ Vos droits n\'ont pas pu être lus (serveur trop lent). Affichage limité : cliquez sur 🔄 dans quelques instants.',true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
+  if(window.__roleFail){try{PRH_loadBanner('⚠ Vos droits n\'ont pas pu être lus (serveur trop lent). Affichage limité : cliquez sur 🔄 dans quelques instants.',true);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
   CO=data?.entreprise_id||null;
   MEMS=[];if(r1&&!r1.error&&r1.data)MEMS=r1.data;
   if(MEMS.length){const sv=localStorage.getItem('terh_co');CO=(MEMS.find(m=>m.entreprise_id===sv)||MEMS.find(m=>m.entreprise_id===CO)||MEMS[0]).entreprise_id;}
@@ -1487,7 +1487,7 @@ function applyPerms(){
   const scan=$('scanBlock');if(scan)scan.style.display=ce?'':'none';
   if(typeof window.applyModVisibility6==='function') setTimeout(()=>window.applyModVisibility6(),50);
 }
-function refreshCurrent(){const on=document.querySelector('.v.on');if(!on)return;const v=on.id.replace('v-','');if(v==='d')dash();else if(v==='l'){filt();list();}else if(v==='a'){alr();alrCnps();}else if(v==='dsp'){listDisc();}else if(v==='c'){fillCgEmp();listCg();}else if(v==='n')filt();else if(v==='h')loadHist();else if(v==='db')renderDB();else if(v==='p'){if(!(window.TERH_editing&&TERH_editing())){fillParamsUI();listUsers();}}else if(v==='x'){if(!(window.TERH_editing&&TERH_editing()))renderAdmin();}else if(v==='own'){if(!window.__ownDraft&&!(window.TERH_editing&&TERH_editing()))renderOwner();}}
+function refreshCurrent(){const on=document.querySelector('.v.on');if(!on)return;const v=on.id.replace('v-','');if(v==='d')dash();else if(v==='l'){filt();list();}else if(v==='a'){alr();alrCnps();}else if(v==='dsp'){listDisc();}else if(v==='c'){fillCgEmp();listCg();}else if(v==='n')filt();else if(v==='h')loadHist();else if(v==='db')renderDB();else if(v==='p'){if(!(window.PRH_editing&&PRH_editing())){fillParamsUI();listUsers();}}else if(v==='x'){if(!(window.PRH_editing&&PRH_editing()))renderAdmin();}else if(v==='own'){if(!window.__ownDraft&&!(window.PRH_editing&&PRH_editing()))renderOwner();}}
 
 /* ============ CRUD ============ */
 async function insertEmp(o){try{const {data,error}=await db.from('employes').insert(toDb(o)).select().single();if(error)throw error;bumpEN();return toApp(data);}
@@ -1977,7 +1977,7 @@ $('fm').onsubmit=async e=>{
   if(o.tel&&!/^[0-9+\s().-]{8,20}$/.test(o.tel)){toast('Le téléphone contient des caractères invalides');return;}
   const btn=$('fsub');btn.disabled=true;btn.textContent='Enregistrement…';
   try{if(PENDING_FILE){try{btn.textContent='Téléversement du document…';const up=await upContrat(PENDING_FILE);o.contrat_url=up.url;o.contrat_nom=up.nom;try{await logDoc('Contrat',up.nom,'Téléversé à l’enregistrement');}catch(_e){try{logErr('erreur ignorée : '+(((_e)&&_e.message)||_e))}catch(_){}}}catch(upErr){toast('Fiche enregistrée, mais document non téléversé : '+upErr.message);}}
-    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}o.enf6=$('f_enf6').value;let idFiche=id;if(id)await updateEmp(id,o);else{const cree=await insertEmp(o);idFiche=cree&&cree.id;}if(idFiche&&matS&&matS!==String(MAT[idFiche]||'').trim())await window.TERH_enregistrerMat(idFiche,matS);try{await xSaveForm(o,idFiche||id);}catch(xe){toast('Fiche enregistrée, mais champs complémentaires non enregistrés : '+xe.message);}toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
+    const id=$('fid').value;if(id&&!CAN.upd()){toast('Permission refusée : modification non autorisée');return;}o.enf6=$('f_enf6').value;let idFiche=id;if(id)await updateEmp(id,o);else{const cree=await insertEmp(o);idFiche=cree&&cree.id;}if(idFiche&&matS&&matS!==String(MAT[idFiche]||'').trim())await window.PRH_enregistrerMat(idFiche,matS);try{await xSaveForm(o,idFiche||id);}catch(xe){toast('Fiche enregistrée, mais champs complémentaires non enregistrés : '+xe.message);}toast(id?'Modifié':'Ajouté');reset();await loadAll();go('l');}
   catch(err){toast('Erreur : '+err.message);}
   finally{btn.disabled=false;btn.textContent='Enregistrer';}
 };
@@ -1998,7 +1998,7 @@ function pdfItemsToText(items){
     r.c.forEach(t=>{if(end!==null){const gap=t.x-end,glued=t.w>0&&gap<r.h*0.15&&!/\s$/.test(prev)&&!/^\s/.test(t.s);if(!glued)out+=' ';}
       out+=t.s.trim();end=t.w>0?t.x+t.w:null;prev=t.s;});
     return out;}).join('\n');}
-window.TERH_pdfText=pdfItemsToText;
+window.PRH_pdfText=pdfItemsToText;
 async function readPdf(f){const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let t='';for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();t+=pdfItemsToText(c.items)+'\n\n';}if(t.trim().length<80){$('os').textContent='PDF scanné — OCR…';t='';for(let i=1;i<=Math.min(pdf.numPages,5);i++){const p=await pdf.getPage(i);const v=p.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;await p.render({canvasContext:cv.getContext('2d'),viewport:v}).promise;const blob=await new Promise(r=>cv.toBlob(r,'image/png'));const w=await getOcr();const {data:{text:t2}}=await w.recognize(blob);t+=t2+'\n';}}return t;}
 async function readImg(f){const w=await getOcr();const {data:{text}}=await w.recognize(f);return text;}
 async function extText(f){const ex=f.name.toLowerCase().split('.').pop();await needLibs(ex);if(ex==='docx')return readDocx(f);if(ex==='doc')throw new Error('Format .doc non supporté.');if(ex==='pdf')return readPdf(f);if(ex==='txt')return await f.text();if(['jpg','jpeg','png','webp','bmp','gif','tif','tiff'].includes(ex))return readImg(f);throw new Error('Format non supporté : .'+ex);}
@@ -3406,7 +3406,7 @@ function signalerDroits(err){
 }
 // Documents de l'entreprise courante, lus dans la base (tous les appareils) ; mis en cache 5 min par entreprise
 function chunkDoc(txt){const t=String(txt||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();const out=[];for(let i=0;i<t.length;i+=1200)out.push(t.slice(i,i+1200));return out;}
-window.TERH_docsEntreprise=async function(force){
+window.PRH_docsEntreprise=async function(force){
   if(!MY_USER||!CO) return [];
   const c=window.__docsEnt;
   if(!force&&c&&c.co===CO&&Date.now()-c.t<300000) return c.docs;
@@ -3414,9 +3414,9 @@ window.TERH_docsEntreprise=async function(force){
   const docs=error?[]:(data||[]);
   window.__docsEnt={co:CO,t:Date.now(),docs};
   // Assistant : mêmes textes, ajoutés au corpus (les anciens passages de la société sont remplacés)
-  const base=(window.TERH_CORPUS||[]).filter(x=>!x.ent);
+  const base=(window.PRH_CORPUS||[]).filter(x=>!x.ent);
   docs.forEach(d=>{const parts=chunkDoc(d.texte_extrait);parts.forEach((x,k)=>base.push({t:d.titre+(parts.length>1?' ('+(k+1)+'/'+parts.length+')':''),x:x,k:d.categorie||'autre',inh:0,ent:1}));});
-  window.TERH_CORPUS=base;
+  window.PRH_CORPUS=base;
   return docs;
 };
 function suggererCategorie(titre){
@@ -3489,7 +3489,7 @@ function publierBibliotheque(id,list){
 // Onglet Cours : cours, codes et conventions de l'entreprise (en plus de la bibliothèque)
 async function chargerDocsCours(){
   const box=$('fo_docs_cours'); if(!box) return;
-  const docs=await window.TERH_docsEntreprise(true);
+  const docs=await window.PRH_docsEntreprise(true);
   const liste=docs.filter(d=>['cours','code','convention'].includes(d.categorie));
   if(!liste.length){ box.innerHTML='<p class="muted" style="font-size:13px">Aucun cours, code ou convention importé pour cette entreprise.</p>'; return; }
   box.innerHTML=liste.map(d=>'<button class="s" style="text-align:left" data-doc-lire="'+d.id+'"><b>'+esc(d.titre)+'</b><br><span class="muted" style="font-size:12px">'+esc(CATEG_DOC[d.categorie]||'')+'</span></button>').join('');
@@ -3538,7 +3538,7 @@ async function supprimerDocument(id,chemin){
 }
 async function passagesDocuments(question){
   if(!MY_USER||!window.FormationDocuments) return '';
-  const docs=await window.TERH_docsEntreprise();
+  const docs=await window.PRH_docsEntreprise();
   const pass=FormationDocuments.passagesPertinents(question,docs.map(d=>({titre:d.titre,texte:d.texte_extrait})),3);
   if(!pass.length) return '';
   return ' Passages des documents de formation : '+pass.map(x=>'['+x.titre+'] '+x.passage).join(' ');
@@ -3818,18 +3818,18 @@ function askNewPassword(){if($('npw'))return;const o=document.createElement('div
     o.remove();toast('✅ Mot de passe modifié');history.replaceState(null,'',location.pathname);};
   $('npb').onclick=go;o.addEventListener('keydown',e=>{if(e.key==='Enter')go();});}
 $('lo').onclick=async()=>{if(!confirm('Se déconnecter ?'))return;if(hb)clearInterval(hb);await db.auth.signOut();};
-$('myp').onclick=async()=>{if(!MY_USER)return;const cur=$('mn').textContent.trim();const nv=prompt('Votre nom affiché :',cur);if(nv===null)return;const v=nv.trim();if(!v||v===cur)return;try{await window.TERH_saveMyProfile({display_name:v});$('mn').textContent=v;try{localStorage.setItem('terh_name_'+MY_USER.id,v);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}toast('Nom enregistré');}catch(e){try{await db.auth.updateUser({data:{display_name:v}});$('mn').textContent=v;try{localStorage.setItem('terh_name_'+MY_USER.id,v);}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}toast('Nom enregistré (sur ce compte)');}catch(e2){toast('Erreur : '+(e&&e.message?e.message:e));}}};
+$('myp').onclick=async()=>{if(!MY_USER)return;const cur=$('mn').textContent.trim();const nv=prompt('Votre nom affiché :',cur);if(nv===null)return;const v=nv.trim();if(!v||v===cur)return;try{await window.PRH_saveMyProfile({display_name:v});$('mn').textContent=v;try{localStorage.setItem('terh_name_'+MY_USER.id,v);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}toast('Nom enregistré');}catch(e){try{await db.auth.updateUser({data:{display_name:v}});$('mn').textContent=v;try{localStorage.setItem('terh_name_'+MY_USER.id,v);}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}toast('Nom enregistré (sur ce compte)');}catch(e2){toast('Erreur : '+(e&&e.message?e.message:e));}}};
 
 /* ============ TEMPS RÉEL ============ */
 /* Salutation selon l'heure de l'appareil : Bonjour avant 18 h, Bonsoir de 18 h à 4 h */
-window.TERH_hello=function(en){const h=new Date().getHours(),soir=(h>=18||h<4);return en?(soir?'Good evening':(h<12?'Good morning':'Hello')):(soir?'Bonsoir':'Bonjour');};
+window.PRH_hello=function(en){const h=new Date().getHours(),soir=(h>=18||h<4);return en?(soir?'Good evening':(h<12?'Good morning':'Hello')):(soir?'Bonsoir':'Bonjour');};
 /* Saisie en cours : les actualisations automatiques attendent, pour ne plus effacer ce que l'utilisateur écrit */
 window.__dirtyAt=0;
 (function(){const mark=e=>{try{const t=e.target;if(e.isTrusted&&t&&t.closest&&t.closest('input,textarea,select,[contenteditable]')&&!t.closest('#am'))window.__dirtyAt=Date.now();}catch(_){try{logErr('erreur ignorée : '+(((_)&&_.message)||_))}catch(_){}}};
 document.addEventListener('input',mark,true);document.addEventListener('change',mark,true);
 document.addEventListener('submit',()=>{window.__dirtyAt=0;},true);})();
-window.TERH_editing=function(){try{const a=document.activeElement;if(a&&!a.closest('#am')){if(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!/^(button|submit|checkbox|radio|range|color|file)$/i.test(a.type||'')&&a.offsetParent!==null)return true;if(a.isContentEditable)return true;}return Date.now()-window.__dirtyAt<600000;}catch(e){return false;}};
-function scheduleReload(){clearTimeout(rtTimer);rtTimer=setTimeout(function run(){if(window.TERH_editing&&TERH_editing()){rtTimer=setTimeout(run,5000);return;}loadAll();},400);}
+window.PRH_editing=function(){try{const a=document.activeElement;if(a&&!a.closest('#am')){if(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!/^(button|submit|checkbox|radio|range|color|file)$/i.test(a.type||'')&&a.offsetParent!==null)return true;if(a.isContentEditable)return true;}return Date.now()-window.__dirtyAt<600000;}catch(e){return false;}};
+function scheduleReload(){clearTimeout(rtTimer);rtTimer=setTimeout(function run(){if(window.PRH_editing&&PRH_editing()){rtTimer=setTimeout(run,5000);return;}loadAll();},400);}
 function startRT(){return;/* temps réel désactivé : actualisation manuelle uniquement */if(rt)return;rt=db.channel('app-rt').on('postgres_changes',{event:'*',schema:'public',table:'employes'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'parametres'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'conges'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'historique'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'user_roles'},scheduleReload).subscribe();}
 function stopRT(){if(rt){db.removeChannel(rt);rt=null;}}
 
@@ -3924,8 +3924,8 @@ console.log('%c💡 Diagnostic prêt : tapez diagSuperOwner() dans la console.',
 let _uid=null,_idle;const IDLE_MS=12*60*60*1000;
 function idleReset(){clearTimeout(_idle);if(!_uid)return;_idle=setTimeout(async()=>{toast('Session expirée (inactivité)');try{await db.auth.signOut();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}},IDLE_MS);}
 ['click','keydown','mousemove','touchstart','scroll','touchmove'].forEach(ev=>addEventListener(ev,idleReset,{passive:true}));
-/* ===== TERH - Double authentification TOTP (patch sécurité) ===== */
-window.TERH_MFA=(function(){
+/* ===== PLATEFORME RH - Double authentification TOTP (patch sécurité) ===== */
+window.PRH_MFA=(function(){
   const M=()=>db.auth.mfa;
   let _gateP=null;
   function ov(html){let o=document.getElementById('mfa-ov');if(!o){o=document.createElement('div');o.id='mfa-ov';o.className='mb on';o.style.zIndex=99999;document.body.appendChild(o);}o.classList.add('on');o.innerHTML='<div class="mx" style="max-width:440px">'+html+'</div>';return o;}
@@ -3985,7 +3985,7 @@ window.TERH_MFA=(function(){
         return;
       }
       for(const x of f.all.filter(x=>x.status!=='verified')){try{await M().unenroll({factorId:x.id});}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
-      const {data,error}=await M().enroll({factorType:'totp',friendlyName:'TERH '+new Date().toISOString().slice(0,10)});
+      const {data,error}=await M().enroll({factorType:'totp',friendlyName:'PLATEFORME RH '+new Date().toISOString().slice(0,10)});
       if(error)throw error;
       ov('<h2>🔐 Activer la double authentification</h2>'
         +'<p class="muted">1) Scannez ce QR code avec Google Authenticator, Microsoft Authenticator ou Authy.<br>2) Saisissez le code à 6 chiffres affiché.</p>'
@@ -4018,7 +4018,7 @@ db.auth.onAuthStateChange((event,session)=>{
   if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')return;
   setTimeout(async()=>{
   if(session){
-    if(_uid===session.user.id)return;if(window.TERH_MFA&&!(await TERH_MFA.gate()))return;if(_uid===session.user.id)return;_uid=session.user.id;
+    if(_uid===session.user.id)return;if(window.PRH_MFA&&!(await PRH_MFA.gate()))return;if(_uid===session.user.id)return;_uid=session.user.id;
     $('as').style.display='none';$('app').style.display='block';
     $('aload').style.display='';
     try{const _pp=loadMyProfile(session).catch(e=>console.warn('profil',e));await loadMyRole(session);await Promise.all([_pp,loadAll()]);}catch(err){console.warn(err);toast('Chargement incomplet : utilisez 🔄 pour actualiser');}
@@ -4038,7 +4038,7 @@ db.auth.onAuthStateChange((event,session)=>{
 });
 
 /* ============ ASSISTANT IA ============ */
-$('aib').onclick=()=>{const m=$('am');const isH=!m.classList.contains('on');m.classList.toggle('on');if(isH&&!aiHistory.length){const en=document.documentElement.lang==='en',nm=userFirst()?' '+userFirst():'';const fr=TERH_hello(false)+nm+' ! Je suis votre assistant RH. Comment puis-je vous aider ?',eng=TERH_hello(true)+nm+'! I am your HR assistant. How can I help you?';window.__greet=1;const _gd=addMsg('assistant',en?eng:fr);window.__greet=0;_gd.dataset.fr=fr;_gd.dataset.en=eng;}if(isH&&!aiReady&&!cloudReady()&&LOCAL_AI_OK())initAI();};
+$('aib').onclick=()=>{const m=$('am');const isH=!m.classList.contains('on');m.classList.toggle('on');if(isH&&!aiHistory.length){const en=document.documentElement.lang==='en',nm=userFirst()?' '+userFirst():'';const fr=PRH_hello(false)+nm+' ! Je suis votre assistant RH. Comment puis-je vous aider ?',eng=PRH_hello(true)+nm+'! I am your HR assistant. How can I help you?';window.__greet=1;const _gd=addMsg('assistant',en?eng:fr);window.__greet=0;_gd.dataset.fr=fr;_gd.dataset.en=eng;}if(isH&&!aiReady&&!cloudReady()&&LOCAL_AI_OK())initAI();};
 function addMsg(role,text){if(role!=='user'){text=(window.AssistantTexte?AssistantTexte.nettoyer(text):String(text||'')).replace(/\*+/g,'').replace(/`+/g,'');}const box=$('amg');const div=document.createElement('div');div.style.cssText=role==='user'?'align-self:flex-end;background:var(--ac);color:#fff;padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5':'align-self:flex-start;background:color-mix(in srgb,var(--ac) 8%,var(--card));padding:8px 12px;border-radius:12px 12px 12px 2px;max-width:85%;white-space:pre-wrap;font-size:13px;line-height:1.5';div.textContent=text;box.appendChild(div);box.scrollTop=box.scrollHeight;return div;}
 const ROLE_LBL=r=>r==='super_owner'?'Super Owner':r==='admin'?'Administrateur':r==='editeur'?'Éditeur':'Lecteur';
 function aiProfileKey(){return 'terh_ai_profile_'+(MY_USER?.id||'anon');}
@@ -4109,7 +4109,7 @@ function aiFacts(q,full){const f=[],RG={super_owner:'tous les droits (entreprise
 async function askAI(){
   const inp=$('ai'),send=$('asend'),q=inp.value.trim();
   if(!q)return;
-  {const sm=window.TERH_smallTalk&&window.TERH_smallTalk(q);if(sm){inp.value='';addMsg('user',q);addMsg('assistant',sm);return;}}
+  {const sm=window.PRH_smallTalk&&window.PRH_smallTalk(q);if(sm){inp.value='';addMsg('user',q);addMsg('assistant',sm);return;}}
   const smart=(cloudReady()&&!findEmp(q).length)||(aiReady&&aiEngine);
   {const pc=aiProfileCmd(q);if(pc){inp.value='';addMsg('user',q);addMsg('assistant',pc);return;}}
   if(!smart&&/(qui suis[- ]je|tu me connais|mon r[oô]le|mes droits|mon nom)/i.test(q)){inp.value='';addMsg('user',q);addMsg('assistant',aiWho()+'\n\nDroits : '+(ER()==='super_owner'?'TOUS — Super Owner : entreprises, utilisateurs, rôles, paramètres, discipline, historique, base de données, suppression.':ER()==='admin'?'tous (paramètres, utilisateurs, discipline, historique, base de données, suppression).':ER()==='editeur'?'ajout/modification des employés, import Excel, congés, alertes. Pas de suppression, discipline ni paramètres.':'consultation seulement.'));return;}
@@ -4122,7 +4122,7 @@ async function askAI(){
     inp.value='';addMsg('user',q);aiHistory.push({role:'user',content:q});aiHistory=aiHistory.slice(-12);
     const ld=addMsg('assistant','⏳ …');send.disabled=true;
     try{
-      const {data,error}=await TERH_callAI({messages:aiHistory,context:(window.IAContexte?IAContexte.redacter(ctxAgg(q)+aiFacts(q,false)):(ctxAgg(q)+aiFacts(q,false))),user_first:userFirst(),client_hour:new Date().getHours(),lang:(document.documentElement.lang==='en'?'en':'fr'),max_tokens:1500},26000,ld);
+      const {data,error}=await PRH_callAI({messages:aiHistory,context:(window.IAContexte?IAContexte.redacter(ctxAgg(q)+aiFacts(q,false)):(ctxAgg(q)+aiFacts(q,false))),user_first:userFirst(),client_hour:new Date().getHours(),lang:(document.documentElement.lang==='en'?'en':'fr'),max_tokens:1500},26000,ld);
       if(error||!data?.text)throw new Error(error?.message||data?.error||'indisponible');
       window.__cloudPause=15000;ld.textContent=data.text;aiHistory.push({role:'assistant',content:data.text});
       $('ams').textContent='☁️ '+data.provider+(data.searched?' · 🌐 recherche web':' · chiffres globaux, sans noms');send.disabled=false;return;
@@ -4486,7 +4486,7 @@ async function adminAI(mode){
       if(add)rapport+='\n\n'+add;
     }catch(e){rapport+='\n\n⚠️ IA locale indisponible pour l\'enrichissement : '+e.message;}
   }else{rapport+='\n\n💡 Astuce : chargez l\'assistant IA (bouton 🤖 en haut) pour obtenir des recommandations personnalisées supplémentaires.';}
-  txt.textContent=window.TERH_mdPlain?window.TERH_mdPlain(rapport):rapport;
+  txt.textContent=window.PRH_mdPlain?window.PRH_mdPlain(rapport):rapport;
 }
 function buildScanReport(ctx){
   const L=[];
@@ -4544,7 +4544,7 @@ document.addEventListener('click',async e=>{
     if(a==='view'){VIEW_AS=$('xva').value;$('ur').textContent=(VIEW_AS?'👁 Aperçu : ':'')+ROLE_LBL(ER());roleBadgeSync();applyPerms();toast(VIEW_AS?'Aperçu en '+VIEW_AS+' — revenez ici pour quitter':'Retour à votre rôle');renderAdmin();}
     if(a==='unleave'){const r=E.find(x=>x.id===b.dataset.id);if(r&&confirm('Réintégrer '+r.n+' ?')){await updateEmp(r.id,{...r,darret:'',marret:'',comarret:''});await loadAll();renderAdmin();toast('Départ annulé');}}
     if(a==='backup'){const j=JSON.stringify({date:new Date().toISOString(),employes:E,conges:CG,roles:ROLES,parametres:PARAMS},null,1),u=URL.createObjectURL(new Blob([j],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download='sauvegarde-plateforme-rh-'+LD(T)+'.json';l.click();setTimeout(()=>URL.revokeObjectURL(u),5000);}
-    if(a==='diag'){const t=['TERH diagnostic '+new Date().toLocaleString('fr-FR'),'Rôle: '+MY_ROLE+(VIEW_AS?' (aperçu '+VIEW_AS+')':''),'Super Owner: '+isOwnerUser(),'Employés: '+E.length+' | Congés: '+CG.length,'WebGPU: '+(!!navigator.gpu)+' | IA locale: '+aiReady+' | IA cloud: '+(CLOUD_AI_ON()?(cloudErr||'OK'):'désactivée'),'Navigateur: '+navigator.userAgent,'Erreurs:',...ERRLOG.slice(0,15)].join('\n');try{await navigator.clipboard.writeText(t);toast('Rapport copié');}catch(_e){$('rph').textContent='Rapport de diagnostic';$('rpt').textContent=t;$('rpb').classList.add('on');}}
+    if(a==='diag'){const t=['PLATEFORME RH diagnostic '+new Date().toLocaleString('fr-FR'),'Rôle: '+MY_ROLE+(VIEW_AS?' (aperçu '+VIEW_AS+')':''),'Super Owner: '+isOwnerUser(),'Employés: '+E.length+' | Congés: '+CG.length,'WebGPU: '+(!!navigator.gpu)+' | IA locale: '+aiReady+' | IA cloud: '+(CLOUD_AI_ON()?(cloudErr||'OK'):'désactivée'),'Navigateur: '+navigator.userAgent,'Erreurs:',...ERRLOG.slice(0,15)].join('\n');try{await navigator.clipboard.writeText(t);toast('Rapport copié');}catch(_e){$('rph').textContent='Rapport de diagnostic';$('rpt').textContent=t;$('rpb').classList.add('on');}}
     if(a==='invite'){const em=prompt('Email de la personne à inviter :');if(!em)return;const {error}=await db.auth.signInWithOtp({email:em.trim(),options:{shouldCreateUser:true,emailRedirectTo:window.location.origin}});if(error)throw error;toast('Invitation envoyée — attribuez son rôle dans 👥 Utilisateurs');}
     if(a==='recalc-ctt'){$('rcfin')?.click();}
     if(a==='reset-dash'){if(confirm('Rétablir la disposition du tableau de bord ?')){PARAMS.dash='';await saveParam('dash','');dash();toast('Tableau de bord réinitialisé');}}
@@ -5028,13 +5028,13 @@ document.addEventListener('change',e=>{
 /* ============ POUVOIRS ÉTENDUS DU PROPRIÉTAIRE ============ */
 const OWX={},OWP={};
 
-/* ============ TERH · EN-TÊTE DES LETTRES, IMPORT DE MODÈLES, ONGLETS ent / bib / mt ============ */
+/* ============ PLATEFORME RH · EN-TÊTE DES LETTRES, IMPORT DE MODÈLES, ONGLETS ent / bib / mt ============ */
 const ENT_DEF={ent_service:'Direction des Ressources Humaines',ent_mere:'',ent_mere_adr:'',ent_mad_label:'Mis à disposition auprès de',ent_mode:'auto',ent_mentions:'',ent_risque_at:'moyen',ent_logo_pos:'centre'};
 const ENT_KEYS=Object.keys(ENT_DEF);
 function _entLS(){try{return JSON.parse(localStorage.getItem('terh_ent_'+(CO||''))||'{}')||{};}catch(e){return {};}}
 function entGet(k){const o=_entLS(),v=PARAMS[k];if(k in o&&(v==null||v===ENT_DEF[k]))return o[k];return v==null?'':v;}
 // Réglages paie de la structure (paramètres de l'entreprise) transmis au calcul
-window.TERH_tauxEntreprise=()=>({at_pat:({faible:1.75,moyen:2.5,eleve:5})[entGet('ent_risque_at')]||2.5});
+window.PRH_tauxEntreprise=()=>({at_pat:({faible:1.75,moyen:2.5,eleve:5})[entGet('ent_risque_at')]||2.5});
 function entInfo(){
   const co=(typeof curCo==='function'&&curCo())||{};let ci={cab:'',cli:'',logo:''};
   try{ci=(window.cabinetInfo&&window.cabinetInfo())||ci;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
@@ -5135,7 +5135,7 @@ function entMount(id,p){
 function _toParas(t){return String(t||'').replace(/\r/g,'').split(/\n{2,}/).map(b=>b.trim()).filter(Boolean).map(b=>'<p>'+esc(b).replace(/\n/g,'<br>')+'</p>').join('\n');}
 function _cleanHtml(h){return String(h||'').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->|<meta[^>]*>|<link[^>]*>|<title[\s\S]*?<\/title>/gi,'').replace(/\son\w+="[^"]*"/gi,'').replace(/<\/?(html|head|body)[^>]*>/gi,'').replace(/<img[^>]*>/gi,'').trim();}
 function _htmlToText(h){return _cleanHtml(h).replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|h\d|li|tr)>/gi,'\n\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/\n{3,}/g,'\n\n').trim();}
-window.TERH_tplFromFile=async function(f,kind){
+window.PRH_tplFromFile=async function(f,kind){
   if(!f)return '';
   const html=(kind==='html'||kind==='ptl'||kind==='ptc'||kind==='tpl_let'||kind==='tpl_cert');
   const ex=f.name.toLowerCase().split('.').pop();
@@ -5154,17 +5154,17 @@ window.TERH_tplFromFile=async function(f,kind){
 (function(){
   const open=()=>new Promise((ok,ko)=>{const r=indexedDB.open('terh_bib',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('docs'))r.result.createObjectStore('docs',{keyPath:'id'});};r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error);});
   const chunk=txt=>{txt=String(txt||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();const out=[];for(let i=0;i<txt.length;i+=1200)out.push(txt.slice(i,i+1200));return out;};
-  window.TERH_bibAdd=async function(t,txt){
+  window.PRH_bibAdd=async function(t,txt){
     const d=await open(),doc={id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:String(t||'Document').slice(0,120),k:'bib',at:new Date().toISOString(),chunks:chunk(txt)};
     await new Promise((ok,ko)=>{const r=d.transaction('docs','readwrite').objectStore('docs').put(doc);r.onsuccess=ok;r.onerror=()=>ko(r.error);});
     return doc;
   };
-  window.TERH_bibList=async()=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs').objectStore('docs').getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([]);});}catch(e){return [];}};
-  window.TERH_bibDel=async id=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs','readwrite').objectStore('docs').delete(id);r.onsuccess=ok;r.onerror=ok;});}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}};
-  const refresh=async()=>{try{const list=await window.TERH_bibList();if(!list.length)return;
-    const base=(window.TERH_CORPUS||[]).filter(c=>c.k!=='bib');
+  window.PRH_bibList=async()=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs').objectStore('docs').getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([]);});}catch(e){return [];}};
+  window.PRH_bibDel=async id=>{try{const d=await open();return await new Promise(ok=>{const r=d.transaction('docs','readwrite').objectStore('docs').delete(id);r.onsuccess=ok;r.onerror=ok;});}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}};
+  const refresh=async()=>{try{const list=await window.PRH_bibList();if(!list.length)return;
+    const base=(window.PRH_CORPUS||[]).filter(c=>c.k!=='bib');
     list.forEach(d=>d.chunks.forEach((x,i)=>base.push({t:d.t+(d.chunks.length>1?' ('+(i+1)+'/'+d.chunks.length+')':''),x:x,k:'bib',inh:0})));
-    window.TERH_CORPUS=base;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}};
+    window.PRH_CORPUS=base;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}};
   setInterval(refresh,4000);setTimeout(refresh,800);
 })();
 
@@ -5179,7 +5179,7 @@ OWX.ent=async()=>{const c=curCo()||{};return `<div class="c" id="ent_form_box"><
 OWP.ent=()=>{
   entMount('ent_form_box','o_');
   $('ent_imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5000000){toast('Fichier trop volumineux (max 5 Mo)');return;}
-    try{$('ent_tmsg').textContent='⏳ Lecture de '+f.name+'…';$('ent_t').value=await window.TERH_tplFromFile(f,$('ent_k').value);$('ent_tmsg').textContent='✅ Chargé : vérifiez puis enregistrez';}
+    try{$('ent_tmsg').textContent='⏳ Lecture de '+f.name+'…';$('ent_t').value=await window.PRH_tplFromFile(f,$('ent_k').value);$('ent_tmsg').textContent='✅ Chargé : vérifiez puis enregistrez';}
     catch(er){$('ent_tmsg').textContent='';toast('Erreur : '+er.message);}e.target.value='';};
   $('ent_tsave').onclick=async()=>{const k=$('ent_k').value;let v=$('ent_t').value;if(!v.trim()){toast('Modèle vide');return;}
     try{if(k==='tpl_let')v=cutAfterDir(v);await saveParam(k,v);toast('✅ Modèle enregistré : '+TPLS[k]);}catch(er){toast('Erreur : '+er.message);}};
@@ -5191,19 +5191,19 @@ OWX.bib=async()=>{const co=curCo()||{};return `<div class="c"><h2>📚 Biblioth�
 <div class="f"><label class="s" style="cursor:pointer;padding:8px 12px">📎 Ajouter des fichiers (PDF, DOCX, TXT, HTML, RTF)<input type="file" id="bib_f" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf" hidden multiple></label><span id="bib_s" class="muted"></span></div>
 <div id="bib_list" style="margin-top:10px"></div></div>`;};
 OWP.bib=()=>{
-  const draw=async()=>{const box=$('bib_list');if(!box)return;const list=await window.TERH_bibList();
+  const draw=async()=>{const box=$('bib_list');if(!box)return;const list=await window.PRH_bibList();
     box.innerHTML=list.length?list.map(x=>`<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;margin:4px 0"><span>📄</span><b style="flex:1">${esc(x.t)}</b><small class="muted">${(x.chunks||[]).reduce((a,c)=>a+c.length,0)} car.</small><button class="s" data-bibdel="${esc(x.id)}">🗑</button></div>`).join(''):'<p class="muted">Aucun document.</p>';
-    box.querySelectorAll('[data-bibdel]').forEach(b=>b.insertAdjacentHTML('beforebegin','<button class="s" data-bibpub="'+b.dataset.bibdel+'">📤 Publier pour une entreprise</button>'));box.querySelectorAll('[data-bibpub]').forEach(b=>b.onclick=()=>publierBibliotheque(b.dataset.bibpub,list));box.querySelectorAll('[data-bibdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer ce document ?'))return;await window.TERH_bibDel(b.dataset.bibdel);toast('Supprimé');draw();});};
+    box.querySelectorAll('[data-bibdel]').forEach(b=>b.insertAdjacentHTML('beforebegin','<button class="s" data-bibpub="'+b.dataset.bibdel+'">📤 Publier pour une entreprise</button>'));box.querySelectorAll('[data-bibpub]').forEach(b=>b.onclick=()=>publierBibliotheque(b.dataset.bibpub,list));box.querySelectorAll('[data-bibdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer ce document ?'))return;await window.PRH_bibDel(b.dataset.bibdel);toast('Supprimé');draw();});};
   const f=$('bib_f');
   if(f)f.onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;const s=$('bib_s');
-    for(const file of fs){try{s.textContent='⏳ Lecture de '+file.name+'…';const txt=await window.TERH_tplFromFile(file,'text');await window.TERH_bibAdd(file.name,txt);}catch(er){toast('Erreur '+file.name+' : '+er.message);}}
+    for(const file of fs){try{s.textContent='⏳ Lecture de '+file.name+'…';const txt=await window.PRH_tplFromFile(file,'text');await window.PRH_bibAdd(file.name,txt);}catch(er){toast('Erreur '+file.name+' : '+er.message);}}
     s.textContent='✅ '+fs.length+' fichier(s) ajouté(s)';draw();};
   draw();
 };
 
 /* ---- Onglet « Maintenance » ---- */
 OWX.mt=async()=>{
-  let nbDoc=0;try{nbDoc=(await window.TERH_bibList()).length;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+  let nbDoc=0;try{nbDoc=(await window.PRH_bibList()).length;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   return `<div class="c"><h2>🛠 Maintenance</h2>
 <div class="kp"><div class="k g-blue"><b>${E.length}</b><span>Employés</span></div><div class="k g-green"><b>${CG.length}</b><span>Congés</span></div><div class="k g-orange"><b>${nbDoc}</b><span>Documents bibliothèque</span></div><div class="k g-red"><b>${ERRLOG.length}</b><span>Erreurs locales</span></div></div>
 <div class="f" style="margin-top:10px"><button class="s" data-mt="reload">🔄 Recharger les données</button><button class="s" data-mt="cache">🧹 Vider le cache local</button><button class="s" data-mt="diag">📋 Rapport de diagnostic</button><button class="s" data-mt="backup">💾 Sauvegarde JSON</button></div>
@@ -5213,7 +5213,7 @@ OWP.mt=()=>{
     try{
       if(a==='reload'){await loadAll();toast('Données rechargées');}
       if(a==='cache'){if(!confirm('Vider le cache local (les données en ligne restent) ?'))return;try{indexedDB.deleteDatabase('terh_cache');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}toast('Cache vidé');setTimeout(()=>location.reload(),600);}
-      if(a==='diag'){const t='TERH diagnostic '+new Date().toLocaleString('fr-FR')+'\nRôle : '+MY_ROLE+'\nEmployés : '+E.length+'\nIA locale : '+aiReady+'\nNavigateur : '+navigator.userAgent+'\n\nErreurs :\n'+(ERRLOG.join('\n')||'aucune');
+      if(a==='diag'){const t='PLATEFORME RH diagnostic '+new Date().toLocaleString('fr-FR')+'\nRôle : '+MY_ROLE+'\nEmployés : '+E.length+'\nIA locale : '+aiReady+'\nNavigateur : '+navigator.userAgent+'\n\nErreurs :\n'+(ERRLOG.join('\n')||'aucune');
         try{await navigator.clipboard.writeText(t);toast('Rapport copié');}catch(e){alert(t);}}
       if(a==='backup'){const sb=$('sg-bak');if(sb)sb.click();else toast('Sauvegarde : utilisez Paramètres › Sauvegarde');}
     }catch(e){toast('Erreur : '+e.message);}});
@@ -5345,7 +5345,7 @@ OWX.sc=async()=>{
     });
   }else rows.push(mk('warn','Client anonyme','Impossible de créer le client de test'));
   let mfaTxt='Inconnu',mfaCls='g-orange',aal='?';
-  try{const f=await TERH_MFA.factors();const a=await db.auth.mfa.getAuthenticatorAssuranceLevel();aal=(a.data&&a.data.currentLevel)||'?';
+  try{const f=await PRH_MFA.factors();const a=await db.auth.mfa.getAuthenticatorAssuranceLevel();aal=(a.data&&a.data.currentLevel)||'?';
     if(f.verified.length){mfaTxt='2FA active';mfaCls='g-green';}else{mfaTxt='2FA inactive';mfaCls='g-red';}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   const sql="select tablename, rowsecurity from pg_tables where schemaname='public' order by 1;\n\nselect tablename, policyname, roles, cmd, qual\nfrom pg_policies where schemaname='public' order by 1,2;\n\n-- fonction de changement de mot de passe : vérifier qu'elle contrôle le rôle super_owner côté serveur\nselect prosrc from pg_proc where proname='owner_set_password';";
   return `<div class="c" style="margin-bottom:14px"><h2>🛡️ Sécurité (contrôles réels)</h2>
@@ -5355,7 +5355,7 @@ OWX.sc=async()=>{
       <div class="k ${mfaCls}"><b>🔐</b><span>${mfaTxt} · session ${esc(aal)}</span></div>
     </div>
     <p class="muted" style="margin-top:10px">Ces tests utilisent la clé publique <b>sans session</b> pour vérifier qu’un visiteur non connecté ne lit rien. Ils ne prouvent pas que les rôles (lecteur / éditeur) sont bien limités : testez avec de vrais comptes et exécutez les requêtes ci-dessous dans Supabase → SQL Editor.</p>
-    <div class="f" style="margin:8px 0"><button class="s" onclick="TERH_MFA.manage()">🔐 Gérer ma 2FA</button><button class="s" data-ow-rescan>🔄 Relancer</button></div>
+    <div class="f" style="margin:8px 0"><button class="s" onclick="PRH_MFA.manage()">🔐 Gérer ma 2FA</button><button class="s" data-ow-rescan>🔄 Relancer</button></div>
     <div class="tw"><table style="min-width:640px"><tbody>${rows.join('')}</tbody></table></div></div>
   <div class="c" style="margin-bottom:14px"><h2>Audit SQL à lancer dans Supabase</h2><pre style="white-space:pre-wrap;font-size:12px">${esc(sql)}</pre></div>
   <div class="c"><h2>Session actuelle</h2><pre style="white-space:pre-wrap;font-size:12px">${esc(JSON.stringify({user_id:MY_USER?.id,email:MY_USER?.email,role:MY_ROLE,is_platform_owner:isOwnerUser(),entreprise_id:CO},null,2))}</pre></div>`;
@@ -5426,7 +5426,7 @@ let _lastLoad=Date.now();const _la=loadAll;
 loadAll=async function(){_lastLoad=Date.now();return _la.apply(this,arguments);};
 $('rfb').onclick=async()=>{const b=$('rfb');b.disabled=true;try{await loadAll();if(MY_ROLE==='admin'||MY_ROLE==='super_owner')await loadHist();toast('Données actualisées');}catch(e){toast('Erreur : '+e.message);}b.disabled=false;};
 /* rechargement automatique au retour sur l'onglet : supprimé */
-addEventListener('online',()=>{if(_uid&&!(window.TERH_editing&&TERH_editing()))loadAll();});
+addEventListener('online',()=>{if(_uid&&!(window.PRH_editing&&PRH_editing()))loadAll();});
 
 /* ============ APERÇU DE / SANCTION ============ */
 let PVK='de',_pvl='';
@@ -5460,7 +5460,7 @@ async function prettyXlsx({sheet,title,cols,rows,file}){
   try{if(!window.ExcelJS)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');}
   catch(e){const a=[cols.map(c=>c.h),...rows.map(r=>cols.map(c=>{const v=c.v(r);return c.t==='date'?(v?F(v):''):c.t==='dt'?(v?DT(v):''):(v??'');}))];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),sheet);XLSX.writeFile(wb,file+'-'+LD(T)+'.xlsx');return;}
   const n=cols.length,HR=3,last=HR+rows.length,line={style:'thin',color:{argb:'FFBFC5CD'}},box={top:line,left:line,bottom:line,right:line};
-  const wb=new ExcelJS.Workbook();wb.creator=PARAMS.soc||'TERH';
+  const wb=new ExcelJS.Workbook();wb.creator=PARAMS.soc||'PLATEFORME RH';
   const ws=wb.addWorksheet(sheet,{views:[{state:'frozen',ySplit:HR,showGridLines:false}]});
   ws.mergeCells(1,1,1,n);const t=ws.getCell(1,1);t.value=(PARAMS.soc||'')+(PARAMS.client?' — '+PARAMS.client:'')+' · '+title;t.font={bold:true,size:14,color:{argb:'FF1F2937'}};t.alignment={vertical:'middle'};ws.getRow(1).height=28;
   ws.mergeCells(2,1,2,n);const st=ws.getCell(2,1);st.value='Édité le '+T.toLocaleDateString('fr-FR')+' · '+rows.length+' ligne(s)';st.font={italic:true,size:10,color:{argb:'FF6B7280'}};
@@ -6013,7 +6013,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
         {role:'system',content:"Tu rédiges un brouillon d'évaluation professionnelle en français, pour un responsable RH. Tu te bases UNIQUEMENT sur les éléments fournis : tu n'inventes ni faits, ni chiffres, ni noms. Structure ta réponse EXACTEMENT avec ces trois titres, chacun sur sa ligne : « Points forts : », « Axes d'amélioration : », « Plan d'action : ». Sous « Plan d'action », une ligne par action au format : action | responsable | échéance. Formulation neutre et factuelle, sans jugement sur la personne."},
         {role:'user',content:ctx}],
         max_tokens:1200, lang:'fr'};
-      const r=await window.TERH_callAI(corps,26000);
+      const r=await window.PRH_callAI(corps,26000);
       if(r.error||!r.data||!r.data.text) throw new Error(r.error? r.error.message : 'IA indisponible');
       const parts=evalDecouper(r.data.text);
       Object.keys(parts).forEach(k=>{ const el=ov.querySelector(`[data-k="${k}"]`); if(el && parts[k]) el.value=parts[k]; });
@@ -6105,7 +6105,7 @@ $('primport').onclick=printRpt;$('of').onchange=()=>{PENDING_FILE=null;};
     const csv = '\ufeff' + lines.map(a=>a.join(';')).join('\n');
     const u = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
     const a = document.createElement('a');
-    a.href = u; a.download = 'TERH-'+k+'-'+(typeof LD==='function'?LD(T):Date.now())+'.csv'; a.click();
+    a.href = u; a.download = 'PLATEFORME RH-'+k+'-'+(typeof LD==='function'?LD(T):Date.now())+'.csv'; a.click();
     setTimeout(()=>URL.revokeObjectURL(u),3000);
   }
 
@@ -6450,7 +6450,7 @@ const MD_LIBELLES={de:'Demande d’explication',sanction:'Lettre de sanction',fi
 async function chargerModeles(){
   let mods=await rd('modeles_lettres');
   if(!mods){const md=(curCo()||{}).metadata||{};mods={};Object.keys(MD_LIBELLES).forEach(k=>{if(md['modele_'+k])mods[k]=md['modele_'+k];});if(Object.keys(mods).length)await wr('modeles_lettres',mods).catch(()=>{});}
-  window.TERH_modeles=mods||{};return window.TERH_modeles;
+  window.PRH_modeles=mods||{};return window.PRH_modeles;
 }
 function open(){close();const adm=['admin','super_owner'].includes(ER()),co=curCo();
 const m=document.createElement('div');m.id='phm';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
@@ -6473,7 +6473,7 @@ ${adm&&co?`<hr style="margin:14px 0"><h3 style="margin:0 0 8px">🏢 Logo — ${
 <div style="text-align:center;margin:8px 0"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir l\'en-tête<input type="file" accept="image/*" id="phfe" hidden></label> <button id="phre" class="s" type="button">🗑️ Retirer</button></div>
 <button id="phse" class="s" type="button" style="width:100%;font-weight:700">💾 Enregistrer l\'en-tête</button>
 <h3 style="margin:14px 0 6px">📝 Modèles de lettres</h3><p class="muted" style="font-size:12px;margin:0 0 6px">Modèles propres à cette entreprise. Formats acceptés : Word (.doc, .docx), .odt, .rtf, PDF, image (PNG, JPG, WebP). 10 Mo maximum.</p>
-${MD_TYPES.map(function (t) { return '<div id="phm_' + t[0] + '" style="font-size:12px;margin:4px 0">' + mdTxt(window.TERH_modeles||{}, t[0], t[1]) + '</div><div style="text-align:center;margin:4px 0"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir : ' + t[1] + '<input type="file" accept="' + MD_ACCEPT + '" id="phf_' + t[0] + '" hidden></label></div>'; }).join('')}
+${MD_TYPES.map(function (t) { return '<div id="phm_' + t[0] + '" style="font-size:12px;margin:4px 0">' + mdTxt(window.PRH_modeles||{}, t[0], t[1]) + '</div><div style="text-align:center;margin:4px 0"><label class="s" style="cursor:pointer;padding:8px 12px">📁 Choisir : ' + t[1] + '<input type="file" accept="' + MD_ACCEPT + '" id="phf_' + t[0] + '" hidden></label></div>'; }).join('')}
 <button id="phsm" class="s" type="button" style="width:100%;font-weight:700">💾 Téléverser les modèles choisis</button>`:''}
 <button id="phx" class="s" type="button" style="width:100%;margin-top:12px">Fermer</button></div>`;
 document.body.appendChild(m);
@@ -6485,20 +6485,20 @@ $('phre').onclick=async()=>{if(!confirm('Retirer le papier à en-tête ?'))retur
 if(adm&&co){const sel={};
  MD_TYPES.forEach(function (t) { $('phf_'+t[0]).onchange=function (e) { sel[t[0]]=e.target.files[0]||null; if(sel[t[0]]) toast('Choisi : '+sel[t[0]].name+' (à téléverser)'); }; });
  const okF=f=>!!f&&/\.(doc|docx|odt|rtf|pdf|png|jpe?g|webp)$/i.test(f.name)&&f.size<=MD_MAX;
- const envoiModele=async(f,cle)=>{const ext=f.name.split('.').pop().toLowerCase();const path='modeles/'+co.id+'-'+cle+'.'+ext;const {error}=await db.storage.from(BK).upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});if(error)throw error;const url=db.storage.from(BK).getPublicUrl(path).data.publicUrl+'?v='+Date.now();const mods=Object.assign({},window.TERH_modeles||{});mods[cle]={url:url,nom:f.name,date:new Date().toISOString().slice(0,10)};await wr('modeles_lettres',mods);window.TERH_modeles=mods;};
+ const envoiModele=async(f,cle)=>{const ext=f.name.split('.').pop().toLowerCase();const path='modeles/'+co.id+'-'+cle+'.'+ext;const {error}=await db.storage.from(BK).upload(path,f,{upsert:true,contentType:f.type||'application/octet-stream'});if(error)throw error;const url=db.storage.from(BK).getPublicUrl(path).data.publicUrl+'?v='+Date.now();const mods=Object.assign({},window.PRH_modeles||{});mods[cle]={url:url,nom:f.name,date:new Date().toISOString().slice(0,10)};await wr('modeles_lettres',mods);window.PRH_modeles=mods;};
  $('phsm').onclick=async()=>{
    const liste=MD_TYPES.filter(function (t) { return sel[t[0]]; });
    if(!liste.length){toast('Choisissez au moins un modèle');return;}
    if(liste.some(function (t) { return !okF(sel[t[0]]); })){toast('Format accepté : Word (.doc, .docx), .odt, .rtf, PDF ou image (PNG, JPG, WebP), 10 Mo maximum');return;}
    try{
-     for(const t of liste){await envoiModele(sel[t[0]],t[0]);$('phm_'+t[0]).innerHTML=mdTxt(window.TERH_modeles,t[0],t[1]);sel[t[0]]=null;}
+     for(const t of liste){await envoiModele(sel[t[0]],t[0]);$('phm_'+t[0]).innerHTML=mdTxt(window.PRH_modeles,t[0],t[1]);sel[t[0]]=null;}
      toast('Modèle(s) enregistré(s)');
    }catch(x){toast('Erreur : '+x.message);}
  };
 }
 $('phcam').onclick=async()=>{if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){$('phfc').click();return;}try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});$('phv').srcObject=stream;$('phv').style.display='';$('phsnap').style.display='';}catch(x){if(navigator.mediaDevices&&window.isSecureContext!==false){toast('Caméra non autorisée : ouverture de l\'appareil photo…');}$('phfc').click();}};
 $('phsnap').onclick=()=>{const v=$('phv'),c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(async b=>{const f=new File([b],'s.jpg',{type:'image/jpeg'});blobA=await toJpeg(f,320);const i=$('phpa');i.src=URL.createObjectURL(blobA);i.style.visibility='visible';stopCam();$('phv').style.display='none';$('phsnap').style.display='none';},'image/jpeg',.9);};
-$('phsa').onclick=async()=>{if(!blobA||!MY_USER){toast('Choisissez d\'abord une photo');return;}try{let u;try{u=await upAv(MY_USER.id+'/avatar.jpg',blobA);await window.TERH_saveMyProfile({avatar_url:u});window._avUrl=await signAv(u);showAv();toast('Photo enregistrée');}catch(x){try{const sm=await toJpeg(blobA,160),du=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=ko;fr.readAsDataURL(sm);});try{localStorage.setItem('terh_av_'+MY_USER.id,du);}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}try{await db.auth.updateUser({data:{avatar:du}});}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}window._avUrl=du;showAv();toast('Photo enregistrée (stockage serveur indisponible : '+x.message+')');}catch(y){toast('Erreur : '+x.message);}}}catch(z){toast('Erreur : '+z.message);}};
+$('phsa').onclick=async()=>{if(!blobA||!MY_USER){toast('Choisissez d\'abord une photo');return;}try{let u;try{u=await upAv(MY_USER.id+'/avatar.jpg',blobA);await window.PRH_saveMyProfile({avatar_url:u});window._avUrl=await signAv(u);showAv();toast('Photo enregistrée');}catch(x){try{const sm=await toJpeg(blobA,160),du=await new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=ko;fr.readAsDataURL(sm);});try{localStorage.setItem('terh_av_'+MY_USER.id,du);}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}try{await db.auth.updateUser({data:{avatar:du}});}catch(e2){try{logErr('erreur ignorée : '+(((e2)&&e2.message)||e2))}catch(_){}}window._avUrl=du;showAv();toast('Photo enregistrée (stockage serveur indisponible : '+x.message+')');}catch(y){toast('Erreur : '+x.message);}}}catch(z){toast('Erreur : '+z.message);}};
 if($('phsl'))$('phsl').onclick=async()=>{if(!blobL){toast('Choisissez d\'abord un logo');return;}try{const u=await up('logos/'+co.id+'.jpg',blobL);const {error}=await db.from('entreprises').update({logo_url:u}).eq('id',co.id);if(error)throw error;co.logo_url=u;showBrand();toast('Logo enregistré');}catch(x){toast('Erreur : '+x.message);}};
 $('phx').onclick=close;m.addEventListener('click',e=>{if(e.target===m)close();});}
 function showAv(){const i=$('myav');if(!i)return;if(window._avUrl){i.src=window._avUrl;i.style.display='';}else i.style.display='none';}
@@ -6540,7 +6540,7 @@ if(box)new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(()=>{if(!on)retu
 const w=document.createElement('p');w.className='muted';w.style.cssText='margin:6px 0;font-size:12px';
 w.innerHTML='<label class="s" style="cursor:pointer;padding:6px 10px">📂 Importer un modèle ('+nom+')<input type="file" accept=".txt,.md,.html,.htm,.rtf,.docx,.pdf,.jpg,.jpeg,.png,.webp" hidden></label> <span>Word, PDF, .txt, .html, .rtf ou image, puis « Enregistrer ». Variables : {{NOM}}, {{SOCIETE}}…</span>';
 t.parentNode.insertBefore(w,t);
-w.querySelector('input').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5000000){toast('Fichier trop volumineux (max 5 Mo)');return;}try{toast('Lecture du fichier…');t.value=await window.TERH_tplFromFile(f,id);t.dispatchEvent(new Event('input',{bubbles:true}));toast('Modèle chargé : vérifiez l\'aperçu puis enregistrez');}catch(er){toast('Erreur : '+er.message);}e.target.value='';};});})();
+w.querySelector('input').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>5000000){toast('Fichier trop volumineux (max 5 Mo)');return;}try{toast('Lecture du fichier…');t.value=await window.PRH_tplFromFile(f,id);t.dispatchEvent(new Event('input',{bubbles:true}));toast('Modèle chargé : vérifiez l\'aperçu puis enregistrez');}catch(er){toast('Erreur : '+er.message);}e.target.value='';};});})();
 
 /* ===== Paie camerounaise, congés légaux, widgets activables (par entreprise) ===== */
 (function(){
@@ -6550,20 +6550,20 @@ const WG=[['paie','💰 Paie'],['dsp','⚖️ Disciplinaire'],['c','🏖️ Cong
 let CFG={...DEF},WGT={},SAL={},CUS=[],MAT={},MCFG={prefix:'',width:4,next:1,auto:false},MOD={m:'sage',color:'#1f5fbf',logo:true,sig:'La Direction',foot:'',mention:''};const fm=n=>Math.round(n).toLocaleString('fr-FR')+' F';
 async function rd(cle){try{const {data}=await db.from('parametres').select('valeur').eq('entreprise_id',CO).eq('cle',cle).maybeSingle();return data?.valeur?JSON.parse(data.valeur):null;}catch(e){return null;}}
 async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,valeur:JSON.stringify(o),entreprise_id:CO,updated_at:new Date().toISOString()},{onConflict:'entreprise_id,cle'});if(error)throw error;}
-window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
-window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
-window.TERH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
-window.TERH_role=()=>ER();
-window.TERH_paieClotures={liste:()=>rd('paie_clotures_json').then(x=>x||{}),sauverListe:o=>wr('paie_clotures_json',o),lireMois:m=>rd('paie_cloture_'+m),sauverMois:(m,o)=>wr('paie_cloture_'+m,o)};
-window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
-window.TERH_paieHok={load:k=>rd(k),save:(k,o)=>wr(k,o)};
-window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
-window.TERH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.TERH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),enfants:xx.enfants||[],enfants6:(xx.enfants&&xx.enfants.length&&window.PaieEnfants)?PaieEnfants.moins6ans(xx.enfants,LD(T)):(x.enf6||0),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',transport:(()=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&/^(INDEMNITE DE TRANSPORT|TRANSPORT)$/.test(nA(k.slice(2))));return k&&xx[k]!=null&&String(xx[k]).trim()!==''?xx[k]:'';})(),hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
-window.TERH_listeSalaries=window.TERH_fichesPaie;
-window.TERH_entrepriseInfos=()=>{const m=(curCo()||{}).metadata||{};const o={};['bp','tel','niu','cnps'].forEach(k=>{if(m[k])o[k]=String(m[k]);});return o;};
-window.TERH_congesPour=(id)=>(CG||[]).filter(c=>String(c.employe_id)===String(id)).map(c=>({du:c.deb,au:c.fin,statut:c.statut}));
-window.TERH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
-window.TERH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');const v=String(mat||'').trim();if(v&&Object.keys(MAT).some(k=>k!==String(id)&&String(MAT[k]||'').trim()===v))throw new Error('Matricule '+v+' déjà attribué à un autre salarié');MAT[id]=v;await wr('matricules_json',MAT);return true;};
+window.PRH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
+window.PRH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
+window.PRH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
+window.PRH_role=()=>ER();
+window.PRH_paieClotures={liste:()=>rd('paie_clotures_json').then(x=>x||{}),sauverListe:o=>wr('paie_clotures_json',o),lireMois:m=>rd('paie_cloture_'+m),sauverMois:(m,o)=>wr('paie_cloture_'+m,o)};
+window.PRH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
+window.PRH_paieHok={load:k=>rd(k),save:(k,o)=>wr(k,o)};
+window.PRH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};
+window.PRH_fichesPaie=()=>(typeof EN==='function'?EN():[]).filter(x=>(x.n||x.nom)).map(x=>{const nom=x.n||x.nom;const xx=(typeof xGet==='function')?xGet(nom):{};const comp=window.PRH_composantsFiche(nom)||{};const kAnc=Object.keys(comp.colonnes||{}).find(k=>/ANCIENNET/i.test(k));const ancT=kAnc?String(comp.colonnes[kAnc]||''):'';const entree=x.entree||xx.emb||'';const fa=(window.PaieMoteur&&PaieMoteur.ancienneteFiche)?PaieMoteur.ancienneteFiche({entree,dane:x.dane||'',ancTexte:ancT},new Date()):null;return {id:String(x.id),enfants:xx.enfants||[],enfants6:(xx.enfants&&xx.enfants.length&&window.PaieEnfants)?PaieEnfants.moins6ans(xx.enfants,LD(T)):(x.enf6||0),poste:x.p||'',nom,mat:(typeof MAT!=='undefined'&&MAT[x.id])||xx.mat||'',cnps:x.cnps||'',entree,dane:x.dane||'',ancTexte:ancT,ans:fa?fa.ans:'',anciennete:fa?fa.texte:'',mod:x.mod||'',lieu:x.lieu||'',sb:x.sb||'',transport:(()=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&/^(INDEMNITE DE TRANSPORT|TRANSPORT)$/.test(nA(k.slice(2))));return k&&xx[k]!=null&&String(xx[k]).trim()!==''?xx[k]:'';})(),hor:x.hor||'',niveau:x.niv||'',coef:x.coef||'',indice:x.ind||'',categorie:x.cat||xx.cat||'',convention:x.conv||'',etablissement:x.etab||'',genre:x.g||x.genre||'',enfants6:x.enf6||'',...comp};});
+window.PRH_listeSalaries=window.PRH_fichesPaie;
+window.PRH_entrepriseInfos=()=>{const m=(curCo()||{}).metadata||{};const o={};['bp','tel','niu','cnps'].forEach(k=>{if(m[k])o[k]=String(m[k]);});return o;};
+window.PRH_congesPour=(id)=>(CG||[]).filter(c=>String(c.employe_id)===String(id)).map(c=>({du:c.deb,au:c.fin,statut:c.statut}));
+window.PRH_majFiche=async(id,ch)=>{const r=(typeof EN==='function'?EN():[]).find(x=>String(x.id)===String(id));if(!r)throw new Error('fiche introuvable');if(!CAN.upd())throw new Error('Permission refusée');const o={};FLK.forEach(k=>o[k]=(r[k]==null?'':String(r[k])));o.contrat_url=r.contrat_url||'';o.contrat_nom=r.contrat_nom||'';Object.assign(o,ch);await updateEmp(id,o);await loadAll();return true;};
+window.PRH_enregistrerMat=async(id,mat)=>{if(!CAN.upd())throw new Error('Permission refusée');const v=String(mat||'').trim();if(v&&Object.keys(MAT).some(k=>k!==String(id)&&String(MAT[k]||'').trim()===v))throw new Error('Matricule '+v+' déjà attribué à un autre salarié');MAT[id]=v;await wr('matricules_json',MAT);return true;};
 let loaded='';async function load(){if(!CO||loaded===CO)return;loaded=CO;CFG={...DEF,...(await rd('paie_json')||{})};WGT=await rd('widgets_json')||{};SAL=await rd('paie_sal_json')||{};MAT=await rd('matricules_json')||{};CUS=await rd('rubriques_json')||[];MCFG={...MCFG,...(await rd('matricule_cfg_json')||{})};MOD={...MOD,...(await rd('paie_mod_json')||{})};applyW();}
 function applyW(){const adm=['admin','super_owner'].includes(ER());document.querySelectorAll('nav button[data-v]').forEach(b=>{const k=b.dataset.v;if(['dsp','c','a'].includes(k)){const off=WGT[k]===false;if(off&&!adm)b.style.display='none';else if(off&&adm)b.style.opacity='.5';else{b.style.opacity='';if(b.id!=='nh'&&b.style.display==='none'&&k!=='dsp')b.style.display='';}}});const p=$('npaie');if(p)p.style.display=(['admin','super_owner','editeur'].includes(ER())&&WGT.paie!==false)?'':'none';}
 const TB=(v,T)=>{for(const [m,x] of T)if(v<=m)return x;return T[T.length-1][1];};
@@ -6583,7 +6583,7 @@ function calc(b,aut,nc,tx,nt){
   if(nc>0)lignes.push({code:'9999',lib:'Élément non cotisable CNPS',gain:nc,cnps:false,irpp:true});
   if(aux>0)lignes.push({code:'2000',lib:'Autres retenues',gain:aux,retenue:true});
   const saisies={salaireBase:b,
-    taux:Object.assign({cnps_sal:CF.cnps_sal,cnps_pat:CF.cnps_pat,at_pat:(window.TERH_tauxEntreprise?window.TERH_tauxEntreprise().at_pat:CF.at),pf_pat:CF.af,fne_pat:CF.fne,cfc_sal:CF.cfc_sal,cfc_pat:CF.cfc_pat,cac:CF.cac,plafond_cnps:CF.plafond,cnps_plafond_mode:CF.cnps_plafond_mode||'sage'},window.PAIE_TAUX_CACHE||{}),
+    taux:Object.assign({cnps_sal:CF.cnps_sal,cnps_pat:CF.cnps_pat,at_pat:(window.PRH_tauxEntreprise?window.PRH_tauxEntreprise().at_pat:CF.at),pf_pat:CF.af,fne_pat:CF.fne,cfc_sal:CF.cfc_sal,cfc_pat:CF.cfc_pat,cac:CF.cac,plafond_cnps:CF.plafond,cnps_plafond_mode:CF.cnps_plafond_mode||'sage'},window.PAIE_TAUX_CACHE||{}),
     taxeCommunale:tx==='tc'?undefined:0,
     taxeDevLocal:tx==='tdl',
     redevance:CF.crtv===0?0:undefined};
@@ -6629,13 +6629,13 @@ const head='<tr><th>Désignation</th><th>Base</th><th>Taux</th><th>Gains</th><th
 const id='<b>'+esc(e.n)+'</b> — '+esc(e.p||'')+'<br>Matricule : '+esc(MAT[e.id]||'—')+' · N° CNPS : '+esc(CNX(e)||'—')+' · Embauche : '+esc(F(e.deb)||'—');
 const net='<div style="margin-top:8px;text-align:right;font-size:15px"><b>NET À PAYER : '+fm(c.net)+'</b></div>';
 const pat='<p style="font-size:10px;margin:6px 0">Charges patronales : '+fm(c.pat)+' · Coût employeur : '+fm(c.cout)+'</p>';
-const foot='<p style="font-size:10px;color:#555">'+esc(MOD.mention||'')+'</p><div style="display:flex;justify-content:space-between;margin-top:14px"><span>'+(window.TERH_footHtml?window.TERH_footHtml(MOD.foot||''):esc(MOD.foot||''))+'</span><span>'+esc(MOD.sig||'')+'</span></div>';
+const foot='<p style="font-size:10px;color:#555">'+esc(MOD.mention||'')+'</p><div style="display:flex;justify-content:space-between;margin-top:14px"><span>'+(window.PRH_footHtml?window.PRH_footHtml(MOD.foot||''):esc(MOD.foot||''))+'</span><span>'+esc(MOD.sig||'')+'</span></div>';
 const brk=pg?'page-break-after:always;':'';let h;if(MOD.m==='sage'||!MOD.m)return sageSlip(e,period,g,c,co,lg,brk);
 if(MOD.m==='moderne')h='<div style="'+brk+'font-family:Arial"><div style="background:'+col+';color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-radius:6px"><div><div style="font-size:17px;font-weight:700">BULLETIN DE PAIE</div><div>'+esc(period)+'</div></div><div style="text-align:right">'+lg+'<div>'+esc(co.nom||'')+'</div></div></div><div style="background:#f3f5f9;padding:8px 12px;margin:8px 0;border-radius:6px">'+id+'</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:'+col+'1a">'+head+'</thead><tbody>'+tb+'</tbody></table>'+net+pat+foot+'</div>';
 else if(MOD.m==='compact')h='<div style="'+brk+'font-family:Arial;font-size:11px;border:1px solid #999;padding:8px"><b>'+esc(co.nom||'')+'</b> — Bulletin '+esc(period)+' — '+id+'<table style="width:100%;border-collapse:collapse;margin-top:6px">'+head+tb+'</table>'+net+foot+'</div>';
 else h='<div style="'+brk+'font-family:Arial"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid '+col+';padding-bottom:6px">'+lg+'<div style="text-align:right"><h2 style="margin:0;color:'+col+'">BULLETIN DE PAIE</h2>'+esc(co.nom||'')+'<br>Période : '+esc(period)+'</div></div><p>'+id+'</p><table style="width:100%;border-collapse:collapse;font-size:12px" border="1" cellpadding="4">'+head+tb+'</table>'+net+pat+foot+'</div>';
 return h;}
-window.TERH_P={get MOD(){return MOD},set MOD(v){MOD=v},get CUS(){return CUS},set CUS(v){CUS=v},get CFG(){return CFG},set CFG(v){CFG={...DEF,...v}},get E(){return E},prev(){const d={id:'_demo',n:'EXEMPLE Jean',p:'Chauffeur',cnps:'32501209337',deb:'2026-01-06'},k=SAL._demo;SAL._demo={b:92429,p:62475,nc:23004,nt:5000,tx:'tc',h1:40,h2:32,h3:21,hn:16};try{return slip(null,d,per(),false);}finally{if(k)SAL._demo=k;else delete SAL._demo;}},per:()=>per()};
+window.PRH_P={get MOD(){return MOD},set MOD(v){MOD=v},get CUS(){return CUS},set CUS(v){CUS=v},get CFG(){return CFG},set CFG(v){CFG={...DEF,...v}},get E(){return E},prev(){const d={id:'_demo',n:'EXEMPLE Jean',p:'Chauffeur',cnps:'32501209337',deb:'2026-01-06'},k=SAL._demo;SAL._demo={b:92429,p:62475,nc:23004,nt:5000,tx:'tc',h1:40,h2:32,h3:21,hn:16};try{return slip(null,d,per(),false);}finally{if(k)SAL._demo=k;else delete SAL._demo;}},per:()=>per()};
 function livre(list,period){const col=MOD.color||'#1f5fbf';let T={};const rows=list.map(e=>{const g=gross(e.id),c=calc(g.b+g.p,g.r,g.nc,g.tx,g.nt);['b','cn','cf','im','aut','net','pat','cout'].forEach(k=>T[k]=(T[k]||0)+c[k]);return '<tr><td>'+esc(MAT[e.id]||'')+' '+esc(e.n)+'</td><td>'+esc(CNX(e))+'</td><td>'+fm(c.b)+'</td><td>'+fm(c.cn)+'</td><td>'+fm(c.cf)+'</td><td>'+fm(c.im)+'</td><td>'+fm(c.aut)+'</td><td><b>'+fm(c.net)+'</b></td><td>'+fm(c.pat)+'</td><td>'+fm(c.cout)+'</td></tr>';}).join('');
 return '<h2 style="color:'+col+'">Livre de paie — '+esc(period)+' — '+esc(curCo()?.nom||'')+'</h2><table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10px"><thead style="background:'+col+'1a"><tr><th>Employé</th><th>N° CNPS</th><th>Brut</th><th>CNPS</th><th>CFC</th><th>IRPP+CAC</th><th>Autres</th><th>Net</th><th>Charges pat.</th><th>Coût</th></tr></thead><tbody>'+rows+'<tr style="font-weight:700;background:#eee"><td colspan="2">TOTAL ('+list.length+')</td><td>'+fm(T.b||0)+'</td><td>'+fm(T.cn||0)+'</td><td>'+fm(T.cf||0)+'</td><td>'+fm(T.im||0)+'</td><td>'+fm(T.aut||0)+'</td><td>'+fm(T.net||0)+'</td><td>'+fm(T.pat||0)+'</td><td>'+fm(T.cout||0)+'</td></tr></tbody></table><p style="font-size:10px">'+esc(MOD.mention||'')+'</p>';}
 const active=()=>(E||[]).filter(r=>r.sc!=='ARRÊT');
@@ -6671,7 +6671,7 @@ if(tab==='wg')body='<p class="muted" style="font-size:12px">Activez ou désactiv
 m.innerHTML='<div style="background:var(--bg,#fff);color:inherit;max-width:480px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:14px"><h3 style="margin:0 0 8px">💰 Paie — '+esc(curCo()?.nom||'')+'</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">'+tabs+'</div>'+body+'<button class="s" id="pyx" style="width:100%;margin-top:12px">Fermer</button></div>';
 document.body.appendChild(m);$('pyx').onclick=close;m.onclick=e=>{if(e.target===m)close();};m.querySelectorAll('[data-pt]').forEach(b=>b.onclick=()=>open(b.dataset.pt));
 const hx=(id,f)=>{const el=m.querySelector('#'+id);if(el)el.onclick=f;};
-const listeSal=()=>window.TERH_fichesPaie();
+const listeSal=()=>window.PRH_fichesPaie();
 const periodeCourante=()=>{const d=new Date(),y=d.getFullYear(),mo=d.getMonth()+1,pp=n=>String(n).padStart(2,'0'),aa=String(y).slice(2),last=new Date(y,mo,0).getDate();return '01/'+pp(mo)+'/'+aa+' au '+pp(last)+'/'+pp(mo)+'/'+aa;};
 hx('simu_open',()=>{const v=parseFloat(m.querySelector('#sim_sal').value)||0;if(!(v>0)){say('Saisissez le salaire de base');return;}if(window.PaieSimulation)PaieSimulation.ouvrir({lignes:[{code:'1000',gain:v,cnps:true,irpp:true}],saisies:{taux:window.PAIE_TAUX_CACHE||{}},nom:''});else say('Module simulation non chargé');});
 hx('sim_det',()=>{const __id=(typeof identiteBulletinLue==='function'?identiteBulletinLue():null)||{};if(window.PaieDetail)PaieDetail.ouvrir({bulletin:__id,employeur:__id.societe||'',taux:window.PAIE_TAUX_CACHE,rubriques:window.PAIE_RUB_CACHE,employes:listeSal()});else say('Bulletin détaillé non chargé');});
@@ -7016,7 +7016,7 @@ function openWin(html,id){const el=document.createElement('div');if(id)el.id=id;
 let lastRef=0;
 async function refresh(manual){
   if(!appOn())return;
-  if(!manual&&(stack.length||document.hidden||Q('.v.on')?.id==='v-n'||Date.now()-lastRef<20000||(window.TERH_editing&&TERH_editing())))return;
+  if(!manual&&(stack.length||document.hidden||Q('.v.on')?.id==='v-n'||Date.now()-lastRef<20000||(window.PRH_editing&&PRH_editing())))return;
   lastRef=Date.now();
   try{await loadAll();if(typeof refreshCurrent==='function')refreshCurrent();$('rfa3').textContent='🔄 '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});if(manual)say('Données actualisées');}
   catch(e){if(manual)say('Erreur : '+e.message);}
@@ -7089,7 +7089,7 @@ function micUI(){const m=$('amic');if(m){m.classList.toggle('on3',convo||listeni
 const _nm=t=>String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
 function echoRatio(f){if(!lastSpoken)return 0;const a=_nm(f);if(!a.length)return 0;const b=new Set(_nm(lastSpoken));let h=0;a.forEach(w=>{if(b.has(w))h++;});return h/a.length;}
 function cutSpeech(){try{TTS&&TTS.cancel();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}window._sid=(window._sid||0)+1;clearTimeout(window._swd);speaking=false;voiceTurn=false;busy=false;ignoreUntil=0;lastSpokenAt=0;micUI();if(convo&&!listening&&!dict)setTimeout(startRec,350);}
-window.TERH_cutSpeech=function(){if(speaking)cutSpeech();};
+window.PRH_cutSpeech=function(){if(speaking)cutSpeech();};
 /* Demandes d'arrêt reconnues à la voix (accents et ponctuation ignorés) */
 const STOP_RE=/^(?:(?:assistant|ia|ok|bon|oui|non|alors)\s+)?(?:stop|stoppe|stoppez|arrete|arretez|arrete toi|arretez vous|arrete de parler|arretez de parler|arrete la|tais toi|taisez vous|silence|chut|pause|attends|attend|attendez|ca va|ca suffit|ca ira|c est bon|c est assez|assez|j ai compris|merci|merci beaucoup|enough|be quiet|shut up|that s enough|that is enough|thanks|thank you)(?:\s+(?:merci|s il te plait|s il vous plait|please|maintenant))?$/;
 function isStopCmd(tx){const w=_nm(tx);return w.length>0&&w.length<=5&&STOP_RE.test(w.join(' '));}
@@ -7315,11 +7315,11 @@ function parseSlip2(text,fn){
   let jr=0;for(const l of lines){const m=/(?:nombre\s+de\s+jours|nb\.?\s*(?:de\s*)?jours|jours?\s+(?:travaill\w+|pay\w+|pr[ée]sence|de\s+travail)|\bjours?\b)\D{0,15}(\d{1,2})(?:[,.]\d+)?\b/i.exec(l);if(m&&+m[1]>=1&&+m[1]<=31){jr=+m[1];break;}}
   const tmp=(()=>{const per=/(?:p[ée]riode|mois)\D{0,15}((?:janv|f[ée]v|mars|avr|mai|juin|juil|ao[uû]|sept|oct|nov|d[ée]c)\w*\.?\s*\/?\s*\d{2,4}|\d{1,2}\s*[\/\-]\s*\d{4})/i.exec(t);return per?per[1]:'';})();
   const r0={nom:(e?e.n:(nom||fn||'')).slice(0,60),nomBul:(nom||'').slice(0,60),eid:e?e.id:'',cnps,cnpsAuto:fromEmp,jours:Math.min(30,jr||30),brut,cot,exc,mat:'',per:tmp,_t:t.slice(0,8000)};
-  try{if(window.TERH_DIPE&&TERH_DIPE.enrich)TERH_DIPE.enrich(r0,t,fn);}catch(er){console.warn('dipe-plus enrich',er);}
-  try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(r0);}catch(er){console.warn('référentiel CNPS',er);}
+  try{if(window.PRH_DIPE&&PRH_DIPE.enrich)PRH_DIPE.enrich(r0,t,fn);}catch(er){console.warn('dipe-plus enrich',er);}
+  try{if(window.PRH_CNPSREF)PRH_CNPSREF.fixRow(r0);}catch(er){console.warn('référentiel CNPS',er);}
   return r0;
 }
-function pageText(items){return (window.TERH_pdfText||pdfItemsToText)(items);}
+function pageText(items){return (window.PRH_pdfText||pdfItemsToText)(items);}
 async function pdfPages(f,prog){
   if(!window.pdfjsLib)await loadJS('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -7337,12 +7337,12 @@ function dipeLine(o){const R=(v,n)=>String(v).padStart(n,' ');
   return (o.pre||'C0400000').padEnd(23,' ')+o.mm+o.emp+(o.suf||'000D1')+o.yyyy+o.cnps+R(o.jours,2).replace(' ','0')+R(o.brut,10)+R(o.exc||0,10)+R(o.cot,10)+R(o.cot,10)+R(o.cot,10)+''.padEnd(7,' ')+String(o.seq).padStart(9,'0')+''.padEnd(10,' ')+R(o.mat||'',4);}
 const parseEmp=v=>{v=String(v||'').replace(/\s/g,'').toUpperCase();const m=v.match(/^(\d{10})([0-9A-Z]{5})?$/);return m?{emp:m[1],suf:m[2]||'000D1'}:{emp:'',suf:''};};
 
-const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{if(window.TERH_DIPE&&TERH_DIPE.mount)return ok(true);const sc=document.createElement('script');sc.src='dipe-plus.js?t='+Date.now();sc.onload=()=>ok(true);sc.onerror=()=>{window.__dipePlusP=null;console.warn('dipe-plus.js introuvable : placez-le à côté de index.html');ok(false);};document.head.appendChild(sc);}));
+const loadDipePlus=()=>window.__dipePlusP||(window.__dipePlusP=new Promise(ok=>{if(window.PRH_DIPE&&PRH_DIPE.mount)return ok(true);const sc=document.createElement('script');sc.src='dipe-plus.js?t='+Date.now();sc.onload=()=>ok(true);sc.onerror=()=>{window.__dipePlusP=null;console.warn('dipe-plus.js introuvable : placez-le à côté de index.html');ok(false);};document.head.appendChild(sc);}));
 async function openDipe3(){
   document.getElementById('dpm2')?.remove();
   const plusOk=await loadDipePlus();
   /* le référentiel CNPS doit être chargé AVANT de reprendre le dernier DIPE / les fiches : son N° CNPS fait foi dans le DIPE */
-  try{if(window.TERH_CNPSREF)await TERH_CNPSREF.load();}catch(er){console.warn('référentiel CNPS',er);}
+  try{if(window.PRH_CNPSREF)await PRH_CNPSREF.load();}catch(er){console.warn('référentiel CNPS',er);}
   const cfg=(await rd('dipe_cfg'))||{},PC={...DEFC,...((await rd('paie_json'))||{})},MAT=(await rd('matricules_json'))||{};
   cfg.ordres=cfg.ordres||{};cfg.mats=cfg.mats||{};
   let R=[],raw={};const per0=(()=>{const p=$('pyper');return p&&p.value?p.value:new Date().toISOString().slice(0,7);})();
@@ -7378,11 +7378,11 @@ async function openDipe3(){
       if(r.cnps&&!r.mat&&cfg.mats[r.cnps])r.mat=cfg.mats[r.cnps];
       });
     /* référentiel CNPS : le N° de l'historique CNPS complète / remplace celui du bulletin ou de la fiche */
-    try{if(window.TERH_CNPSREF)R.forEach(r=>TERH_CNPSREF.fixRow(r));}catch(er){console.warn('référentiel CNPS',er);}
+    try{if(window.PRH_CNPSREF)R.forEach(r=>PRH_CNPSREF.fixRow(r));}catch(er){console.warn('référentiel CNPS',er);}
     return n;};
   g('d_fill').onclick=()=>{const n=fillFromEmp();draw();say('🧩 '+n+' N° CNPS complété(s) depuis les fiches');};
-  g('d_ref').onclick=()=>{if(window.TERH_CNPSREF)TERH_CNPSREF.open();else say('Référentiel CNPS indisponible');};
-  if(window.TERH_CNPSREF)TERH_CNPSREF.onChange=()=>{try{fillFromEmp();draw();showAbs();}catch(er){console.warn(er);}};
+  g('d_ref').onclick=()=>{if(window.PRH_CNPSREF)PRH_CNPSREF.open();else say('Référentiel CNPS indisponible');};
+  if(window.PRH_CNPSREF)PRH_CNPSREF.onChange=()=>{try{fillFromEmp();draw();showAbs();}catch(er){console.warn(er);}};
   g('d_add').onclick=()=>{R.push({nom:'',cnps:'',jours:30,brut:0,cot:0,exc:0,mat:''});draw();};
   g('d_flt').onchange=draw;g('d_drop').onchange=draw;
   /* ancien modèle */
@@ -7407,22 +7407,22 @@ async function openDipe3(){
     const A=R.filter(r=>r.old&&!r.seen);
     b.innerHTML=A.length?'<b>⚠ '+A.length+' salarié(s) dans l\'ancien DIPE mais absent(s) des bulletins :</b><br>'+A.map(r=>ESC(r.nom||'(nom inconnu)')+' — CNPS '+ESC(r.cnps||'?')).join('<br>')+'<br><i>Ils gardent leurs anciennes valeurs (lignes grisées). Vérifiez : départ, absence de paie ou bulletin non fourni.</i>':'✅ Tous les salariés de l\'ancien DIPE ont un bulletin.';};
   /* lecture des bulletins */
-  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;window.__slipLog=[];let nread=0;try{if(window.TERH_CNPSREF){await TERH_CNPSREF.load();TERH_CNPSREF.S.stat={fixed:0,filled:0,named:0};}}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
+  g('d_go').onclick=async()=>{const fs=[...g('d_f').files];if(!fs.length){say('Choisissez au moins un bulletin');return;}g('d_go').disabled=true;window.__slipLog=[];let nread=0;try{if(window.PRH_CNPSREF){await PRH_CNPSREF.load();PRH_CNPSREF.S.stat={fixed:0,filled:0,named:0};}}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}R.forEach(r=>{if(r.mem&&!r.memDone){r.seen=false;r.memDone=true;}});
     try{for(const f of fs){const ex=f.name.toLowerCase().split('.').pop();let slips;
       try{
         if(ex==='pdf')slips=groupSlips(await pdfPages(f,(i,n)=>{g('d_s').textContent='⏳ '+f.name+' : page '+i+'/'+n;}));
         else{g('d_s').textContent='⏳ Lecture de '+f.name+'… (OCR possible, patientez)';const txt=await extText(f);slips=groupSlips([txt]);}
       }catch(err){console.error(err);say('Lecture impossible : '+f.name+' ('+err.message+')');continue;}
       for(const s of slips){const r=parseSlip2(s,f.name.replace(/\.[^.]+$/,''));nread++;
-        const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.TERH_DIPE&&TERH_DIPE.find)j=TERH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
-        if(window.TERH_DIPE&&TERH_DIPE.findRow){j=TERH_DIPE.findRow(R,r);}
-        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.TERH_DIPE&&TERH_DIPE.merge)TERH_DIPE.merge(o,r);o._t=r._t;try{if(window.TERH_CNPSREF)TERH_CNPSREF.fixRow(o);}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}}
+        const dg=v=>String(v||'').replace(/\D/g,'');let j=R.findIndex(x=>dg(x.cnps)&&dg(r.cnps)&&dg(x.cnps)===dg(r.cnps));if(j<0&&r.eid)j=R.findIndex(x=>x.eid&&x.eid===r.eid);if(j<0&&window.PRH_DIPE&&PRH_DIPE.find)j=PRH_DIPE.find(R,r);if(j<0&&r.nom)j=R.findIndex(x=>nz2(x.nom)&&nz2(x.nom)===nz2(r.nom));
+        if(window.PRH_DIPE&&PRH_DIPE.findRow){j=PRH_DIPE.findRow(R,r);}
+        if(j>-1){const o=R[j];o.seen=true;o.old=true;if(r.brut)o.brut=r.brut;if(r.brut||r.cot){o.cot=r.cot||0;o.cotEst=false;}if(r.exc)o.exc=r.exc;o.jours=r.jours||o.jours;if(!o.cnps&&r.cnps){o.cnps=r.cnps;o.cnpsAuto=r.cnpsAuto;}if(!o.nom)o.nom=r.nom;o.eid=o.eid||r.eid;if(window.PRH_DIPE&&PRH_DIPE.merge)PRH_DIPE.merge(o,r);o._t=r._t;try{if(window.PRH_CNPSREF)PRH_CNPSREF.fixRow(o);}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}}
         else{R.push(r);}try{(window.__slipLog=window.__slipLog||[]).push({row:j>-1?R[j]:r,slip:r,matched:j>-1});}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}}
       await new Promise(r=>setTimeout(r,0));}
     }finally{g('d_go').disabled=false;}
     const n=fillFromEmp();
     const per=R.find(r=>r.per);if(per&&per.per){/* période détectée : indicative */}
-    const sr=(window.TERH_CNPSREF&&TERH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();try{if(window.TERH_DIPE&&TERH_DIPE.report)TERH_DIPE.report(true);}catch(er){console.warn(er);}try{if(window.TERH_DIPE&&TERH_DIPE.afterRead)TERH_DIPE.afterRead();}catch(er){console.warn(er);}};
+    const sr=(window.PRH_CNPSREF&&PRH_CNPSREF.S.stat)||{fixed:0,filled:0};g('d_s').textContent='✅ '+nread+' bulletin(s) lu(s)'+(n?' · '+n+' N° CNPS repris des fiches':'')+((sr.fixed||sr.filled)?' · 📚 référentiel CNPS : '+sr.fixed+' N° corrigé(s), '+sr.filled+' complété(s)':'')+' · '+R.filter(r=>!r.old).length+' nouveau(x) · '+R.filter(r=>r.old&&!r.seen).length+' absent(s) des bulletins. Vérifiez les cases rouges ; 🔎 montre le texte lu.';g('d_flt').checked=R.some((r,i)=>!okRow(r,i));draw();showAbs();try{if(window.PRH_DIPE&&PRH_DIPE.report)PRH_DIPE.report(true);}catch(er){console.warn(er);}try{if(window.PRH_DIPE&&PRH_DIPE.afterRead)PRH_DIPE.afterRead();}catch(er){console.warn(er);}};
   /* export DIPE */
   g('d_dl').onclick=async()=>{try{
     const E5=parseEmp(g('d_em').value),p=g('d_mo').value,pre=(g('d_pre').value||'C0400000').trim();
@@ -7456,16 +7456,16 @@ async function openDipe3(){
   }catch(err){console.warn('seed DIPE',err);}
   draw();showAbs();
   try{
-    if(plusOk&&window.TERH_DIPE&&TERH_DIPE.mount)TERH_DIPE.mount({R,el,g,get E(){return typeof E!=='undefined'?E:[];},MAT,PC,rd,wr,say,openWin,incl,getMiss:()=>miss,setDraw:f=>{drawX=f;},fillFromEmp,matchEmp,parseSlip2,showAbs});
+    if(plusOk&&window.PRH_DIPE&&PRH_DIPE.mount)PRH_DIPE.mount({R,el,g,get E(){return typeof E!=='undefined'?E:[];},MAT,PC,rd,wr,say,openWin,incl,getMiss:()=>miss,setDraw:f=>{drawX=f;},fillFromEmp,matchEmp,parseSlip2,showAbs});
     else if(!plusOk)g('d_s').textContent='ℹ️ dipe-plus.js introuvable : placez-le à côté de index.html pour activer matricule interne, cotisable, suppression en lot et exclusions.';
   }catch(err){console.error('dipe-plus',err);drawX=null;draw();}
 }
 /* remplace l'ancien bouton « DIPE depuis bulletins » (capture : passe avant l'ancien code) */
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#pdipeb');if(!b)return;e.stopPropagation();e.preventDefault();openDipe3().catch(err=>{console.error(err);say('Erreur : '+err.message);});},true);
-window.TERH_openDipe=openDipe3;
+window.PRH_openDipe=openDipe3;
 })();
 </script>
-<script id="terh-cnpsref">/* ===== TERH : RÉFÉRENTIEL CNPS =====
+<script id="terh-cnpsref">/* ===== PLATEFORME RH : RÉFÉRENTIEL CNPS =====
    Importez l'historique des cotisations CNPS (Excel, CSV ou PDF) : l'application mémorise les couples
    « nom ↔ N° CNPS ». Ensuite le N° du référentiel (a) complète les N° manquants et (b) REMPLACE les N° erronés
    dans : la lecture des bulletins / le DIPE, les bulletins imprimés, le livre de paie, l'état CNPS, et
@@ -7486,7 +7486,7 @@ const say=m=>{try{toast(m);}catch(e){alert(m);}};
 const canEdit=()=>{try{return typeof CAN==='undefined'||!CAN.edit||CAN.edit();}catch(e){return true;}};
 const tick=()=>new Promise(r=>setTimeout(r,0));
 const S={co:null,list:[],files:[],at:'',loaded:false,idx:[],byC:new Map(),cache:new Map(),stat:{fixed:0,filled:0,named:0}};
-const api=window.TERH_CNPSREF={S,onChange:null};
+const api=window.PRH_CNPSREF={S,onChange:null};
 
 /* ---------- index & rapprochement de noms ---------- */
 function reindex(){S.idx=S.list.map(o=>({o,t:toks(o.n)}));S.byC=new Map(S.list.map(o=>[o.c,o]));S.cache.clear();}
@@ -7596,7 +7596,7 @@ async function readPdfRows(f,prog){
   await needLibs('pdf');
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise,lines=[];let ocr=0;
   for(let i=1;i<=pdf.numPages;i++){
-    const p=await pdf.getPage(i);let t=(window.TERH_pdfText||pdfItemsToText)((await p.getTextContent()).items);
+    const p=await pdf.getPage(i);let t=(window.PRH_pdfText||pdfItemsToText)((await p.getTextContent()).items);
     if(t.replace(/\s/g,'').length<60){
       try{await needLibs('png');const v=p.getViewport({scale:2.2}),cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
         await p.render({canvasContext:cx,viewport:v}).promise;t=await readImg(await new Promise(r=>cv.toBlob(r,'image/png')));cv.width=cv.height=0;ocr++;}catch(e){console.warn('OCR page '+i,e);}}
@@ -7750,7 +7750,7 @@ api.open=async function(){
 setInterval(()=>{try{if(typeof CO!=='undefined'&&CO&&S.co!==CO)load();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}},1500);
 })();
 </script>
-<script>/* ===== TERH add-on : langue, CNPS, widgets, pieds de page, corpus IA ===== */
+<script>/* ===== PLATEFORME RH add-on : langue, CNPS, widgets, pieds de page, corpus IA ===== */
 (function(){
 const q=s=>document.querySelector(s),H=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const T=m=>{try{toast(m)}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}};
@@ -7767,14 +7767,14 @@ function win(h){const o=document.createElement('div');o.style.cssText='position:
  o.innerHTML='<div style="background:var(--card);color:var(--tx);max-width:760px;width:100%;max-height:92vh;overflow:auto;border-radius:12px;padding:16px;position:relative"><button style="position:absolute;right:10px;top:10px" data-x>✕</button>'+h+'</div>';
  o.onclick=e=>{if(e.target===o||e.target.dataset.x!==undefined)o.remove()};document.body.appendChild(o);return o.firstChild;}
 /* ===== corpus IA + pieds de page (stockés par entreprise dans parametres) ===== */
-window.TERH_FOOTS=[];window.TERH_CORPUS=[];
+window.PRH_FOOTS=[];window.PRH_CORPUS=[];
 
-window.TERH_footHtml=function(base){return [base].concat(window.TERH_FOOTS||[]).filter(Boolean).map(H).join('<br>');};
+window.PRH_footHtml=function(base){return [base].concat(window.PRH_FOOTS||[]).filter(Boolean).map(H).join('<br>');};
 
 /* IA : langue + corpus injectés dans chaque appel ai-chat */
 function wrapAI(){try{const f=db.functions;if(f._tx)return;const o=f.invoke.bind(f);f.invoke=function(n,opt){
  if(n==='ai-chat'&&opt&&opt.body&&opt.body.messages&&!opt.body.raw){const m=opt.body.messages,l=m[m.length-1];const ex=search(l.content);
-  const pre='[Consignes : réponds en '+LN()+'. '+(window.TERH_styleDirective?window.TERH_styleDirective(l.content):'')+'.'+(ex.length?' Appuie-toi en priorité sur ces textes de référence de la société (convention collective, Code du travail, procédures) ; cite le titre/article ; si le texte ne couvre pas la question, dis-le :\n'+ex.join('\n---\n'):'')+']\n';
+  const pre='[Consignes : réponds en '+LN()+'. '+(window.PRH_styleDirective?window.PRH_styleDirective(l.content):'')+'.'+(ex.length?' Appuie-toi en priorité sur ces textes de référence de la société (convention collective, Code du travail, procédures) ; cite le titre/article ; si le texte ne couvre pas la question, dis-le :\n'+ex.join('\n---\n'):'')+']\n';
   opt.body={...opt.body,lang:LANG,messages:m.slice(0,-1).concat([{...l,content:pre+l.content}])};}
  return o(n,opt);};f._tx=1;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
 /* ===== Base de connaissances : par société, héritée de la société mère, copie locale hors ligne ===== */
@@ -7783,7 +7783,7 @@ const KIND={convention:['📘','Convention collective'],code:['⚖️','Code du 
 function idb(){return new Promise((ok,ko)=>{const r=indexedDB.open('terh_kb',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error);});}
 async function kvGet(k){try{const d=await idb();return await new Promise(ok=>{const g=d.transaction('kv').objectStore('kv').get(k);g.onsuccess=()=>ok(g.result||null);g.onerror=()=>ok(null);});}catch(e){return null;}}
 async function kvSet(k,v){try{const d=await idb();await new Promise((ok,ko)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=ok;t.onerror=()=>ko(t.error);});}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
-function setKB(own,inh){window.TERH_KB={own:own,inh:inh};window.TERH_CORPUS=[];[].concat(own.map(d=>[d,0]),inh.map(d=>[d,1])).forEach(([d,h])=>d.chunks.forEach((x,i)=>window.TERH_CORPUS.push({t:d.t+(d.chunks.length>1?' ('+(i+1)+'/'+d.chunks.length+')':''),x:x,k:d.k,inh:h})));}
+function setKB(own,inh){window.PRH_KB={own:own,inh:inh};window.PRH_CORPUS=[];[].concat(own.map(d=>[d,0]),inh.map(d=>[d,1])).forEach(([d,h])=>d.chunks.forEach((x,i)=>window.PRH_CORPUS.push({t:d.t+(d.chunks.length>1?' ('+(i+1)+'/'+d.chunks.length+')':''),x:x,k:d.k,inh:h})));}
 async function fetchDocs(co){
  const r=await db.from('parametres').select('cle,valeur').eq('entreprise_id',co).like('cle','corpus_doc_%');if(r.error)throw r.error;
  const out=(r.data||[]).map(x=>{try{return JSON.parse(x.valeur)}catch(e){return null}}).filter(d=>d&&Array.isArray(d.chunks));
@@ -7791,14 +7791,14 @@ async function fetchDocs(co){
  return out;}
 async function loadX(){
  const co=(typeof CO!=='undefined')?CO:null;if(!co)return;
- try{window.TERH_FOOTS=(await rd('pieds_json'))||[];}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+ try{window.PRH_FOOTS=(await rd('pieds_json'))||[];}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
  const par=((typeof curCo==='function'&&curCo())||{}).groupe_id||null;let own=null,inh=[];
  if(navigator.onLine){try{own=await fetchDocs(co);if(par&&par!==co)inh=await fetchDocs(par);await kvSet(KBK+co,{own:own,inh:inh,at:Date.now()});}catch(e){own=null;}}
- if(own===null){const c=await kvGet(KBK+co);own=(c&&c.own)||[];inh=(c&&c.inh)||[];window.TERH_KB_OFFLINE=true;}else window.TERH_KB_OFFLINE=false;
+ if(own===null){const c=await kvGet(KBK+co);own=(c&&c.own)||[];inh=(c&&c.inh)||[];window.PRH_KB_OFFLINE=true;}else window.PRH_KB_OFFLINE=false;
  setKB(own,inh);}
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 function search(qs,n,len){n=n||3;len=len||1200;const w=norm(qs).split(/[^a-z0-9]+/).filter(x=>x.length>3);if(!w.length)return [];
- return (window.TERH_CORPUS||[]).map(c=>{const t=norm(c.t+' '+c.x);return {c:c,s:w.reduce((a,k)=>{let m=0,i=-1;while(m<3&&(i=t.indexOf(k,i+1))>=0)m++;return a+m;},0)}}).filter(r=>r.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(r=>'['+(KIND[r.c.k]||KIND.autre)[1]+' — '+r.c.t+'] '+r.c.x.slice(0,len));}
+ return (window.PRH_CORPUS||[]).map(c=>{const t=norm(c.t+' '+c.x);return {c:c,s:w.reduce((a,k)=>{let m=0,i=-1;while(m<3&&(i=t.indexOf(k,i+1))>=0)m++;return a+m;},0)}}).filter(r=>r.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(r=>'['+(KIND[r.c.k]||KIND.autre)[1]+' — '+r.c.t+'] '+r.c.x.slice(0,len));}
 function chunk(x){x=String(x).replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();const out=[];let cur='';
  for(const p of x.split(/\n\s*\n|\n(?=(?:Article|Art\.|TITRE|CHAPITRE|SECTION)\b)/i)){if(!p)continue;if(cur&&(cur.length+p.length)>1300){out.push(cur);cur='';}
   if(p.length>1300){if(cur){out.push(cur);cur='';}for(let i=0;i<p.length;i+=1200)out.push(p.slice(i,i+1200));continue;}cur=cur?cur+'\n'+p:p;}
@@ -7830,13 +7830,13 @@ function kbStyle(){if(document.getElementById('kbcss'))return;const st=document.
 function KBUI(w){
  kbStyle();const box=w.querySelector('#x_kb');if(!box)return;
  const co=(typeof curCo==='function'&&curCo())||{};let busy=false;
- const kb=()=>window.TERH_KB||{own:[],inh:[]};
+ const kb=()=>window.PRH_KB||{own:[],inh:[]};
  const size=d=>d.chunks.reduce((a,c)=>a+c.length,0);
  const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+' M car.':n>=1e3?Math.round(n/1e3)+' k car.':n+' car.';
  const row=(d,inh)=>`<div class="dr"><span class="ic">${(KIND[d.k]||KIND.autre)[0]}</span><div class="tt"><b>${H(d.t)}</b><small>${(KIND[d.k]||KIND.autre)[1]} · ${fmt(size(d))}${d.at?' · '+new Date(d.at).toLocaleDateString('fr-FR'):''}${inh?' · <span class="pill">hérité de la société mère</span>':''}</small></div>${inh?'':`<button class="s" data-kdel="${H(d.id)}" title="Supprimer">🗑</button>`}</div>`;
  const draw=()=>{const k=kb(),n=k.own.length+k.inh.length;
   box.querySelector('.kd').innerHTML=(n?`<div class="dl">${k.own.map(d=>row(d,0)).join('')}${k.inh.map(d=>row(d,1)).join('')}</div>`:'<div class="muted" style="margin:10px 0">Aucun document pour cette société. Ajoutez sa convention collective et le Code du travail ci-dessous.</div>');
-  box.querySelector('.kc').innerHTML=`<span class="pill ok">✓ ${n} document(s) enregistré(s) sur cet appareil — utilisable sans internet</span>`+(window.TERH_KB_OFFLINE?' <span class="pill wa">hors ligne : copie locale utilisée</span>':'');
+  box.querySelector('.kc').innerHTML=`<span class="pill ok">✓ ${n} document(s) enregistré(s) sur cet appareil — utilisable sans internet</span>`+(window.PRH_KB_OFFLINE?' <span class="pill wa">hors ligne : copie locale utilisée</span>':'');
   box.querySelectorAll('[data-kdel]').forEach(b=>b.onclick=async()=>{if(!navigator.onLine){T('Connexion requise pour supprimer');return;}if(!confirm('Supprimer ce document de la base de l\'IA ?'))return;const id=b.dataset.kdel;
    try{const q=db.from('parametres').delete().eq('entreprise_id',CO).eq('cle',id==='legacy'?'corpus_json':'corpus_doc_'+id);const r=await q;if(r.error)throw r.error;const k2=kb();setKB(k2.own.filter(d=>d.id!==id),k2.inh);await kvSet(KBK+CO,{own:kb().own,inh:kb().inh,at:Date.now()});draw();T('Document supprimé');}catch(e){T('Erreur : '+e.message);}});};
  box.innerHTML=`<div class="kh"><h2 style="margin:0">📚 Base de connaissances de l'IA</h2><span class="pill">🏢 ${H(co.nom||'Société')}</span></div>
@@ -7860,7 +7860,7 @@ function KBUI(w){
   catch(e){st('⚠ Erreur : '+e.message+(/size|large|413|timeout/i.test(e.message)?' (document trop volumineux : découpez-le en plusieurs parties)':''));}busy=false;};
  draw();}
 function wrapLocal(){try{if(typeof aiEngine==='undefined'||!aiEngine||!aiEngine.chat||!aiEngine.chat.completions)return;const c=aiEngine.chat.completions;if(c.__kbw)return;c.__kbw=1;const o=c.create.bind(c);
- c.create=function(opt){try{if(opt&&opt.stream&&Array.isArray(opt.messages)){const m=opt.messages.slice();const i=m.map(x=>x.role).lastIndexOf('user');if(i>=0&&typeof m[i].content==='string'){const ex=search(m[i].content,2,900),sd=window.TERH_styleDirective?window.TERH_styleDirective(m[i].content):'';if(ex.length||sd){m[i]=Object.assign({},m[i],{content:m[i].content+(sd?'\n\n[Style : '+sd+']':'')+(ex.length?'\n\n[Textes de référence de la société (convention collective, Code du travail) :\n'+ex.join('\n---\n')+']':'')});opt=Object.assign({},opt,{messages:m});}}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return o(opt);};}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
+ c.create=function(opt){try{if(opt&&opt.stream&&Array.isArray(opt.messages)){const m=opt.messages.slice();const i=m.map(x=>x.role).lastIndexOf('user');if(i>=0&&typeof m[i].content==='string'){const ex=search(m[i].content,2,900),sd=window.PRH_styleDirective?window.PRH_styleDirective(m[i].content):'';if(ex.length||sd){m[i]=Object.assign({},m[i],{content:m[i].content+(sd?'\n\n[Style : '+sd+']':'')+(ex.length?'\n\n[Textes de référence de la société (convention collective, Code du travail) :\n'+ex.join('\n---\n')+']':'')});opt=Object.assign({},opt,{messages:m});}}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return o(opt);};}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
 (function(){const mp=()=>{try{if(isOwnerUser())return {};return ((MEMS.find(x=>x.entreprise_id===CO)||{}).perms)||{};}catch(e){return {};}};
  addEventListener('click',e=>{const p=mp();if(!p.nodelete&&!p.noimport)return;const b=e.target.closest&&e.target.closest('button,[role=button]');if(!b)return;const t=(b.textContent||'')+' '+(b.id||'')+' '+Object.keys(b.dataset||{}).join(' ');
   if(p.nodelete&&/🗑|supprim|delete|retirer/i.test(t)){e.preventDefault();e.stopImmediatePropagation();T('🔒 Suppression non autorisée pour votre compte');}
@@ -7874,15 +7874,15 @@ function conf(){const w=win(`<h2 style="margin:0 0 8px">🧩 Configuration</h2><
 <div class="c" style="margin-top:10px"><h2>🦶 Pieds de page de l'entreprise</h2><p class="muted" style="font-size:12px">Chaque ligne s'ajoute sous le pied de page des bulletins et documents.</p><div id="x_f"></div><div class="f"><input id="x_fi" placeholder="Nouveau texte de pied de page" style="flex:1"><button class="s" id="x_fa">➕ Ajouter</button></div></div>
 <div class="c kb" style="margin-top:10px" id="x_kb"></div>`);
  w.querySelector('#x_l').value=LANG;w.querySelector('#x_l').onchange=e=>{setLang(e.target.value)};
- {const fe=w.querySelector('#x_fen');fe.checked=!!(window.TERH_FEAT&&window.TERH_FEAT.en);fe.disabled=!(typeof isAdm==='function'&&isAdm());fe.onchange=()=>{window.TERH_setFeat&&window.TERH_setFeat('en',fe.checked);};}
+ {const fe=w.querySelector('#x_fen');fe.checked=!!(window.PRH_FEAT&&window.PRH_FEAT.en);fe.disabled=!(typeof isAdm==='function'&&isAdm());fe.onchange=()=>{window.PRH_setFeat&&window.PRH_setFeat('en',fe.checked);};}
  const WGT=[['bp','Effectif par poste'],['ba','Pyramide des âges'],['an','Ancienneté'],['bs','Statut contrats'],['bc','Statut CNPS'],['bv','Visites médicales'],['bm','Mouvements du mois'],['bcg','Congés en cours'],['bd','Suivi disciplinaire']];
  const co=(typeof curCo==='function'&&curCo())||{},hid=(co.dashboard&&co.dashboard.hidden)||[];
  w.querySelector('#x_w').innerHTML=WGT.map(([k,l])=>`<label><input type="checkbox" value="${k}"${hid.includes(k)?'':' checked'}> ${l}</label>`).join('');
  w.querySelector('#x_ws').onclick=async()=>{const v=[...w.querySelectorAll('#x_w input:checked')].map(x=>x.value),hidden=WGT.map(x=>x[0]).filter(k=>!v.includes(k));
   try{const {error}=await db.from('entreprises').update({dashboard:{hidden}}).eq('id',CO);if(error)throw error;if(typeof loadAll==='function')await loadAll();T('Widgets enregistrés');}catch(e){T('Erreur : '+e.message)}};
- const dF=()=>{w.querySelector('#x_f').innerHTML=(window.TERH_FOOTS.length?window.TERH_FOOTS.map((t,i)=>`<div class="f"><span style="flex:1">${H(t)}</span><button data-df="${i}">🗑</button></div>`).join(''):'<small class="muted">Aucun pied de page supplémentaire.</small>');
-  w.querySelectorAll('[data-df]').forEach(b=>b.onclick=async()=>{window.TERH_FOOTS.splice(+b.dataset.df,1);try{await wr('pieds_json',window.TERH_FOOTS)}catch(e){T('Erreur : '+e.message)}dF();});};
- w.querySelector('#x_fa').onclick=async()=>{const v=w.querySelector('#x_fi').value.trim();if(!v)return;window.TERH_FOOTS.push(v);try{await wr('pieds_json',window.TERH_FOOTS);w.querySelector('#x_fi').value='';}catch(e){T('Erreur : '+e.message)}dF();};dF();
+ const dF=()=>{w.querySelector('#x_f').innerHTML=(window.PRH_FOOTS.length?window.PRH_FOOTS.map((t,i)=>`<div class="f"><span style="flex:1">${H(t)}</span><button data-df="${i}">🗑</button></div>`).join(''):'<small class="muted">Aucun pied de page supplémentaire.</small>');
+  w.querySelectorAll('[data-df]').forEach(b=>b.onclick=async()=>{window.PRH_FOOTS.splice(+b.dataset.df,1);try{await wr('pieds_json',window.PRH_FOOTS)}catch(e){T('Erreur : '+e.message)}dF();});};
+ w.querySelector('#x_fa').onclick=async()=>{const v=w.querySelector('#x_fi').value.trim();if(!v)return;window.PRH_FOOTS.push(v);try{await wr('pieds_json',window.PRH_FOOTS);w.querySelector('#x_fi').value='';}catch(e){T('Erreur : '+e.message)}dF();};dF();
  KBUI(w);}
 /* ===== module CNPS ===== */
 function cnps(){const A=(typeof E!=='undefined'?E:[]),d=v=>String(v||'').replace(/\D/g,'');
@@ -7890,9 +7890,9 @@ function cnps(){const A=(typeof E!=='undefined'?E:[]),d=v=>String(v||'').replace
  const w=win(`<h2 style="margin:0 0 8px">🏦 Module CNPS</h2><div class="kp"><div class="k g-blue"><b>${A.length}</b><span>Effectif</span></div><div class="k g-green"><b>${ok.length}</b><span>N° CNPS valides</span></div><div class="k g-red"><b>${ko.length}</b><span>N° manquants / invalides</span></div></div>
 <div class="f"><button class="p" id="x_dipe">📤 DIPE depuis bulletins (avec ancien DIPE)</button><button class="s" id="x_xl">📥 Exporter les manquants (Excel)</button><button class="s" id="x_ref">📚 Référentiel CNPS (import Excel / PDF)</button><button class="p" id="x_tri">🔺 Triangulation &amp; IA</button><button class="s" id="x_ia">🤖 Assistant CNPS</button></div>
 <div class="tw"><table><thead><tr><th>Nom</th><th>Poste</th><th>Contrat</th><th>N° CNPS</th><th>Statut</th></tr></thead><tbody>${A.map(r=>`<tr><td>${H(r.n)}</td><td>${H(r.p)}</td><td>${H(r.t)}</td><td>${H(r.cnps)}</td><td>${d(r.cnps).length===11?'✅':(d(r.cnps)?'⚠ invalide':'❌ manquant')}</td></tr>`).join('')}</tbody></table></div>`);
- w.querySelector('#x_dipe').onclick=()=>{w.parentNode.remove();window.TERH_openDipe?window.TERH_openDipe():T('DIPE indisponible : ouvrez Paie & droit')};
- w.querySelector('#x_ref').onclick=()=>{w.parentNode.remove();window.TERH_CNPSREF?TERH_CNPSREF.open():T('Référentiel CNPS indisponible')};
- const loadIA=()=>new Promise((ok,ko)=>{if(window.TERH_CNPSIA&&TERH_CNPSIA.analyze)return ok(window.TERH_CNPSIA);const sc=document.createElement('script');sc.src='cnps-ia.js?t='+Date.now();sc.onload=()=>ok(window.TERH_CNPSIA);sc.onerror=()=>ko(new Error('cnps-ia.js introuvable : placez-le à côté de index.html'));document.head.appendChild(sc);});
+ w.querySelector('#x_dipe').onclick=()=>{w.parentNode.remove();window.PRH_openDipe?window.PRH_openDipe():T('DIPE indisponible : ouvrez Paie & droit')};
+ w.querySelector('#x_ref').onclick=()=>{w.parentNode.remove();window.PRH_CNPSREF?PRH_CNPSREF.open():T('Référentiel CNPS indisponible')};
+ const loadIA=()=>new Promise((ok,ko)=>{if(window.PRH_CNPSIA&&PRH_CNPSIA.analyze)return ok(window.PRH_CNPSIA);const sc=document.createElement('script');sc.src='cnps-ia.js?t='+Date.now();sc.onload=()=>ok(window.PRH_CNPSIA);sc.onerror=()=>ko(new Error('cnps-ia.js introuvable : placez-le à côté de index.html'));document.head.appendChild(sc);});
  const openIA=async mode=>{try{const X=await loadIA();let MAT={},PC={};try{if(typeof rd==='function'){MAT=(await rd('matricules_json'))||{};PC=(await rd('paie_json'))||{};}}catch(er){try{logErr('erreur ignorée : '+(((er)&&er.message)||er))}catch(_){}}
   X.alt={E:A,MAT,PC,say:T};if(mode==='tri')X.openTriangulation();else X.openAssistant();}catch(er){T('Erreur : '+er.message)}};
  w.querySelector('#x_tri').onclick=()=>openIA('tri');w.querySelector('#x_ia').onclick=()=>openIA('chat');
@@ -8024,7 +8024,7 @@ function ui(){const w=win(`<h2 style="margin:0 0 8px">🧮 Moteur de paie</h2>
    {n:'Octobre 2025 – M. ONANINA (congés payés)',base:0,L:[['Congés payés',97687,1]],at:1.75,
     ret:{'CNPS Pension vieillesse/invalidité/décès':4103,'IRPP':2398,'CAC':240,'Crédit foncier':977,'Taxe de développement local – brut 50 001 à 100 000':500,'Redevance audiovisuelle – brut 50 001 à 100 000':750,'Arrondis Paie du Mois':-81},
     pat:{'CNPS Pension vieillesse/invalidité/décès':4103,'CNPS Accidents du travail / MP':1710,'CNPS Prestations familiales':6838,'Fonds national de l\'emploi':977,'Crédit foncier':1465},brut:97687,net:88800,totPat:15093}];
-  window.TERH_cases=CASES;
+  window.PRH_cases=CASES;
   q('#s_t').onclick=()=>{let h='';let last2;CASES.forEach(C=>{const tp=P.map(r=>({...r,statut:'validé',ref:'TEST – bulletin Sage'}));tp.forEach(r=>{if(r.code==='CNPS_AT')r.tauxP=C.at;});
    const lines=C.L.map(([lib,m,c])=>({lib,m,nat:'gain',cnps:c,irpp:1,cfc:1,fne:c,c:'saisie'}));
    const r=calc({date:'2026-07-31',base:C.base,coef:1,cnps:'12345678901',cnpsReq:true,lines,ret:[],params:tp});last2=r;
@@ -8034,14 +8034,14 @@ function ui(){const w=win(`<h2 style="margin:0 0 8px">🧮 Moteur de paie</h2>
    last=last2;q('#s_o').innerHTML=h+'<small class="muted">Paramètres de test appliqués à ces calculs seulement (non enregistrés).</small>';};
   q('#s_pr').onclick=()=>{if(!last){T('Calculez d\'abord');return;}const r=last,w2=window.open('','_blank');if(!w2){T('Autorisez les pop-ups');return;}
    const tb=(a,t)=>`<table border="1" cellspacing="0" cellpadding="3" style="border-collapse:collapse;width:100%;font-size:12px"><tr>${t.map(x=>'<th>'+x+'</th>').join('')}</tr>${a.map(x=>'<tr>'+x.map((v,i)=>`<td${i?' align="right"':''}>${v}</td>`).join('')+'</tr>').join('')}</table>`;
-   w2.document.write(((h)=>((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1'))&&window.TERH_docEN?window.TERH_docEN(h):h)(`<html><head><title>Bulletin de paie</title></head><body style="font-family:Arial;max-width:800px;margin:auto"><h2 style="text-align:center">BULLETIN DE PAIE</h2><p>Période : ${H(r.date.slice(0,7))} · Employeur : ${H((PARAMS&&PARAMS.soc)||'')}</p>${tb(r.lines.map(l=>[H(l.lib),F(l.m)]),['Gains','Montant'])}<p><b>Total brut : ${F(r.brut)}</b></p>${tb(r.ret.map(x=>[H(x.lib),x.base===''?'':F(x.base),x.t,F(x.m)]),['Retenues salariales','Base','Taux','Montant'])}<p><b>Total retenues : ${F(r.totRet)}</b></p>${tb(r.pat.map(x=>[H(x.lib),F(x.base),x.t,F(x.m)]),['Charges patronales','Base','Taux','Montant'])}<h2>NET À PAYER : ${F(r.net)} FCFA</h2><p>Coût total employeur : ${F(r.cte)}</p><script>setTimeout(()=>print(),300)<\/script></body></html>`));w2.document.close();};
+   w2.document.write(((h)=>((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1'))&&window.PRH_docEN?window.PRH_docEN(h):h)(`<html><head><title>Bulletin de paie</title></head><body style="font-family:Arial;max-width:800px;margin:auto"><h2 style="text-align:center">BULLETIN DE PAIE</h2><p>Période : ${H(r.date.slice(0,7))} · Employeur : ${H((PARAMS&&PARAMS.soc)||'')}</p>${tb(r.lines.map(l=>[H(l.lib),F(l.m)]),['Gains','Montant'])}<p><b>Total brut : ${F(r.brut)}</b></p>${tb(r.ret.map(x=>[H(x.lib),x.base===''?'':F(x.base),x.t,F(x.m)]),['Retenues salariales','Base','Taux','Montant'])}<p><b>Total retenues : ${F(r.totRet)}</b></p>${tb(r.pat.map(x=>[H(x.lib),F(x.base),x.t,F(x.m)]),['Charges patronales','Base','Taux','Montant'])}<h2>NET À PAYER : ${F(r.net)} FCFA</h2><p>Coût total employeur : ${F(r.cte)}</p><script>setTimeout(()=>print(),300)<\/script></body></html>`));w2.document.close();};
   q('#s_go').onclick=run;
   q('#s_sv').onclick=async()=>{if(!last){T('Calculez d\'abord');return;}try{const h=(await rd('paie_calculs_json'))||[];h.push({le:new Date().toISOString(),par:(q('.ub')||{}).textContent||'',...last});await wr('paie_calculs_json',h.slice(-100));T('Calcul archivé avec les paramètres utilisés');}catch(e){T('Erreur : '+e.message)}};};
  w.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>b.dataset.t==='p'?tabP():tabS());tabP();}
 function mk(){const nav=q('nav'),pb=q('#npaie');if(!nav||!pb)return;let b=q('#tx_paie');
  if(!b){b=document.createElement('button');b.id='tx_paie';b.type='button';b.textContent='🧮 Moteur de paie';b.title='Moteur de paie';b.style.display='none';b.onclick=()=>{const p=document.getElementById('npaie');if(p&&p.style.display!=='none')p.click();else T('Menu Paie non disponible pour votre rôle');};/* bouton 🧮 retiré : doublon de « Paie & droit » (qui ouvre déjà l'onglet Bulletin) */}
  b.style.display=pb.style.display;}
-setInterval(mk,1500);window.TERH_calcPaie=calc;window.TERH_DEF=DEF;
+setInterval(mk,1500);window.PRH_calcPaie=calc;window.PRH_DEF=DEF;
 })();
 </script>
 <script src="lang-en.js"></script>
@@ -9137,7 +9137,7 @@ En congé|On leave
 En congés|On leave`;
 const D=new Map();RAW.split('\n').forEach(l=>{const i=l.indexOf('|');if(i>0)D.set(l.slice(0,i),l.slice(i+1));});
 function _i18nAdd(o){try{Object.keys(o||{}).forEach(k=>D.set(k,o[k]));_TC.clear();DS=null;if(typeof sched==='function')sched();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
-_i18nAdd(window.TERH_I18N);window.TERH_I18N_add=_i18nAdd;
+_i18nAdd(window.PRH_I18N);window.PRH_I18N_add=_i18nAdd;
 const G=[[/\bemployés\b/gi,'employees'],[/\bemployé\b/gi,'employee'],[/\bcontrats\b/gi,'contracts'],[/\bcontrat\b/gi,'contract'],[/\bjours\b/gi,'days'],[/\bjour\b/gi,'day'],[/\bmois\b/gi,'month'],[/\bsalariés\b/gi,'employees'],[/\bsalarié\b/gi,'employee'],[/\béchéance\b/gi,'expiry'],[/\bactifs\b/gi,'active'],[/\bprochains?\b/gi,'next'],[/\bdans les\b/gi,'within'],[/\bsur\b/gi,'on'],[/\bet\b/g,'and'],[/\bde\b/g,'of'],[/\ben retard\b/gi,'late'],[/\bretard\b/gi,'late'],[/\bvisites?\b/gi,'visits'],[/\bmédicales?\b/gi,'medical'],[/\bd'embauche\b/gi,'of hire'],[/\bnombre\b/gi,'number'],[/\bjanvier\b/gi,'January'],[/\bfévrier\b/gi,'February'],[/\bmars\b/gi,'March'],[/\bavril\b/gi,'April'],[/\bmai\b/gi,'May'],[/\bjuin\b/gi,'June'],[/\bjuillet\b/gi,'July'],[/\baoût\b/gi,'August'],[/\bseptembre\b/gi,'September'],[/\boctobre\b/gi,'October'],[/\bnovembre\b/gi,'November'],[/\bdécembre\b/gi,'December']];
 const _TC=new Map();let DS=null;
 function trCore(c){const k=c.trim();if(D.has(k))return D.get(k);if(_TC.has(k))return _TC.get(k);const r=trCore0(k);if(_TC.size>5000)_TC.clear();_TC.set(k,r);return r;}
@@ -9204,9 +9204,9 @@ function docEN(s){let o=String(s);PH.forEach(([a,b])=>{if(o.includes(a))o=o.spli
   .replace(/\b(\d{1,2}(?:er)?\s+[A-Za-zéû]+\s+\d{4}) au (\d{1,2}(?:er)?\s+[A-Za-zéû]+\s+\d{4})/g,'$1 to $2')
   .replace(/\b(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\b/gi,m=>MO[m.toLowerCase()]);
  D.forEach((v,k)=>{if(k.length>2&&o.includes('>'+k+'<'))o=o.split('>'+k+'<').join('>'+v+'<');});return o;}
-window.TERH_docEN=docEN;
+window.PRH_docEN=docEN;
 
-window.TERH_trText=trText;
+window.PRH_trText=trText;
 try{const _o=openPrintTab;openPrintTab=function(h){return _o((document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1')?docEN(h):h);};}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
 const ST=new WeakMap(),ATTR=['placeholder','title','aria-label'];let busy=false,EN=false;
 function walk(root){busy=true;try{
@@ -9226,31 +9226,31 @@ new MutationObserver(()=>{if(!busy)sync();}).observe(document.documentElement,{a
 document.addEventListener('DOMContentLoaded',sync);setInterval(sync,2000);
 })();
 </script>
-<script id="terh-features">/* ===== TERH : options activables par l'administrateur (désactivées par défaut) ===== */
+<script id="terh-features">/* ===== PLATEFORME RH : options activables par l'administrateur (désactivées par défaut) ===== */
 (function(){
 'use strict';
-window.TERH_FEAT=window.TERH_FEAT||{en:true};
+window.PRH_FEAT=window.PRH_FEAT||{en:true};
 const co=()=>{try{return (typeof CO!=='undefined'&&CO)?CO:null;}catch(e){return null;}};
 const key=()=>'terh_feat_'+(co()||'0');
 let loaded=null;
-function apply(){document.documentElement.dataset.fen=(window.TERH_FEAT&&window.TERH_FEAT.en)?'1':'0';}
+function apply(){document.documentElement.dataset.fen=(window.PRH_FEAT&&window.PRH_FEAT.en)?'1':'0';}
 async function load(){
   const k=key();if(loaded===k)return;loaded=k;
-  try{const c=JSON.parse(localStorage.getItem(k)||'null');window.TERH_FEAT={en:c?c.en!==false:true};}catch(e){window.TERH_FEAT={en:true};}
+  try{const c=JSON.parse(localStorage.getItem(k)||'null');window.PRH_FEAT={en:c?c.en!==false:true};}catch(e){window.PRH_FEAT={en:true};}
   apply();
-  if(co()){try{const v=await rd('features_json');if(v&&typeof v==='object'){window.TERH_FEAT={en:v.en!==false};try{localStorage.setItem(k,JSON.stringify(window.TERH_FEAT));}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}apply();}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
+  if(co()){try{const v=await rd('features_json');if(v&&typeof v==='object'){window.PRH_FEAT={en:v.en!==false};try{localStorage.setItem(k,JSON.stringify(window.PRH_FEAT));}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}apply();}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
 }
-window.TERH_setFeat=async function(name,on){
-  window.TERH_FEAT={...(window.TERH_FEAT||{}),[name]:!!on};
-  try{localStorage.setItem(key(),JSON.stringify(window.TERH_FEAT));}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+window.PRH_setFeat=async function(name,on){
+  window.PRH_FEAT={...(window.PRH_FEAT||{}),[name]:!!on};
+  try{localStorage.setItem(key(),JSON.stringify(window.PRH_FEAT));}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   apply();
-  try{if(!co())throw new Error('aucune entreprise ouverte');await wr('features_json',window.TERH_FEAT);try{toast(on?'Option activée pour l\'entreprise':'Option désactivée');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
+  try{if(!co())throw new Error('aucune entreprise ouverte');await wr('features_json',window.PRH_FEAT);try{toast(on?'Option activée pour l\'entreprise':'Option désactivée');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
   catch(e){try{toast('Option enregistrée sur cet appareil seulement : '+e.message);}catch(x){try{logErr('erreur ignorée : '+(((x)&&x.message)||x))}catch(_){}}}
 };
 apply();setInterval(load,2500);setTimeout(load,1500);
 })();
 </script>
-<script id="terh-ai-lang">/* ===== TERH : IA locale + assistant intégré dans la langue choisie (FR/EN) ===== */
+<script id="terh-ai-lang">/* ===== PLATEFORME RH : IA locale + assistant intégré dans la langue choisie (FR/EN) ===== */
 (function(){
 'use strict';
 const isEN=()=>{try{const v=JSON.parse(localStorage.getItem('terh_vlang')||'null');if(typeof v==='string'&&v)return v.toLowerCase().startsWith('en');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1';};
@@ -9485,9 +9485,9 @@ const FRW=/[àâçéèêëîïôûùüœ]|\b(le|la|les|des|une?|est|vous|votre|p
 const cache=new Map();
 function hasPerso(t){try{if(/\d{9,}/.test(t))return true;return (window.E||E||[]).some(r=>r&&r.n&&r.n.length>4&&t.includes(r.n));}catch(e){return false;}}
 async function toEn(t){if(cache.has(t))return cache.get(t);let r=null;
-  try{const q0=window.TERH_trText&&window.TERH_trText(t);if(q0&&q0!==t&&!FRW.test(q0))r=q0;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+  try{const q0=window.PRH_trText&&window.PRH_trText(t);if(q0&&q0!==t&&!FRW.test(q0))r=q0;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   if(!r&&!hasPerso(t)){try{if(typeof cloudReady==='function'&&cloudReady()){const {data,error}=await Promise.race([db.functions.invoke('ai-chat',{body:{raw:true,messages:[{role:'user',content:'Translate this text into natural English. Keep the line breaks, bullets and emojis. Output ONLY the translation, with no comment:\n\n'+t}],max_tokens:1500}}),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),12000))]);if(!error&&data&&data.text)r=String(data.text).trim();}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
-  if(!r&&window.TERH_trText){try{r=window.TERH_trText(t);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
+  if(!r&&window.PRH_trText){try{r=window.PRH_trText(t);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}
   if(r&&r!==t)cache.set(t,r);return r||t;}
 async function tr(d){const src=d.dataset.fr;d.style.opacity='.6';const t=await toEn(src);d.style.opacity='';if(isEN()&&d.dataset.fr===src){d.dataset.tr=t;d.textContent=t;}}
 const _add=window.addMsg;
@@ -9505,7 +9505,7 @@ new MutationObserver(refresh).observe(document.documentElement,{attributes:true,
 (function(){
 'use strict';
 /* Enregistre des champs du profil connecté en vérifiant réellement le résultat (Supabase ne lève pas d'exception) */
-window.TERH_saveMyProfile=async function(fields){
+window.PRH_saveMyProfile=async function(fields){
   if(!MY_USER)throw new Error('non connecté');
   const uid=MY_USER.id,now=new Date().toISOString();
   const attempt=async f=>{
@@ -9522,7 +9522,7 @@ window.TERH_saveMyProfile=async function(fields){
 };
 
 /* ---------- Bandeau d'état du chargement ---------- */
-window.TERH_loadBanner=function(msg,retry){
+window.PRH_loadBanner=function(msg,retry){
   let b=document.getElementById('terhLoadBanner');
   if(!msg){if(b)b.remove();return;}
   if(window.__bnDismiss===msg){if(b)b.remove();return;}
@@ -9536,13 +9536,13 @@ window.TERH_loadBanner=function(msg,retry){
 };
 
 /* ---------- Politesses : réponse instantanée, sans appel réseau ---------- */
-window.TERH_smallTalk=function(q){
+window.PRH_smallTalk=function(q){
   const s=String(q).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
   const en=isEN();
   const nm=(()=>{try{return (typeof userFirst==='function'&&userFirst())||'';}catch(e){return '';}})();
   const hi=nm?(en?', '+nm:' '+nm):'';
   if(/^(salut|bonjour|bonsoir|coucou|hello|hi|hey|yo|slt|bjr)( .*)?$/.test(s)&&s.split(' ').length<=3)
-    return en?TERH_hello(true)+hi+'! How can I help you?':TERH_hello(false)+hi+' ! Comment puis-je vous aider ?';
+    return en?PRH_hello(true)+hi+'! How can I help you?':PRH_hello(false)+hi+' ! Comment puis-je vous aider ?';
   if(/^(merci|thanks|thank you|merci beaucoup|ok merci|super merci)( .*)?$/.test(s)&&s.split(' ').length<=3)
     return en?'You are welcome!':'Avec plaisir !';
   if(/^((salut|bonjour|bonsoir|coucou|hello|hi|hey) )?(comment )?(ca va|vas tu|allez vous|are you|how are you)( .*)?$/.test(s)&&s.split(' ').length<=6)
@@ -9559,7 +9559,7 @@ async function aiEndpoint(){
   let tok=key;try{const r=await db.auth.getSession();tok=r&&r.data&&r.data.session?r.data.session.access_token:key;}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   return {url:base+'/functions/v1/ai-chat',key,tok,ok:!!(base&&key)};
 }
-window.TERH_callAI=async function(body,ms,bubble){
+window.PRH_callAI=async function(body,ms,bubble){
   const t0=Date.now();let tick=null;
   if(bubble){tick=setInterval(()=>{const s=Math.round((Date.now()-t0)/1000);if(bubble.isConnected&&/^⏳/.test(bubble.textContent))bubble.textContent=tr('⏳ L\'IA en ligne répond…')+' '+s+' s';},1000);}
   try{
@@ -9580,17 +9580,17 @@ window.TERH_callAI=async function(body,ms,bubble){
 };
 
 /* ---------- 🩺 Test réel du service IA (relance aussi le service s'il était en pause) ---------- */
-window.TERH_aiPing=async function(){
+window.PRH_aiPing=async function(){
   const t0=Date.now();
   const ld=addMsg('assistant','⏳ Test du service IA en ligne…');
   let sec='';
   try{
-    const d=await TERH_callAI({diag:true,messages:[]},8000);
+    const d=await PRH_callAI({diag:true,messages:[]},8000);
     if(d&&d.data&&d.data.secrets){const ok=d.data.secrets.filter(x=>x.keys>0).map(x=>x.env.replace('_API_KEY','')),ko=d.data.secrets.filter(x=>!x.keys).map(x=>x.env.replace('_API_KEY',''));
       sec='\n• Clés présentes : '+(ok.join(', ')||'AUCUNE')+'\n• Clés absentes : '+(ko.join(', ')||'aucune')+'\n• Modèles utilisables : '+d.data.models_usable;}
   }catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
   try{
-    const {data,error}=await TERH_callAI({messages:[{role:'user',content:'Réponds seulement : ok'}],context:'test',lang:'fr',max_tokens:20},26000);
+    const {data,error}=await PRH_callAI({messages:[{role:'user',content:'Réponds seulement : ok'}],context:'test',lang:'fr',max_tokens:20},26000);
     const sec_=((Date.now()-t0)/1000).toFixed(1);
     if(error||!data||!data.text)throw error||new Error('réponse vide');
     cloudFail=0;cloudErr='';
@@ -9603,7 +9603,7 @@ window.TERH_aiPing=async function(){
 
 /* alert / confirm / prompt natifs : traduits quand l'interface est en anglais */
 const isEN=()=>document.documentElement.lang==='en'&&document.documentElement.dataset.fen==='1';
-const tr=s=>{try{return isEN()&&window.TERH_trText?window.TERH_trText(String(s)):s;}catch(e){return s;}};
+const tr=s=>{try{return isEN()&&window.PRH_trText?window.PRH_trText(String(s)):s;}catch(e){return s;}};
 ['alert','confirm','prompt'].forEach(n=>{const o=window[n].bind(window);window[n]=function(m){const a=[].slice.call(arguments);a[0]=tr(m);return o.apply(window,a);};});
 })();
 </script>
@@ -9802,7 +9802,7 @@ function makeDoc(txt,fmt){if(locked()){T('🔒 Export désactivé pour votre com
  const B=parse(txt),t=title(B,txt);let blob;
  try{if(fmt==='docx')blob=docx(txt).slice(0,undefined,MIME.docx);else if(fmt==='xlsx')blob=xlsx(txt).slice(0,undefined,MIME.xlsx);else if(fmt==='pdf')blob=pdf(txt);else blob=new Blob(['\ufeff'+noEmoji(txt).replace(/\*\*/g,'')],{type:'text/plain;charset=utf-8'});
   save(blob,fname(t,fmt==='txt'?'txt':fmt));T('✅ '+fname(t,fmt)+' créé');}catch(e){T('Erreur de création : '+e.message);}}
-window.TERH_makeDoc=makeDoc;
+window.PRH_makeDoc=makeDoc;
 /* ---------- boutons sous chaque réponse de l'IA ---------- */
 function isAI(d){return d&&d.parentNode&&d.parentNode.id==='amg'&&/flex-start/.test(d.style.cssText);}
 async function copyTxt(t){try{await navigator.clipboard.writeText(t);T('📋 Réponse copiée');}catch(e){try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();T('📋 Réponse copiée');}catch(x){T('Copie impossible : sélectionnez le texte puis Ctrl+C');}}}
@@ -9855,14 +9855,14 @@ const amg=()=>$('amg');
     }
     return t.replace(/\*\*/g,'');
   }
-  window.TERH_mdHtml=raw=>{const L=lines(E(String(raw)),true);return inline(L.join('\n'),true);};
-  window.TERH_mdPlain=raw=>inline(lines(String(raw),false).join('\n'),false).replace(/\n{3,}/g,'\n\n');
-  window.TERH_hasMd=t=>MDRX.test(t);
+  window.PRH_mdHtml=raw=>{const L=lines(E(String(raw)),true);return inline(L.join('\n'),true);};
+  window.PRH_mdPlain=raw=>inline(lines(String(raw),false).join('\n'),false).replace(/\n{3,}/g,'\n\n');
+  window.PRH_hasMd=t=>MDRX.test(t);
   function fmt(d){
     if(!isAI(d)||d.children.length)return;
     const t=d.textContent;if(!t)return;
     if(/^(⏳|❌|⚠|🌐)/.test(t)){delete d.dataset.raw;return;}
-    if(MDRX.test(t)){d.dataset.raw=t;d.innerHTML=window.TERH_mdHtml(t);}
+    if(MDRX.test(t)){d.dataset.raw=t;d.innerHTML=window.PRH_mdHtml(t);}
     else delete d.dataset.raw;
   }
   function start(){const b=document.getElementById('amg');if(!b||b._fm)return;b._fm=1;let tm=null;
@@ -9879,29 +9879,29 @@ setInterval(()=>{const cp=$('acopy');if(!cp||cp._ai)return;cp._ai=1;cp.title='Co
  let pt=null;cp.onmousedown=cp.ontouchstart=()=>{pt=setTimeout(()=>{pt=null;const all=[...amg().children].map(d=>(isAI(d)?'Assistant : ':'Moi : ')+textOf(d)).join('\n\n');copyTxt(all);},700);};cp.onmouseup=cp.ontouchend=cp.onmouseleave=()=>{if(pt){clearTimeout(pt);pt=null;}};},1500);
 /* ---------- consignes de conversation naturelle + demandes de documents ---------- */
 const DOCRX=/\b(word|docx|pdf|excel|xlsx|tableur|fichier texte|\.txt|document|contrat|lettre|attestation|certificat|rapport|note de service|compte[- ]rendu|tableau|fiche|mod[eè]le|courrier|convocation|planning)\b/i,VERB=/\b(fais|fait|faire|cr[ée]e|cr[ée]er|g[ée]n[èe]re|g[ée]n[ée]rer|produis|produire|r[ée]dige|r[ée]diger|pr[ée]pare|pr[ée]parer|[ée]cris|[ée]crire|donne[- ]moi|sors|exporte|exporter)\b/i;
-window.TERH_wantsDoc=q=>DOCRX.test(q)&&VERB.test(q);
-window.TERH_styleDirective=function(q){let voice=false;try{voice=!!(voiceTurn||convo);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+window.PRH_wantsDoc=q=>DOCRX.test(q)&&VERB.test(q);
+window.PRH_styleDirective=function(q){let voice=false;try{voice=!!(voiceTurn||convo);}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
  let s='Parle comme une vraie personne, chaleureuse et naturelle, qui tutoie ou vouvoie comme l\'utilisateur ; tiens compte de tout ce qui a été dit avant ; ne répète pas la question ; pas de formules robotiques.';
  if(voice)s+=' Ceci est une conversation vocale : réponds en 1 à 3 phrases courtes, sans liste, sans symboles ni Markdown, comme au téléphone, puis relance brièvement si utile.';
  else s+=' Réponds de façon claire et directe ; ne fais des listes que si elles aident. N\'écris jamais d\'astérisques ni de symboles Markdown (** , __ , #) : texte simple, listes avec des tirets, titres en MAJUSCULES ou suivis de deux-points.';
- if(window.TERH_wantsDoc(q))s+=' L\'utilisateur demande un DOCUMENT : rédige directement le document complet et prêt à l\'emploi (titre en "# ", sections en "## ", listes avec "- ", tableaux Markdown avec |), sans introduction ni explication autour ; termine par une seule phrase disant qu\'il peut le télécharger en Word, PDF, Excel ou texte avec les boutons sous la réponse.';
+ if(window.PRH_wantsDoc(q))s+=' L\'utilisateur demande un DOCUMENT : rédige directement le document complet et prêt à l\'emploi (titre en "# ", sections en "## ", listes avec "- ", tableaux Markdown avec |), sans introduction ni explication autour ; termine par une seule phrase disant qu\'il peut le télécharger en Word, PDF, Excel ou texte avec les boutons sous la réponse.';
  return s;};
 /* création automatique du fichier quand le format est cité dans la demande */
 function wantedFmt(q){const s=q.toLowerCase();if(/\b(word|docx)\b/.test(s))return 'docx';if(/\bpdf\b/.test(s))return 'pdf';if(/\b(excel|xlsx|tableur)\b/.test(s))return 'xlsx';if(/(fichier texte|\.txt|\btxt\b|format texte)/.test(s))return 'txt';return '';}
 let lastQ='';const ow=window.askAI;
-window.askAI=async function(){try{const v=($('ai').value||'').trim();if(v){lastQ=v;try{window.TERH_cutSpeech&&window.TERH_cutSpeech();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
- const q=lastQ,f=wantedFmt(q),want=window.TERH_wantsDoc(q);const n0=amg().children.length;
+window.askAI=async function(){try{const v=($('ai').value||'').trim();if(v){lastQ=v;try{window.PRH_cutSpeech&&window.PRH_cutSpeech();}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
+ const q=lastQ,f=wantedFmt(q),want=window.PRH_wantsDoc(q);const n0=amg().children.length;
  const r=await ow.apply(this,arguments);
  if(want&&f){let tries=0;const iv=setInterval(()=>{tries++;const L=[...amg().children].slice(n0).reverse().find(d=>isAI(d)&&!/^(⏳|❌|⚠)/.test(textOf(d)));const sb=$('asend');if(L&&textOf(L).length>40&&sb&&!sb.disabled){clearInterval(iv);setTimeout(()=>{makeDoc(rawOf(L),f);},900);}if(tries>240)clearInterval(iv);},1000);}
  return r;};
 })();
 
 </script>
-<script id="terh-ai-en-fix">/* ===== TERH : l'IA en ligne répond dans la langue choisie (FR/EN) ===== */
+<script id="terh-ai-en-fix">/* ===== PLATEFORME RH : l'IA en ligne répond dans la langue choisie (FR/EN) ===== */
 (function(){
 'use strict';
 function wrap(){
-  const o=window.TERH_callAI;
+  const o=window.PRH_callAI;
   if(typeof o!=='function'||o._en)return;
   const n=function(body,ms,bubble){
     try{
@@ -9918,11 +9918,11 @@ function wrap(){
     }catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
     return o.call(this,body,ms,bubble);
   };
-  n._en=1;window.TERH_callAI=n;
+  n._en=1;window.PRH_callAI=n;
 }
 wrap();setInterval(wrap,1500);
-/* Diagnostic : liste les textes encore en français quand l'anglais est actif (console : TERH_untranslated()) */
-window.TERH_untranslated=function(){
+/* Diagnostic : liste les textes encore en français quand l'anglais est actif (console : PRH_untranslated()) */
+window.PRH_untranslated=function(){
   const out=new Set(),w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   const fr=/[àâçéèêëîïôùûüÀÉÈÊ]|\b(le|la|les|des|une|du|pour|avec|vous|votre|ajouter|modifier|supprimer|société|entreprise|activer|annuler|fermer|choisir|aucun|aucune|ouvrir)\b/i;
   while(w.nextNode()){const n=w.currentNode,p=n.parentNode;if(!p||/^(SCRIPT|STYLE|TEXTAREA|CODE|PRE)$/.test(p.nodeName))continue;const t=n.nodeValue.trim();if(t.length>2&&t.length<160&&fr.test(t))out.add(t);}
@@ -9932,7 +9932,7 @@ window.TERH_untranslated=function(){
 };
 })();
 </script>
-<script id="terh-local-ai">/* ===== TERH : panneau « IA locale » (activer, choisir la taille, désactiver) ===== */
+<script id="terh-local-ai">/* ===== PLATEFORME RH : panneau « IA locale » (activer, choisir la taille, désactiver) ===== */
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),H=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -9981,7 +9981,7 @@ function open(){
 setInterval(()=>{const b=$('alocal');if(b&&!b._l){b._l=1;b.onclick=open;}},800);
 })();
 </script>
-<script id="terh-ai-boost">/* ===== TERH : assistant plus fiable et mieux informé (repères droit social + secours + consignes) ===== */
+<script id="terh-ai-boost">/* ===== PLATEFORME RH : assistant plus fiable et mieux informé (repères droit social + secours + consignes) ===== */
 (function(){
 'use strict';
 const nz=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -10001,15 +10001,15 @@ const KB=[
 {k:/code du travail|loi de 1992|92\/007|droit social|convention collective/,t:"Le droit du travail camerounais repose sur le Code du travail (loi n° 92/007 du 14 août 1992), complété par les conventions collectives de branche, les décrets et les arrêtés. En cas de conflit, la règle la plus favorable au salarié s'applique en principe."}
 ];
 function hits(q){const s=nz(q);return KB.filter(e=>e.k.test(s)).slice(0,2);}
-window.TERH_lawAnswer=function(q){const h=hits(q);if(!h.length)return '';return '📚 Repères — droit social camerounais\n\n'+h.map(e=>e.t).join('\n\n')+'\n\n⚠️ Valeurs usuelles : à confirmer avec la loi de finances en vigueur, la convention collective ou les « Paramètres réglementaires » de la plateforme.';};
+window.PRH_lawAnswer=function(q){const h=hits(q);if(!h.length)return '';return '📚 Repères — droit social camerounais\n\n'+h.map(e=>e.t).join('\n\n')+'\n\n⚠️ Valeurs usuelles : à confirmer avec la loi de finances en vigueur, la convention collective ou les « Paramètres réglementaires » de la plateforme.';};
 function lawFacts(q){const h=hits(q);return h.length?'\n\nRepères droit social Cameroun (fiables, à utiliser en priorité ; si une valeur manque et que tu n\'es pas sûr, dis de la vérifier au lieu de l\'inventer) :\n'+h.map(e=>'- '+e.t).join('\n'):'';}
 const RULES=" Règles de réponse : réponds directement, de façon claire et structurée (listes courtes, étapes numérotées pour une procédure) ; pour la paie, montre le calcul étape par étape avec les chiffres exacts de la plateforme ; n'invente jamais un chiffre, un article de loi ou un nom d'employé : si tu n'es pas sûr, dis-le et indique où vérifier ; par défaut le cadre juridique est le Cameroun (Code du travail de 1992, CNPS, DGI).";
 function hook(){
   try{
     if(typeof aiFacts==='function'&&!aiFacts._b){const o=aiFacts;const n=function(q,f){return o(q,f)+lawFacts(q);};n._b=1;aiFacts=n;}
     if(typeof ctxAgg==='function'&&!ctxAgg._b){const o=ctxAgg;const n=function(){return o.apply(this,arguments)+RULES;};n._b=1;ctxAgg=n;}
-    if(typeof localAnswer==='function'&&!localAnswer._b){const o=localAnswer;const n=function(q){try{if(!findEmp(q).length){const a=window.TERH_lawAnswer(q);if(a)return a;}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return o(q);};n._b=1;localAnswer=n;}
-    const c=window.TERH_callAI;
+    if(typeof localAnswer==='function'&&!localAnswer._b){const o=localAnswer;const n=function(q){try{if(!findEmp(q).length){const a=window.PRH_lawAnswer(q);if(a)return a;}}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}return o(q);};n._b=1;localAnswer=n;}
+    const c=window.PRH_callAI;
     if(typeof c==='function'&&!c._r&&!window.__retryWrapped){window.__retryWrapped=1;
       const n=async function(body,ms,bubble){
         let r;
@@ -10023,7 +10023,7 @@ function hook(){
         if(r&&r.error&&!r.data)return r;
         return r;
       };
-      n._r=1;n._en=c._en;window.TERH_callAI=n;
+      n._r=1;n._en=c._en;window.PRH_callAI=n;
     }
   }catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
 }
@@ -10069,7 +10069,7 @@ hook();setInterval(hook,1500);
       var p=MY_USER.id+'/avatar.jpg';
       var up=await db.storage.from('avatars').upload(p,blob,{upsert:true,contentType:'image/jpeg'});
       if(up.error)throw up.error;
-      await window.TERH_saveMyProfile({avatar_url:p});
+      await window.PRH_saveMyProfile({avatar_url:p});
       AideAvatar.setPhoto(await signedAv(p));
     },
     onVideo:async function(blob){
@@ -10115,7 +10115,7 @@ hook();setInterval(hook,1500);
       try{var qq=db.from('audit_log').select('created_at,table_name,action').order('created_at',{ascending:false}).limit(10);if(!isOwnerUser()&&CO)qq=qq.eq('entreprise_id',CO);var rr=await qq;if(rr.data&&rr.data.length)ctx+='\n\nJOURNAL RECENT (30 dernieres modifications, plus recentes d\'abord) :\n'+rr.data.map(function(x){return String(x.created_at).slice(0,16).replace('T',' ')+' | '+x.action+' '+x.table_name;}).join('\n');}catch(e){try{logErr('erreur ignorée : '+(((e)&&e.message)||e))}catch(_){}}
       ctx+='\n\nRECIT DE LA PLATEFORME (genese et parcours du createur, a utiliser pour repondre aux questions sur l\'histoire) :\n'+recitPlateforme();
       var modeF=(document.getElementById('v-fo')&&document.getElementById('v-fo').classList.contains('on'))?'formation':undefined;var corps=(window.AssistantRequete?AssistantRequete.construireRequete({question:q,precedents:precedents,contexte:ctx,userFirst:(typeof userFirst==='function'?userFirst():''),heure:new Date().getHours(),mode:modeF}):{messages:[{role:'user',content:q}],context:ctx,user_first:'',client_hour:new Date().getHours(),lang:'fr',max_tokens:800});
-      var r=await window.TERH_callAI(corps,26000);
+      var r=await window.PRH_callAI(corps,26000);
       if(r.error||!r.data||!r.data.text)throw new Error('IA indisponible');
       return r.data.text;
     }
@@ -10124,4 +10124,5 @@ hook();setInterval(hook,1500);
   // L'assistant garde sa propre image : il n'affiche pas la photo de la personne connectée.
 })();
 </script>
+<script id="prh-lot-opts">window.PRH_bulletinOpts=function(){try{const b=identiteBulletinLue()||{};return {bulletin:b,employeur:b.societe||(curCo()||{}).nom||'',taux:window.PAIE_TAUX_CACHE,rubriques:window.PAIE_RUB_CACHE};}catch(e){return {};}};</script>
 </body></html>

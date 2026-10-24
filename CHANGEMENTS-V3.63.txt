@@ -9,7 +9,7 @@ VERSION 3.63 : UNICITÉ DES CODES, MATRICULES ET N° CNPS
 - Catalogue de rubriques : le contrôle de doublon existait déjà (paie-rubriques.js).
 
 2. MATRICULES (index.html)
-- Saisie manuelle (TERH_enregistrerMat) : refusée si le matricule est déjà attribué à un autre salarié.
+- Saisie manuelle (PRH_enregistrerMat) : refusée si le matricule est déjà attribué à un autre salarié.
 - Attribution automatique (fillMat) : déjà unique.
 - Livre de paie : deux salariés avec le même matricule = impression refusée.
 

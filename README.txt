@@ -20,12 +20,12 @@ NOUVEAUTES
 - Cover dans les lettres, certificats et impressions en lot (sans doublon).
 - Si la base refuse les clés ent_*, l'en-tête est gardé sur l'appareil (message affiché).
 
-TEST : console > typeof window.TERH_bibAdd et typeof window.TERH_tplFromFile = "function".
+TEST : console > typeof window.PRH_bibAdd et typeof window.PRH_tplFromFile = "function".
 
 LANGUE (FR / EN)
 - Le traducteur de l'application fonctionne avec un dictionnaire exact : un texte absent reste en français.
 - Pour traduire un texte manquant : ajoutez une ligne dans lang-en.js  'texte français exact':'English text',
   puis rechargez la page. Les émojis au début et la ponctuation à la fin sont ignorés.
-- Test rapide dans la console : TERH_I18N_add({'Bonjour':'Hello'})
+- Test rapide dans la console : PRH_I18N_add({'Bonjour':'Hello'})
 - Les textes mélangés (ex. « Tableaux of bord ») viennent de l'ancien remplacement mot à mot : il est désormais
   désactivé quand il laisse du français dans la phrase ; ajoutez la phrase complète dans lang-en.js.

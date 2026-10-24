@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.5 (risque AT et base FNE dans les parametres de l'entreprise)
+PLATEFORME RH PAIE - VERSION 3.5 (risque AT et base FNE dans les parametres de l'entreprise)
 ==============================================================================
 
 PARAMETRES DE L'ENTREPRISE (index.html, section en-tete / parametres)

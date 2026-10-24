@@ -98,17 +98,17 @@
   }
   function sauver(liste) {
     try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(liste)); } catch (e) {}
-    var pont = root.TERH_paieRub;
+    var pont = root.PRH_paieRub;
     if (pont && pont.save) {
       Promise.resolve(pont.save(liste)).catch(function (e) { console.error('Rubriques : sauvegarde base impossible', e); });
     }
   }
   // Lit le catalogue enregistré pour la société (table parametres). Renvoie la liste, ou null si rien en base.
-  // Bibliothèque commune (table parametres, via TERH_paieRub) :
+  // Bibliothèque commune (table parametres, via PRH_paieRub) :
   // - si la base contient une bibliothèque : elle fait foi, renumérotée 30+ et réenregistrée si besoin ;
   // - si la base est vide et que ce navigateur a une bibliothèque : elle est envoyée à la base (aucune perte).
   function synchroniser() {
-    var pont = root.TERH_paieRub;
+    var pont = root.PRH_paieRub;
     if (!pont || !pont.load) return Promise.resolve(null);
     return Promise.resolve(pont.load()).then(function (distant) {
       if (Array.isArray(distant) && distant.length) {

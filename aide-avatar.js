@@ -1,4 +1,4 @@
-/* aide-avatar.js — Assistant visuel TERH : photo de profil, aide écrite et vocale.
+/* aide-avatar.js — Assistant visuel PLATEFORME RH : photo de profil, aide écrite et vocale.
  *
  * - L'aide intégrée (FAQ) fonctionne SANS connexion.
  * - Si une question dépasse la FAQ et qu'une fonction onAI est fournie, elle est utilisée (si connecté).

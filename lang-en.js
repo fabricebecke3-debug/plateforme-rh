@@ -1,10 +1,10 @@
-/* ===== TERH · lang-en.js — compléments de traduction anglaise =====
+/* ===== PLATEFORME RH · lang-en.js — compléments de traduction anglaise =====
  * Format : 'texte français exact' : 'English text'.
  * - Les émojis au début et la ponctuation à la fin sont ignorés par le traducteur.
  * - Après modification : rechargez la page (le fichier est servi en no-cache).
- * - Ajout à chaud depuis la console : TERH_I18N_add({'Bonjour':'Hello'})
+ * - Ajout à chaud depuis la console : PRH_I18N_add({'Bonjour':'Hello'})
  */
-window.TERH_I18N=Object.assign(window.TERH_I18N||{},{
+window.PRH_I18N=Object.assign(window.PRH_I18N||{},{
 "Vue générale": "Overview",
 "Rôles & permissions": "Roles & permissions",
 "Tableaux de bord": "Dashboards",
@@ -252,4 +252,4 @@ window.TERH_I18N=Object.assign(window.TERH_I18N||{},{
 "Type": "Type",
 "Date": "Date"
 });
-try{if(window.TERH_I18N_add)window.TERH_I18N_add(window.TERH_I18N);}catch(e){}
+try{if(window.PRH_I18N_add)window.PRH_I18N_add(window.PRH_I18N);}catch(e){}

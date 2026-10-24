@@ -1,5 +1,5 @@
 /* =====================================================================
- * TERH · cnps-ia.js — IA + assistant interne du module CNPS
+ * PLATEFORME RH · cnps-ia.js — IA + assistant interne du module CNPS
  * Fichier d'appoint (comme dipe-plus.js) : à garder à côté de index.html.
  *
  *  🔺 TRIANGULATION avant génération du DIPE : chaque salarié est recoupé entre
@@ -21,7 +21,7 @@
  * ===================================================================== */
 (function(){
 'use strict';
-const X=window.TERH_CNPSIA=window.TERH_CNPSIA||{};
+const X=window.PRH_CNPSIA=window.PRH_CNPSIA||{};
 X.version='2026.10.2';
 X.alt=null;      /* contexte de repli (module CNPS ouvert sans DIPE) */
 X.ctx=null;      /* contexte DIPE (fourni par dipe-plus.js) */
@@ -60,12 +60,12 @@ function env(){
   if(dipeRows){
     let per='';try{per=(c.g&&c.g('d_mo')&&c.g('d_mo').value)||'';}catch(e){}
     return {mode:'dipe',R:c.R,E:c.E||[],MAT:c.MAT||{},PC:c.PC||{},period:per,incl:c.incl,say:c.say,
-      prev:(window.TERH_DIPE&&window.TERH_DIPE.prev)||null};
+      prev:(window.PRH_DIPE&&window.PRH_DIPE.prev)||null};
   }
   const a=X.alt||{};
   return {mode:'fiches',R:[],E:a.E||(c&&c.E)||[],MAT:a.MAT||{},PC:a.PC||{},period:'',incl:null,say:a.say||say,prev:null};
 }
-function refList(){try{const S=window.TERH_CNPSREF&&window.TERH_CNPSREF.S;return (S&&S.list)||[];}catch(er){return [];}}
+function refList(){try{const S=window.PRH_CNPSREF&&window.PRH_CNPSREF.S;return (S&&S.list)||[];}catch(er){return [];}}
 function slipLog(){const m=new Map();try{(window.__slipLog||[]).forEach(x=>{if(x&&x.row)m.set(x.row,x.slip||{});});}catch(e){}return m;}
 
 /* ---------- 1. TRIANGULATION ---------- */
@@ -220,8 +220,8 @@ const maskTxt=(txt,names)=>{let t=String(txt||'');
   (names||[]).forEach(n=>String(n||'').split(/\s+/).filter(w=>w.length>=3).forEach(w=>{t=t.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'***');}));
   return t;};
 async function ask(messages,max){
-  if(typeof window.TERH_callAI!=='function')return {err:'service IA non disponible dans cette page'};
-  let r;try{r=await window.TERH_callAI({raw:true,messages,max_tokens:max||700},45000);}catch(e){return {err:e.message||String(e)};}
+  if(typeof window.PRH_callAI!=='function')return {err:'service IA non disponible dans cette page'};
+  let r;try{r=await window.PRH_callAI({raw:true,messages,max_tokens:max||700},45000);}catch(e){return {err:e.message||String(e)};}
   const d=r&&r.data,er=r&&r.error;if(er||!d||!d.text)return {err:(er&&er.message)||'pas de réponse de l\'IA'};
   return {text:String(d.text).trim()};}
 const dl=(name,rows)=>{const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(';')).join('\r\n');
@@ -250,11 +250,11 @@ X.openTriangulation=function(opts){
     T.innerHTML='<table><tr><th align="left">Salarié</th><th>Fiabilité</th><th align="left">Remarques</th><th></th></tr>'+rows.map((o,k)=>
       '<tr class="t"><td><b>'+esc(o.nom)+'</b><br><span class="muted">'+esc(o.r.cnps||'')+'</span></td><td style="min-width:70px;text-align:center">'+o.score+' %'+fiab(o.score)+'</td>'+
       '<td>'+(o.F.length?o.F.map(x=>'<span class="pill '+SEV[x.sev][1]+'">'+SEV[x.sev][0]+' '+esc(x.msg)+'</span>').join(''):'<span class="pill o">✅ conforme</span>')+'</td>'+
-      '<td style="white-space:nowrap"><button class="s" data-d="'+k+'" title="Comparer les sources">🔺</button>'+(o.r._t?' <button class="s" data-b="'+k+'" title="Lire le bulletin">📄</button>':'')+(o.i>=0&&window.TERH_DIPE&&window.TERH_DIPE.focus?' <button class="s" data-f="'+k+'" title="Corriger cette ligne dans le tableau">✏</button>':'')+'</td></tr>'+
+      '<td style="white-space:nowrap"><button class="s" data-d="'+k+'" title="Comparer les sources">🔺</button>'+(o.r._t?' <button class="s" data-b="'+k+'" title="Lire le bulletin">📄</button>':'')+(o.i>=0&&window.PRH_DIPE&&window.PRH_DIPE.focus?' <button class="s" data-f="'+k+'" title="Corriger cette ligne dans le tableau">✏</button>':'')+'</td></tr>'+
       '<tr id="ci_d'+k+'" style="display:none"><td colspan="4"></td></tr>').join('')+'</table>';
     T.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{const k=+b.dataset.d,tr=T.querySelector('#ci_d'+k);
       if(tr.style.display==='none'){tr.firstChild.innerHTML=compare(rows[k]);tr.style.display='';}else tr.style.display='none';});
-    T.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const o=rows[+b.dataset.f];w.parentNode.remove();if(!window.TERH_DIPE.focus(o.i))say('Ligne introuvable dans le tableau');});
+    T.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{const o=rows[+b.dataset.f];w.parentNode.remove();if(!window.PRH_DIPE.focus(o.i))say('Ligne introuvable dans le tableau');});
     T.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>X.readSlip(rows[+b.dataset.b].r));};
   w.querySelector('#ci_only').onchange=draw;draw();
   w.querySelector('#ci_as').onclick=()=>X.openAssistant();
@@ -336,7 +336,7 @@ X.aiAnalyse=async function(A){
 X.autoLog=X.autoLog||[];
 /* « Total Brut » : montant sur la ligne du libellé ou 1 à 4 lignes plus bas (avant les lignes de cotisations) */
 X.totBrut=function(txt){
-  const T=window.TERH_DIPE,nums=T&&T.nums?(l=>T.nums(l).map(x=>x.v)):(l=>numsOf(l).map(x=>x.v));
+  const T=window.PRH_DIPE,nums=T&&T.nums?(l=>T.nums(l).map(x=>x.v)):(l=>numsOf(l).map(x=>x.v));
   const L=linesOf(txt),i=L.findIndex(l=>/total\s+brut/i.test(l));if(i<0)return 0;let best=0;
   for(let k=i;k<Math.min(L.length,i+5);k++){
     if(k>i&&/pension|vieillesse|accident|prestations|total\s+cotis/i.test(L[k]))break;
@@ -345,7 +345,7 @@ X.totBrut=function(txt){
   return best;};
 /* apprentissage automatique d'un libellé : seulement si la valeur est vérifiée dans le bulletin ET si le libellé n'était pas déjà reconnu */
 function learnLabel(k,txt,val){
-  const T=window.TERH_DIPE,ctx=X.ctx;if(!T||!val||!ctx)return '';
+  const T=window.PRH_DIPE,ctx=X.ctx;if(!T||!val||!ctx)return '';
   const want={brut:/brut|gain|r[ée]mun|total/i,cot:/pension|cotis|base|assiette|plafon/i,mi:/matr|mle|n[°o]/i}[k];if(!want)return '';
   const sv=String(val);
   for(const l of linesOf(txt)){
@@ -365,7 +365,7 @@ function learnLabel(k,txt,val){
 
 X.step2=async function(opts){
   opts=opts||{};
-  const T=window.TERH_DIPE,e=env();
+  const T=window.PRH_DIPE,e=env();
   if(!T||e.mode!=='dipe')return null;
   if(X._busy)return null;X._busy=true;
   try{
@@ -399,7 +399,7 @@ X.step2=async function(opts){
   try{T.fixBadMi(R);}catch(er){}
 
   /* B. relecture IA (en ligne, anonymisée) des bulletins douteux — une seule confirmation */
-  if(!opts.local&&typeof window.TERH_callAI==='function'&&T.aiRead){
+  if(!opts.local&&typeof window.PRH_callAI==='function'&&T.aiRead){
     const doubt=rows.filter(({r})=>{const t=txtOf(r);if(!t)return false;const P=X.pension(t);
       return !(r.brut>0)||!(r.cot>0)||!r.mi||(P.found&&P.cons===false);}).slice(0,25);
     if(doubt.length){
@@ -409,7 +409,7 @@ X.step2=async function(opts){
         for(let n=0;n<doubt.length;n++){
           const {r}=doubt[n],sl=slOf(r),txt=txtOf(r);
           bx.innerHTML='<div class="muted">🧠 Étape ② : relecture IA '+(n+1)+'/'+doubt.length+'…</div>';
-          const res=await window.TERH_DIPE.aiRead({x:{slip:sl,row:r}});asked++;
+          const res=await window.PRH_DIPE.aiRead({x:{slip:sl,row:r}});asked++;
           if(!res||res.err){err++;continue;}
           const fl=flatTxt(txt),inTxt=v=>v>0&&fl.includes(String(Math.round(v)));
           const pr={},vr={};
@@ -469,7 +469,7 @@ X.undoAuto=function(){
     if(o.k==='cot')o.r.cotEst=false;
     if(o.r.auto)delete o.r.auto[o.k];
     o.r.src=o.r.src||{};o.r.src[o.k]='valeur d\'avant la correction automatique';n++;});
-  try{window.TERH_DIPE&&window.TERH_DIPE.refresh&&window.TERH_DIPE.refresh();}catch(er){}
+  try{window.PRH_DIPE&&window.PRH_DIPE.refresh&&window.PRH_DIPE.refresh();}catch(er){}
   say('↩ '+n+' correction(s) automatique(s) annulée(s)');return n;};
 X.openLog=function(){
   css();const L=X.autoLog;
@@ -527,7 +527,7 @@ async function answer(q){
   const names=e.E.map(x=>x.n).concat(A.rows.map(o=>o.nom));
   const ctxTxt='Contexte (anonymisé) : effectif fiches '+e.E.length+' ; DIPE '+A.rows.length+' lignes ; '+A.errN+' en erreur, '+A.warnN+' à vérifier .';
   const msgs=hist.slice(-6).map(m=>({role:m.r==='me'?'user':'assistant',content:m.t}));
-  const first='Tu es l\'assistant interne CNPS de la plateforme TERH (Cameroun) : cotisations CNPS, DIPE, bulletins de paie. Réponds en français, court, précis ; si tu n\'es pas sûr d\'une règle légale, dis-le et renvoie à la CNPS. N\'invente aucun chiffre. '+ctxTxt+'\n\nQuestion : '+maskTxt(q,names);
+  const first='Tu es l\'assistant interne CNPS de la plateforme PLATEFORME RH (Cameroun) : cotisations CNPS, DIPE, bulletins de paie. Réponds en français, court, précis ; si tu n\'es pas sûr d\'une règle légale, dis-le et renvoie à la CNPS. N\'invente aucun chiffre. '+ctxTxt+'\n\nQuestion : '+maskTxt(q,names);
   const r=await ask(msgs.length?msgs.slice(0,-1).concat([{role:'user',content:first}]):[{role:'user',content:first}],600);
   return r.err?{t:'🤖 L\'IA est indisponible ('+r.err+').\n\n'+HELP}:{t:r.text,ai:true};}
 

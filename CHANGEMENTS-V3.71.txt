@@ -1,4 +1,4 @@
-VERSION 3.71 (base : TERH-paie-V3.70 envoyé) : CODES DU CATALOGUE, NET DANS LA GRILLE, HEURES D'ABSENCE
+VERSION 3.71 (base : PLATEFORME RH-paie-V3.70 envoyé) : CODES DU CATALOGUE, NET DANS LA GRILLE, HEURES D'ABSENCE
 ===============================================================================
 1. CODES DU BULLETIN OCÉAN (paie-hok.js)
 - Les rubriques standard affichées sur le bulletin Océan ont les codes du catalogue :

@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.14 (saisie fluide dans le bulletin) (employeur en mise a disposition, sans ligne client) (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
+PLATEFORME RH PAIE - VERSION 3.14 (saisie fluide dans le bulletin) (employeur en mise a disposition, sans ligne client) (lisibilite du bulletin imprime) (choix de la colonne du montant ; correction de la lecture) (verification des rubriques importees, OCR controle)
 =========================================================================
 
 ECRAN DE VERIFICATION AVANT CREATION DU MODELE

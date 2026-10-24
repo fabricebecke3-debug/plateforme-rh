@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.6 (identité de l'entreprise sur le bulletin, modèles par entreprise)
+PLATEFORME RH PAIE - VERSION 3.6 (identité de l'entreprise sur le bulletin, modèles par entreprise)
 =====================================================================================
 
 IDENTITE SUR LE BULLETIN

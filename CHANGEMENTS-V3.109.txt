@@ -1,0 +1,4 @@
+VERSION 3.109 : PÉRIODE PERSONNALISÉE DANS LA GRILLE (paie-grille.js)
+- Deux dates « Période du … au … » dans la barre de la grille de saisie. Si elles sont renseignées, les bulletins du mois utilisent cette période ; si elles sont vides, on revient à la période du mois.
+- Changer de mois réinitialise la période personnalisée.
+- En consultation d'un mois clôturé, ces champs sont en lecture seule.

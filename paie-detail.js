@@ -203,7 +203,7 @@
   function ouvrir(opts) {
     var bulletinSociete = (opts && opts.bulletin) || null;
     // Réglages de la structure (risque AT, base FNE) prioritaires sur les taux par défaut
-    var tauxSage = Object.assign({}, (opts && opts.taux) || {}, (root.TERH_tauxEntreprise ? root.TERH_tauxEntreprise() : {}));
+    var tauxSage = Object.assign({}, (opts && opts.taux) || {}, (root.PRH_tauxEntreprise ? root.PRH_tauxEntreprise() : {}));
     var perso = (opts && opts.rubriques && opts.rubriques.length) ? opts.rubriques.slice() : ((root.PaieRubriques && root.PaieRubriques.charger) ? root.PaieRubriques.charger() : []);
     var catalogue = fusionCatalogue(perso, false);
     // Modèle du salarié courant (Sage ou Océan) : le catalogue suit ce modèle
@@ -283,7 +283,7 @@
     var etat = { lignes: (opts && opts.lignes) ? opts.lignes.slice() : [{ code: '1000', lib: 'Salaire de base', nombre: null, base: null, taux: null, gain: null, cnps: true, cfc: true, irpp: true }],
       saisies: {}, nom: (opts && opts.nom) || '', mat: (opts && opts.mat) || '', cnps: (opts && opts.cnps) || '', lieu: (opts && opts.lieu) || '', periode: (opts && opts.periode) || periodeMoisCourant(), employeur: (opts && opts.employeur) || '' };
     // Une seule source pour tous les points d'entrée : fiche + matricule + CNPS (index.html)
-    var employes = root.TERH_fichesPaie ? root.TERH_fichesPaie() : ((opts && opts.employes) || []);
+    var employes = root.PRH_fichesPaie ? root.PRH_fichesPaie() : ((opts && opts.employes) || []);
     window.__employesBulletin = employes;
     function indexSalarie() { return employes.findIndex(function (x) { return etat.fiche && String(x.id) === String(etat.fiche.id); }); }
     etat.bulletin = bulletinSociete;
@@ -369,8 +369,8 @@
       btn.disabled = true; btn.textContent = 'Enregistrement…';
       var ch = {}, mat = null, p = Promise.resolve();
       e.forEach(function (x) { if (x.k === 'cnps') ch.cnps = x.nouveau; if (x.k === 'mat') mat = x.nouveau; });
-      if (mat !== null) p = p.then(function () { return root.TERH_enregistrerMat(f.id, mat); }).then(function () { f.mat = mat; });
-      if (ch.cnps !== undefined) p = p.then(function () { return root.TERH_majFiche(f.id, ch); }).then(function () { f.cnps = ch.cnps; });
+      if (mat !== null) p = p.then(function () { return root.PRH_enregistrerMat(f.id, mat); }).then(function () { f.mat = mat; });
+      if (ch.cnps !== undefined) p = p.then(function () { return root.PRH_majFiche(f.id, ch); }).then(function () { f.cnps = ch.cnps; });
       p.then(function () { alert('Enregistré dans la fiche de ' + etat.nom + '.'); rendre(); })
         .catch(function (err) { alert('Enregistrement impossible : ' + ((err && err.message) || err)); btn.disabled = false; btn.textContent = 'Enregistrer dans la fiche'; });
     }
@@ -948,11 +948,13 @@
         var R = calcul();
         var modele = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : ((root.PaieModeles && root.PaieModeles.actif) ? root.PaieModeles.actif() : null), html;
         var rendreBulletin = (modele && modele.gabarit === 'ocean' && root.PaieBulletinOcean) ? root.PaieBulletinOcean : root.PaieBulletinSage;
-        if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: lignesImpression(), resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: lignesImpression(), conges: etat.conges, periode: etat.periode, presence: (root.PaieGrille && root.PaieGrille.absencePour && etat.fiche) ? root.PaieGrille.absencePour(etat.fiche.id, etat.periode) : null, congesPlateforme: (root.TERH_congesPour && etat.fiche) ? root.TERH_congesPour(etat.fiche.id) : [] }) : null });
+        if (rendreBulletin) html = rendreBulletin.html({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, periode: etat.periode, paiement: etat.paiement || '', employeur: etat.employeur, lignes: lignesImpression(), resultat: R, cumuls: etat.cumuls || {}, conges: etat.conges || {}, salarie: salarieSage(), hok: (modele && modele.gabarit === 'ocean' && root.PaieHok) ? root.PaieHok.depuisLignes({ fiche: etat.fiche, lignes: lignesImpression(), conges: etat.conges, periode: etat.periode, presence: (root.PaieGrille && root.PaieGrille.absencePour && etat.fiche) ? root.PaieGrille.absencePour(etat.fiche.id, etat.periode) : null, congesPlateforme: (root.PRH_congesPour && etat.fiche) ? root.PRH_congesPour(etat.fiche.id) : [] }) : null });
         else html = bulletinHTML({ modele: modele, bulletin: etat.bulletin, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, lieu: etat.lieu, anciennete: etat.anciennete, periode: etat.periode, employeur: etat.employeur, lignes: lignesImpression(), saisies: Object.assign({}, etat.saisies, { taux: tauxSage || {} }), resultat: R });
         if (root.PaieI18n && html) html = root.PaieI18n.html(html);
         var couleurModele = (modele && modele.couleur) || (etat.bulletin && etat.bulletin.couleur);
-        if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}' : ''), { apercu: true });
+        var cssBul = cssBulletin({ couleur: couleurModele }) + ((modele && modele.gabarit === 'ocean') ? '@page{size:A4;margin:0}.bs-bulletin{padding:10mm 12mm;box-sizing:border-box}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}' : '');
+        if (etat.capture) { etat.capture({ html: html, css: cssBul, resultat: R, lignes: lignesImpression(), fiche: etat.fiche, nom: etat.nom, mat: etat.mat, cnps: etat.cnps, periode: etat.periode, employeur: etat.employeur, bulletin: etat.bulletin }); }
+        else if (typeof root.printHTML === 'function') root.printHTML('Bulletin de paie', html, cssBul, { apercu: true });
       }
     });
     if (root.PaieRubriques && root.PaieRubriques.synchroniser) {
@@ -972,6 +974,17 @@
       ajouterRubrique(r);
     });
     rendre();
+    // Mode lot : bulletin du salarié calculé comme à l'impression, transmis au lot puis fenêtre fermée
+    if (opts && opts.lot) {
+      var lf = opts.lot.fiche;
+      etat.nom = lf.nom; etat.mat = lf.mat || ''; etat.cnps = lf.cnps || ''; etat.lieu = lf.lieu || ''; etat.fiche = lf;
+      if (!etat.employeur) etat.employeur = (bulletinSociete && bulletinSociete.societe) || (opts.employeur || '');
+      appliquerFiche(lf); reconstruireCatalogue(); rendre();
+      etat.capture = opts.lot.onResultat;
+      try { var pbtn = cadre.querySelector('[data-x="print"]'); if (pbtn) pbtn.click(); } catch (e) { }
+      opts.lot.onResultat(null);
+      ov.remove();
+    }
   }
   // Ordre des rubriques : par code croissant (1000, 1040… puis 8100, 9019…) ; sans code en dernier. Tri stable.
   function ordreCodes(lignes) {
@@ -1032,7 +1045,24 @@
     out['1000'] = n(f.sbImp) || n(f.sb);
     return out;
   }
-  var API = { montantsFiche: montantsFiche, periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
+  // Bulletins de paie d'un lot (fiches du mois) : un salarié après l'autre, sans fenêtre visible
+  function bulletinsEnLot(o) {
+    o = o || {};
+    var fiches = o.fiches || [], res = [];
+    return fiches.reduce(function (chaine, f) {
+      return chaine.then(function () {
+        return new Promise(function (resolve) {
+          var fait = false;
+          function recevoir(r) { if (!fait) { fait = true; res.push(r ? r : { erreur: 'Bulletin non généré', fiche: f }); resolve(); } }
+          try {
+            ouvrir({ bulletin: o.bulletin, employeur: o.employeur, taux: o.taux, rubriques: o.rubriques, employes: fiches, periode: o.periode,
+              lot: { fiche: f, onResultat: recevoir } });
+          } catch (e) { recevoir({ erreur: String((e && e.message) || e), fiche: f }); }
+        });
+      });
+    }, Promise.resolve()).then(function () { return res; });
+  }
+  var API = { bulletinsEnLot: bulletinsEnLot, montantsFiche: montantsFiche, periodeMoisCourant: periodeMoisCourant, controles: controles, EXEMPLE: EXEMPLE, bulletinHTML: bulletinHTML, ouvrir: ouvrir, fmt: fmt, fusionCatalogue: fusionCatalogue };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PaieDetail = API;
 })(typeof window !== 'undefined' ? window : globalThis);

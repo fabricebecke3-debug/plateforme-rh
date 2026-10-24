@@ -89,7 +89,7 @@
   }
   // Sauvegarde partagée (table parametres, comme les modèles et le pointage) : le navigateur garde une copie locale
   var CLE_PONT = { params: 'hok_params_json', perm: 'hok_perm_json', mois: 'hok_mois_json' };
-  function pont() { return root.TERH_paieHok || null; }
+  function pont() { return root.PRH_paieHok || null; }
   function vers(nom, obj) {
     var p = pont();
     if (p && p.save) Promise.resolve(p.save(CLE_PONT[nom], obj)).catch(function (e) { console.error('Hôtel Océan : sauvegarde base impossible', e); });
@@ -666,7 +666,7 @@
     var netCalc = brut + rappel - sommeRet - avance;
     var val = function (c) { var r = parCode(c); return r ? r.ret : 0; };
     return {
-      entreprise: Object.assign({}, p.entreprise, (root.TERH_entrepriseInfos ? root.TERH_entrepriseInfos() : {})),
+      entreprise: Object.assign({}, p.entreprise, (root.PRH_entrepriseInfos ? root.PRH_entrepriseInfos() : {})),
       gains: gains,
       retenues: retenues,
       brut: Math.round(brut),

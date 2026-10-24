@@ -1,4 +1,4 @@
-TERH PAIE - VERSION 3.7 (import d'un bulletin modèle en PDF, formats de logo élargis)
+PLATEFORME RH PAIE - VERSION 3.7 (import d'un bulletin modèle en PDF, formats de logo élargis)
 ==================================================================================
 
 CREER UN MODELE DEPUIS UN BULLETIN (PDF)

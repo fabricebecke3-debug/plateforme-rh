@@ -2,7 +2,7 @@
  * PaiePointage.ouvrir({employes, periode, courant, onApply}) : saisie des heures sup. par salarié et par période.
  *   onApply(heures) reçoit {1110: n, 1130: n, 1140: n, 1150: n, 1160: n} (nombre d'heures) pour le bulletin.
  * PaieSimulation.ouvrir({lignes, saisies, nom})              : compare le bulletin actuel à un salaire simulé (% ou montant).
- * Pointage stocké : localStorage 'terh_paie_pointage' + table parametres (paie_pointage_json) via window.TERH_paiePoint.
+ * Pointage stocké : localStorage 'terh_paie_pointage' + table parametres (paie_pointage_json) via window.PRH_paiePoint.
  */
 (function (root) {
   'use strict';
@@ -50,11 +50,11 @@
   function lire() { try { var b = root.localStorage && root.localStorage.getItem(CLE); return b ? JSON.parse(b) : {}; } catch (e) { return {}; } }
   function ecrire(o) {
     try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) {}
-    var p = root.TERH_paiePoint;
+    var p = root.PRH_paiePoint;
     if (p && p.save) Promise.resolve(p.save(o)).catch(function (e) { console.error('Pointage : sauvegarde base impossible', e); });
   }
   function synchroniser() {
-    var p = root.TERH_paiePoint;
+    var p = root.PRH_paiePoint;
     if (!p || !p.load) return Promise.resolve(null);
     return Promise.resolve(p.load()).then(function (o) {
       if (o && typeof o === 'object') { try { root.localStorage && root.localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) {} return o; }

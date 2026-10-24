@@ -1,4 +1,4 @@
-/* TERH — service worker v6
+/* PLATEFORME RH — service worker v6
  * Rôle : ouvrir l'application même sans connexion.
  * - index.html et les fichiers statiques du site sont gardés sur l'appareil.
  * - Le code (js, css, html, json, md…) est d'abord demandé au réseau, pour recevoir les mises à jour ;
@@ -95,7 +95,7 @@ self.addEventListener('push', (event) => {
     if (u.origin === self.location.origin) lien = u.href;
   } catch (e) {}
   event.waitUntil(
-    self.registration.showNotification(d.title || 'TERH', {
+    self.registration.showNotification(d.title || 'PLATEFORME RH', {
       body: d.body || '',
       icon: d.icon || undefined,
       tag: d.tag || 'terh',

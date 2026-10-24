@@ -153,7 +153,7 @@
     "Rouvrir le mois {m} ? Il redevient modifiable et remplace le mois affiché.": "Reopen month {m}? It becomes editable again and replaces the displayed month.",
     "Archive du mois {m} introuvable.": "Archive for month {m} not found.",
     "Mois introuvable : {m}": "Month not found: {m}",
-    "Ce fichier n'est pas une paie mensuelle TERH.": "This file is not a TERH monthly payroll.",
+    "Ce fichier n'est pas une paie mensuelle PLATEFORME RH.": "This file is not a PLATEFORME RH monthly payroll.",
     "Fichier illisible.": "Unreadable file.",
     "Remplacer l'archive du mois {m} par le fichier importé ?": "Replace the archive of month {m} with the imported file?",
     "Mois {m} importé.": "Month {m} imported.",
