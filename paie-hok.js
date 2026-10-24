@@ -68,7 +68,11 @@
     try { co = (typeof CO !== 'undefined' && CO) ? String(CO) : ''; } catch (e) { co = ''; }
     return co ? CLE + '_' + co : CLE;
   }
+  // Formules figées (consultation d'un mois clôturé) : le calcul lit alors la copie du mois, jamais les formules en cours
+  var GEL = null;
+  function reglagesReels() { var g = GEL; GEL = null; try { return clone(charger()); } finally { GEL = g; } }
   function charger() {
+    if (GEL) return GEL;
     try {
       var t = root.localStorage && root.localStorage.getItem(cle());
       if (t) {
@@ -90,7 +94,7 @@
     var p = pont();
     if (p && p.save) Promise.resolve(p.save(CLE_PONT[nom], obj)).catch(function (e) { console.error('Hôtel Océan : sauvegarde base impossible', e); });
   }
-  function enregistrer(p) { try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(p)); } catch (e) {} vers('params', p); }
+  function enregistrer(p) { if (GEL) return; try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(p)); } catch (e) {} vers('params', p); }
 
   // Particularités PERMANENTES par salarié (restent d'un mois à l'autre) : modifiables, supprimables.
   //   ex. prime de caisse récurrente, base CNPS incluant le transport.
@@ -1052,6 +1056,6 @@
     });
   }
 
-  root.PaieHok = { synchroniser: synchroniser, rubriquesAffichees: rubriquesAffichees, afficherRubrique: afficherRubrique, _champs: { CHAMPS_GENERAUX: CHAMPS_GENERAUX, versTexte: versTexte, depuisTexte: depuisTexte, lirePath: lirePath }, EQUIV_OCEAN: EQUIV_OCEAN, particulariteSansCorrection: particulariteSansCorrection, corrigerRubrique: corrigerRubrique, correctionRubrique: correctionRubrique, champCorrigeable: champCorrigeable, evaluer: function (src, vars) { return evaluerFormule(src, { v: vars || {}, p: charger() }); }, rubriquesOcean: rubriquesOcean, memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
+  root.PaieHok = { reglages: reglagesReels, geler: function (o) { GEL = clone(o); }, degeler: function () { GEL = null; }, parametresCourants: function () { return charger(); }, synchroniser: synchroniser, rubriquesAffichees: rubriquesAffichees, afficherRubrique: afficherRubrique, _champs: { CHAMPS_GENERAUX: CHAMPS_GENERAUX, versTexte: versTexte, depuisTexte: depuisTexte, lirePath: lirePath }, EQUIV_OCEAN: EQUIV_OCEAN, particulariteSansCorrection: particulariteSansCorrection, corrigerRubrique: corrigerRubrique, correctionRubrique: correctionRubrique, champCorrigeable: champCorrigeable, evaluer: function (src, vars) { return evaluerFormule(src, { v: vars || {}, p: charger() }); }, rubriquesOcean: rubriquesOcean, memoriserCodes: memoriserCodes, charger: charger, calculer: calculer, depuisLignes: depuisLignes, ouvrir: ouvrir, DEFAUT: DEFAUT, particularite: particularite, cleperiode: cleperiode, chargerPermanentes: chargerPermanentes, chargerMois: chargerMois, enregistrerPermanentes: enregistrerPermanentes, enregistrerMois: enregistrerMois, PERM_DEFAUT: PERM_DEFAUT, MOIS_DEFAUT: MOIS_DEFAUT };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.PaieHok;
 })(typeof window !== 'undefined' ? window : globalThis);

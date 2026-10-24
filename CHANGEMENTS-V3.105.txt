@@ -1,0 +1,13 @@
+VERSION 3.105 : TRADUCTION ANGLAISE DE LA GRILLE, DE LA CLÔTURE ET DU BULLETIN DÉTAILLÉ (paie-i18n.js, paie-grille.js, paie-detail.js, lang-en.js)
+GRILLE DE SAISIE
+- Entièrement traduisible : titres, boutons, aide des formules, libellés de paramètres et de profils.
+- Barre de clôture : « Clôturer le mois », « Consulter un mois clôturé », « Rouvrir », « Télécharger / Importer un mois », messages d'erreur et de confirmation (avec les mois en variables).
+BULLETIN DÉTAILLÉ
+- Libellés des colonnes, boutons, avis (rubrique retirée, code Sage remplacé, doublon, code utilisé deux fois, rubriques nulles masquées).
+PAGE PRINCIPALE
+- Section Enfants et libellés du formulaire salarié traduits (exacts, prioritaires sur les remplacements automatiques : « Lieu de travail » n'est plus « Lieu of travail »).
+LIMITES
+- Environ 24 textes de la page (onglets Personnel et autres écrans) restent en français ; ils sont à compléter.
+- L'aide et le compte n'ont pas encore été contrôlés en anglais.
+- Le traducteur automatique de la page remplace des mots (« de » → « of », « et » → « and ») sur les textes non listés : à compléter au fil de l'eau.
+Service worker : terh-v136.

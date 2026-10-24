@@ -6553,6 +6553,8 @@ async function wr(cle,o){const {error}=await db.from('parametres').upsert({cle,v
 window.TERH_paieRub={load:()=>rd('paie_rubriques_json'),save:o=>wr('paie_rubriques_json',o)};
 window.TERH_paieModeles={load:()=>rd('paie_modeles_json'),save:o=>wr('paie_modeles_json',o)};
 window.TERH_paieGrille={load:()=>rd('paie_grille_json'),save:o=>wr('paie_grille_json',o)};
+window.TERH_role=()=>ER();
+window.TERH_paieClotures={liste:()=>rd('paie_clotures_json').then(x=>x||{}),sauverListe:o=>wr('paie_clotures_json',o),lireMois:m=>rd('paie_cloture_'+m),sauverMois:(m,o)=>wr('paie_cloture_'+m,o)};
 window.TERH_paiePoint={load:()=>rd('paie_pointage_json'),save:o=>wr('paie_pointage_json',o)};
 window.TERH_paieHok={load:k=>rd(k),save:(k,o)=>wr(k,o)};
 window.TERH_composantsFiche=(nom)=>{try{const xx=(typeof xGet==='function')?xGet(nom):{};const pick=re=>{const k=Object.keys(xx).find(k=>k.startsWith('c:')&&re.test(k.slice(2)));return k?String(xx[k]):'';};return {colonnes:Object.fromEntries(Object.keys(xx).filter(k=>k.startsWith('c:')).map(k=>[k.slice(2),String(xx[k])])),sbImp:pick(/salaire\s*de\s*base/i),primesCot:pick(/prime.*cotisable/i),indemnNonCot:pick(/indemn.*non\s*cotisable/i),heuresSupImp:pick(/heures?\s*sup/i),salCotisable:pick(/salaire\s*cotisable/i),pensionSal:pick(/pension.*salari/i),pensionPat:pick(/pension.*employeur/i),brutImp:pick(/total\s*brut/i)};}catch(e){return {};}};

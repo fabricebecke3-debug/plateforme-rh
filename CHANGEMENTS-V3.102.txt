@@ -1,0 +1,14 @@
+VERSION 3.102 : CLÔTURE MENSUELLE DE LA PAIE (paie-grille.js, index.html)
+CLÔTURER UN MOIS
+- Bouton « 🔒 Clôturer le mois » dans la grille de saisie : le mois est figé dans sa propre archive, ses saisies sont retirées de l'écran et le mois suivant s'ouvre.
+- Un mois clôturé ne peut plus être modifié : les écritures sont refusées et les champs sont désactivés.
+CONSULTER, RÉOUVRIR, SAUVEGARDER
+- « Consulter un mois clôturé » : affichage en lecture seule, y compris pour réimprimer les bulletins de ce mois. « Retour au mois en cours » ramène au mois ouvert.
+- « 🔓 Rouvrir ce mois » : le mois redevient modifiable et retrouve ses saisies (confirmation demandée).
+- « 💾 Télécharger ce mois » : fichier JSON de sauvegarde du mois.
+- « 📥 Importer un mois » : restaure un mois à partir d'un fichier JSON (confirmation si le mois existe déjà).
+Limites connues
+- Les saisies sont gérées par salarié : un salarié ne peut avoir qu'une saisie active. Si le mois suivant a déjà une saisie pour un salarié, elle reste prioritaire à la réouverture du mois précédent (un avertissement n'est pas encore affiché).
+- Les profils, rubriques et formules sont communs à tous les mois : une modification de formule s'applique aux bulletins consultés.
+- Le contrôle des droits (qui peut clôturer ou rouvrir) n'est pas encore branché sur les rôles admin/éditeur/lecteur.
+Service worker : terh-v133.

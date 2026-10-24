@@ -230,6 +230,26 @@ window.TERH_I18N=Object.assign(window.TERH_I18N||{},{
 "Accès enregistrés": "Access saved",
 "Import accordé": "Import granted",
 "Contrôles OK": "Checks OK",
-"Création": "Creation"
+"Création": "Creation",
+"Enfants (mères salariées) : nom et date de naissance de chaque enfant": "Children (working mothers): name and date of birth of each child",
+"Enfants de moins de 6 ans (calcul automatique)": "Children under 6 (automatic calculation)",
+"+ Ajouter un enfant": "+ Add a child",
+"Contrat et présence": "Contract and attendance",
+"Date d'entrée": "Start date",
+"Lieu de travail (ville)": "Work location (city)",
+"Lieu de travail": "Work location",
+"Type d'entrée": "Entry type",
+"Rémunération et paie": "Pay and payroll",
+"Périodicité": "Pay frequency",
+"Date d'ancienneté": "Seniority date",
+"Date d'entrée dans la profession": "Date of entry into the profession",
+"Sécurité sociale et suivi": "Social security and follow-up",
+"Identité": "Identity",
+"Matricule interne": "Internal ID",
+"Sexe": "Sex",
+"Ancienneté": "Seniority",
+"Congé annuel (j)": "Annual leave (days)",
+"Type": "Type",
+"Date": "Date"
 });
 try{if(window.TERH_I18N_add)window.TERH_I18N_add(window.TERH_I18N);}catch(e){}

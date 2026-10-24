@@ -87,7 +87,101 @@
     st.salaire_ajoute = true;
     return true;
   }
+  // ===== Clôture mensuelle =====
+  // Un mois clôturé est figé dans sa propre archive (paie_cloture_<mois>). Clôturer retire ses saisies
+  // de l'écran et ouvre le mois suivant. Un mois clôturé ne s'écrit plus ; on peut le consulter,
+  // le rouvrir, le télécharger ou importer un fichier.
+  var VUE = null, CLOS = {};
+  function T(t, v) {
+    if (root.PaieI18n && root.PaieI18n.T) return root.PaieI18n.T(t, v);
+    var o = t; if (v) Object.keys(v).forEach(function (x) { o = o.split('{' + x + '}').join(v[x]); }); return o;
+  }
+  function clotures() { return root.TERH_paieClotures || null; }
+  // Droits : administrateur et éditeur gèrent la clôture ; le lecteur consulte et télécharge seulement
+  function peutGerer() { var r = root.TERH_role ? root.TERH_role() : ''; return r === 'admin' || r === 'editeur' || r === 'super_owner'; }
+  function refuserSiLecteur() { return peutGerer() ? null : Promise.reject(new Error(T('Droits insuffisants : réservé à l\'administrateur et à l\'éditeur.'))); }
+  function estClos(m) { return !!(m && CLOS[m]); }
+  function chargerClos() {
+    var c = clotures();
+    if (!c) return Promise.resolve(CLOS);
+    return Promise.resolve(c.liste()).then(function (l) { CLOS = l || {}; return CLOS; }).catch(function () { return CLOS; });
+  }
+  function moisSuivant(m) {
+    var a = /^(\d{4})-(\d{2})$/.exec(String(m || '')); if (!a) return '';
+    var y = +a[1], mo = +a[2] + 1; if (mo > 12) { mo = 1; y++; }
+    return y + '-' + ('0' + mo).slice(-2);
+  }
+  function cloturer() {
+    var refus = refuserSiLecteur(); if (refus) return refus;
+    if (VUE) return Promise.reject(new Error(T('Quittez la consultation avant de clôturer.')));
+    var c = clotures(); if (!c) return Promise.reject(new Error(T('Clôture indisponible : base non connectée.')));
+    var st = charger(), m = st.mois || moisCourant();
+    if (estClos(m)) return Promise.reject(new Error(T('Le mois {m} est déjà clôturé.', { m: m })));
+    if (!root.confirm(T('Clôturer le mois {m} ? Ses saisies seront figées. Le mois {n} s\'ouvrira.', { m: m, n: moisSuivant(m) }))) return Promise.resolve(null);
+    var snap = copie(st); snap.mois = m; snap.saisies = snap.saisies || {};
+    snap.reglages = (root.PaieHok && root.PaieHok.reglages) ? root.PaieHok.reglages() : null;
+    return Promise.resolve(c.sauverMois(m, snap)).then(function () {
+      CLOS[m] = { date: new Date().toISOString() };
+      return c.sauverListe(CLOS);
+    }).then(function () {
+      Object.keys(st.saisies || {}).forEach(function (k) { if (st.saisies[k] && st.saisies[k].mois === m) delete st.saisies[k]; });
+      st.mois = moisSuivant(m);
+      enregistrerLocal(st);
+      return sauver(st).then(function () { return m; });
+    });
+  }
+  function rouvrir(m) {
+    var refus = refuserSiLecteur(); if (refus) return refus;
+    if (VUE) return Promise.reject(new Error(T('Quittez la consultation avant de rouvrir.')));
+    var c = clotures(); if (!c) return Promise.reject(new Error(T('Réouverture indisponible : base non connectée.')));
+    if (!estClos(m)) return Promise.reject(new Error(T('Le mois {m} n\'est pas clôturé.', { m: m })));
+    if (!root.confirm(T('Rouvrir le mois {m} ? Il redevient modifiable et remplace le mois affiché.', { m: m }))) return Promise.resolve(null);
+    return Promise.resolve(c.lireMois(m)).then(function (snap) {
+      if (!snap) throw new Error(T('Archive du mois {m} introuvable.', { m: m }));
+      var st = charger();
+      Object.keys(snap.saisies || {}).forEach(function (k) {
+        var s2 = snap.saisies[k];
+        if (s2 && s2.mois === m && !st.saisies[k]) st.saisies[k] = s2;
+      });
+      delete CLOS[m];
+      return c.sauverListe(CLOS).then(function () { st.mois = m; enregistrerLocal(st); return sauver(st); });
+    }).then(function () { return m; });
+  }
+  function voir(m) {
+    var c = clotures(); if (!c) return Promise.reject(new Error(T('Consultation indisponible : base non connectée.')));
+    return Promise.resolve(c.lireMois(m)).then(function (snap) {
+      if (!snap) throw new Error(T('Archive du mois {m} introuvable.', { m: m }));
+      VUE = copie(snap); VUE.mois = m; VUE.saisies = VUE.saisies || {};
+      if (root.PaieHok && root.PaieHok.geler) { if (snap.reglages) root.PaieHok.geler(snap.reglages); else root.PaieHok.degeler(); }
+      return m;
+    });
+  }
+  function retour() { VUE = null; if (root.PaieHok && root.PaieHok.degeler) root.PaieHok.degeler(); return Promise.resolve(); }
+  function exporterMois(m) {
+    var c = clotures();
+    var source = (VUE && VUE.mois === m) ? Promise.resolve(VUE) : (estClos(m) && c ? Promise.resolve(c.lireMois(m)) : Promise.resolve(charger()));
+    return source.then(function (snap) {
+      if (!snap) throw new Error(T('Mois introuvable : {m}', { m: m }));
+      return JSON.stringify({ type: 'terh-paie-mois', version: 1, mois: m, exporte: new Date().toISOString(), donnees: snap }, null, 2);
+    });
+  }
+  function importerTexte(texte) {
+    var refus = refuserSiLecteur(); if (refus) return refus;
+    var c = clotures(); if (!c) return Promise.reject(new Error(T('Import indisponible : base non connectée.')));
+    var f; try { f = JSON.parse(texte); } catch (e) { return Promise.reject(new Error(T('Fichier illisible.'))); }
+    if (!f || f.type !== 'terh-paie-mois' || !/^\d{4}-\d{2}$/.test(String(f.mois)) || !f.donnees || !Array.isArray(f.donnees.profils)) {
+      return Promise.reject(new Error(T('Ce fichier n\'est pas une paie mensuelle TERH.')));
+    }
+    var m = f.mois;
+    if (estClos(m) && !root.confirm(T('Remplacer l\'archive du mois {m} par le fichier importé ?', { m: m }))) return Promise.resolve(null);
+    var snap = copie(f.donnees); snap.mois = m; snap.saisies = snap.saisies || {};
+    return Promise.resolve(c.sauverMois(m, snap)).then(function () {
+      CLOS[m] = CLOS[m] || { date: new Date().toISOString(), importe: true };
+      return c.sauverListe(CLOS);
+    }).then(function () { return m; });
+  }
   function charger() {
+    if (VUE) return VUE;
     var st = null;
     try {
       var b = root.localStorage && root.localStorage.getItem(cle());
@@ -100,9 +194,13 @@
     return st;
   }
   function enregistrerLocal(st) {
+    if (VUE || estClos(st && st.mois)) return;
     try { root.localStorage && root.localStorage.setItem(cle(), JSON.stringify(st)); } catch (e) {}
   }
   function sauver(st) {
+    if (!peutGerer()) return Promise.reject(new Error(T('Droits insuffisants : lecture seule.')));
+    if (VUE) return Promise.reject(new Error(T('Consultation d\'un mois clôturé : lecture seule.')));
+    if (estClos(st && st.mois)) return Promise.reject(new Error(T('Mois {m} clôturé : rouvrez-le pour le modifier.', { m: st.mois })));
     enregistrerLocal(st);
     var pont = root.TERH_paieGrille;
     if (pont && pont.save) {
@@ -568,9 +666,12 @@
           '<b style="flex:1;font-size:15px">🧮 Grille de saisie : jours ou heures</b>' +
           '<button type="button" data-g="' + (mode === 'grille' ? 'param' : 'grille') + '" style="' + BTN + '">' + (mode === 'grille' ? '⚙ Paramètres et formules' : '← Retour à la grille') + '</button>' +
           '<button type="button" data-g="fermer" style="' + BTN + '">✕ Fermer</button></div>' +
+        (mode === 'grille' ? barreClotures() : '') +
         (mode === 'grille' ? vueGrille() : vueParam()) +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:12px"><button type="button" data-g="enregistrer" style="' + BTN_P + '">💾 Enregistrer</button><span data-msg style="margin-left:auto"></span></div>';
       if (mode === 'grille') totaux();
+      appliquerLecture();
+      if (root.PaieI18n && root.PaieI18n.noeuds) root.PaieI18n.noeuds(cadre);
     }
 
     function verifier() {
@@ -587,6 +688,77 @@
       return '';
     }
 
+    function estLecture() { return !!VUE || estClos(st.mois); }
+    function barreClotures() {
+      var lec = estLecture(), g = peutGerer();
+      var liste = Object.keys(CLOS).sort().reverse();
+      var opts = '<option value="">Consulter un mois clôturé…</option>' + liste.map(function (m) {
+        return '<option value="' + esc(m) + '"' + (VUE && VUE.mois === m ? ' selected' : '') + '>' + esc(m) + '</option>';
+      }).join('');
+      var etat;
+      if (VUE) {
+        etat = '<b style="color:#b03a2e">' + esc(T('👁 Consultation du mois {m} (lecture seule)', { m: VUE.mois })) + '</b> ' +
+          '<button type="button" data-cl="retour" style="' + BTN + '">↩ Retour au mois en cours</button>';
+      } else if (lec) {
+        etat = '<b style="color:#b03a2e">' + esc(T('🔒 Mois {m} clôturé (lecture seule)', { m: st.mois })) + '</b> ' +
+          (g ? '<button type="button" data-cl="rouvrir" style="' + BTN + '">🔓 Rouvrir ce mois</button>' : '');
+      } else {
+        etat = g ? '<button type="button" data-cl="cloturer" style="' + BTN + '">' + esc(T('🔒 Clôturer le mois {m}', { m: st.mois || moisCourant() })) + '</button>'
+          : '<span style="color:#555">' + esc(T('Mois {m} ouvert (consultation)', { m: st.mois || moisCourant() })) + '</span>';
+      }
+      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:#f4f7fb;border-radius:8px">' +
+        etat + '<select data-cl-sel style="' + IN + '">' + opts + '</select>' +
+        '<button type="button" data-cl="exporter" style="' + BTN + '">💾 Télécharger ce mois (fichier)</button>' +
+        (g ? '<button type="button" data-cl="importer" style="' + BTN + '">📥 Importer un mois (fichier)</button>' : '') + '</div>';
+    }
+    function appliquerLecture() {
+      var lec = estLecture() || !peutGerer();
+      cadre.querySelectorAll('input,select,textarea').forEach(function (x) {
+        x.disabled = lec && x.dataset.mois === undefined && x.dataset.clSel === undefined;
+      });
+      cadre.querySelectorAll('[data-act]').forEach(function (b) { b.disabled = lec; });
+      var en = cadre.querySelector('[data-g="enregistrer"]'); if (en) en.disabled = lec;
+    }
+    function telechargerMois() {
+      return exporterMois(st.mois).then(function (txt) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
+        a.download = 'paie_' + (VUE ? VUE.mois : st.mois) + '.json';
+        a.click();
+      });
+    }
+    function choisirFichier() {
+      return new Promise(function (resolve, reject) {
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = '.json,application/json';
+        inp.onchange = function () {
+          var f = inp.files && inp.files[0]; if (!f) return resolve();
+          var rd2 = new FileReader();
+          rd2.onload = function () { importerTexte(String(rd2.result)).then(function (m) { if (m) alert(T('Mois {m} importé.', { m: m })); resolve(); }).catch(reject); };
+          rd2.readAsText(f);
+        };
+        inp.click();
+      });
+    }
+    cadre.addEventListener('click', function (ev) {
+      var b = ev.target.closest && ev.target.closest('[data-cl]');
+      if (!b) return;
+      var a = b.dataset.cl, p = null;
+      if (a === 'cloturer') p = cloturer();
+      else if (a === 'rouvrir') p = rouvrir(st.mois);
+      else if (a === 'retour') p = retour();
+      else if (a === 'exporter') p = telechargerMois();
+      else if (a === 'importer') p = choisirFichier();
+      if (!p) return;
+      Promise.resolve(p).then(function () { st = charger(); rendre(); })
+        .catch(function (e) { alert(e && e.message ? e.message : e); st = charger(); rendre(); });
+    });
+    cadre.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (!t.dataset || t.dataset.clSel === undefined || !t.value) return;
+      voir(t.value).then(function () { st = charger(); rendre(); })
+        .catch(function (e) { alert(e && e.message ? e.message : e); });
+    });
     cadre.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-g],[data-act],[data-det]');
       if (!b) return;
@@ -739,6 +911,7 @@
     });
 
     rendre();
+    chargerClos().then(function () { rendre(); });
     var pont = root.TERH_paieGrille;
     if (pont && pont.load) {
       Promise.resolve(pont.load()).then(function (l) {
@@ -760,5 +933,5 @@
     if (s.baseManuelle && s.base !== '' && s.base != null) out.base = nombreF(s.base);
     return out;
   }
-  root.PaieGrille = { ouvrir: ouvrir, charger: charger, sauver: sauver, lignesPour: lignesPour, evaluer: evaluer, heuresDuMois: heuresDuMois, absencePour: absencePour, exporter: exporterXls, DEFAUT: DEFAUT };
+  root.PaieGrille = { peutGerer: peutGerer, clore: cloturer, rouvrir: rouvrir, voir: voir, retour: retour, exporterMois: exporterMois, importerTexte: importerTexte, estClos: estClos, chargerClos: chargerClos, moisSuivant: moisSuivant, ouvrir: ouvrir, charger: charger, sauver: sauver, lignesPour: lignesPour, evaluer: evaluer, heuresDuMois: heuresDuMois, absencePour: absencePour, exporter: exporterXls, DEFAUT: DEFAUT };
 })(typeof window !== 'undefined' ? window : globalThis);

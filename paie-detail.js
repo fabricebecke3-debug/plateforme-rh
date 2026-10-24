@@ -129,7 +129,7 @@
   // Catalogue affiché = rubriques de la société, puis les rubriques Sage absentes (même code : la société prime)
   // Rubrique du modèle Océan : codes 1, 2, 3, 4… (ne pas mélanger avec le catalogue Sage)
   // Suggestions du catalogue Sage (même libellés) avec les codes de l'Hôtel Océan (30 et suivants, codes libres)
-  var CALC_OCEAN_RE = /irpp|cnps|\bcac\b|foncier|\brav\b|taxe|tdl|salaire de base|logement|assiduit|transport|anciennet|cong[ée]|dettes|avance|rappel|prestation familiale|communard|fonds national/i;
+  var CALC_OCEAN_RE = /irpp|cnps|\bcac\b|foncier|\brav\b|taxe|tdl|salaire de base|logement|assiduit|transport|anciennet|cong[ée]|dettes|avance|rappel|prestations? fam\w*|communard|fonds national|rappels?/i;
   function suggestionsOcean(sage, exclus) {
     var out = [], vus = Object.assign({}, exclus || {});
     sage.forEach(function (s) {
@@ -149,6 +149,10 @@
   // Codes réservés au modèle Hôtel Océan (calculés ou fixes) : une rubrique libre ne peut pas les reprendre
   var CODES_OCEAN_RESERVES = ['1','2','3','4','5','10','11','12','13','14','15','17','22','26','27','28','29'];
   // Codes du modèle (1 à 29) réservés ; les codes à 4 chiffres (1000, 1430…) ne sont pas utilisés sur le bulletin Hôtel Océan
+  function T(t, v) {
+    if (root.PaieI18n && root.PaieI18n.T) return root.PaieI18n.T(t, v);
+    var o = t; if (v) Object.keys(v).forEach(function (x) { o = o.split('{' + x + '}').join(v[x]); }); return o;
+  }
   function codeReserve(code) { return CODES_OCEAN_RESERVES.indexOf(String(code || '').trim()) >= 0; }
   // Code à 4 chiffres (1000, 1430…) : renuméroté au premier code libre à partir de 30
   function codeSage(code) { var c = String(code || '').trim(); return /^\d+$/.test(c) && parseInt(c, 10) >= 1000; }
@@ -191,7 +195,7 @@
       }).map(function (r) { return Object.assign({}, r, { sugg: true }); });
       var exclus = {};
       libres.forEach(function (r) { exclus[String(r.libelle || '').trim().toLowerCase()] = true; });
-      return modeles.concat(libres, suggestionsOcean(sage, exclus));
+      return libres.concat(suggestionsOcean(sage, exclus));   // rubriques du modèle : jamais proposées (déjà calculées)
     }
     var sage = ((root.PaieSageCatalogue && root.PaieSageCatalogue.rubriques) || []).map(rubriqueSage);
     return perso.concat(sage.filter(function (s) { return !codes[s.code]; }));
@@ -700,8 +704,7 @@
       if (ocean) {
         etat.lignes = etat.lignes.filter(function (l) {
           if (!equivOcean(l.code)) return true;
-          var msg = 'Rubrique ' + l.code + ' « ' + (l.lib || '') + ' » retirée : elle est déjà calculée par le modèle Hôtel Océan (code ' +
-            (EQUIV_SAGE_OCEAN[String(l.code)] || root.PaieHok.EQUIV_OCEAN[String(l.code)]) + '). Corrigez-la avec « Modifier » si besoin.';
+          var msg = T('Rubrique {c} « {l} » retirée : elle est déjà calculée par le modèle Hôtel Océan (code {e}). Corrigez-la avec « Modifier » si besoin.', { c: l.code, l: l.lib || '', e: (EQUIV_SAGE_OCEAN[String(l.code)] || root.PaieHok.EQUIV_OCEAN[String(l.code)]) });
           etat.avis = etat.avis || [];
           if (etat.avis.indexOf(msg) < 0) etat.avis.push(msg);
           return false;
@@ -713,7 +716,7 @@
           var ancien = String(l.code);
           l.code = codeLibreSuivant(etat.lignes.filter(function (x) { return x !== l; }));
           etat.avis = etat.avis || [];
-          var m = 'Code Sage ' + ancien + ' « ' + (l.lib || '') + ' » remplacé par le code Océan ' + l.code + '.';
+          var m = T('Code Sage {a} « {l} » remplacé par le code Océan {c}.', { a: ancien, l: l.lib || '', c: l.code });
           if (etat.avis.indexOf(m) < 0) etat.avis.push(m);
         });
       }
@@ -781,7 +784,7 @@
         var nbCodes = {};
         etat.lignes.forEach(function (l) { var k = String(l.code || '').trim(); if (k) nbCodes[k] = (nbCodes[k] || 0) + 1; });
         Object.keys(nbCodes).forEach(function (k) {
-          if (nbCodes[k] > 1) avisCodes.push('Code ' + k + ' utilisé par ' + nbCodes[k] + ' rubriques : donnez un autre code à l\'une d\'elles (modifiez le champ Code).');
+          if (nbCodes[k] > 1) avisCodes.push(T('Code {k} utilisé par {n} rubriques : donnez un autre code à l\'une d\'elles (modifiez le champ Code).', { k: k, n: nbCodes[k] }));
         });
       }
       var avisDoublons = [];
@@ -793,7 +796,7 @@
           (libs[k] = libs[k] || []).push(String(l.code));
         });
         Object.keys(libs).forEach(function (k) {
-          if (libs[k].length > 1) avisDoublons.push('Doublon possible : « ' + k + ' » apparaît en ' + libs[k].join(' et ') + '. Gardez une seule de ces rubriques.');
+          if (libs[k].length > 1) avisDoublons.push(T('Doublon possible : « {k} » apparaît en {l}. Gardez une seule de ces rubriques.', { k: k, l: libs[k].join(' et ') }));
         });
       }
       var avisReserves = [];
@@ -801,17 +804,18 @@
         var resv = root.PaieHok.rubriquesOcean().auto.map(function (r) { return String(r.code); });
         etat.lignes.forEach(function (l) {
           if (!l.grille || resv.indexOf(String(l.code)) < 0) return;
-          var m = 'Rubrique ' + l.code + ' « ' + (l.lib || '') + ' » de la grille non reprise : ce code est calculé par le modèle Hôtel Océan. Corrigez-la avec « Modifier » dans le tableau du haut.';
+          var m = T('Rubrique {c} « {l} » de la grille non reprise : ce code est calculé par le modèle Hôtel Océan. Corrigez-la avec « Modifier » dans le tableau du haut.', { c: l.code, l: l.lib || '' });
           if (avisReserves.indexOf(m) < 0) avisReserves.push(m);
         });
       }
       var alertes = ((etat.mat ? [] : ['Matricule interne manquant : renseignez-le ici ou dans la fiche du salarié.']).concat(controles(ocean ? Object.assign({}, RO, { baseCNPS: RO.cnpsBase }) : R, etat.lignes, etat.cnps)).concat(etat.avis || []).concat(avisReserves).concat(avisDoublons).concat(avisCodes)).map(function (m) { return '<div class="ban" style="margin:4px 0;background:#fff8e6;color:#5c4400;border:1px solid #f0c36d;border-radius:8px;padding:6px 10px;font-size:12px">⚠ ' + echapper(m) + '</div>'; }).join('');
       var nMasquees = etat.lignes.filter(function (l) { return !ligneVisible(l, PaieMoteur.gainLigne(l)); }).length;
-      var avisMasquees = nMasquees ? '<div style="margin:4px 0;font-size:12px;color:#555">' + nMasquees + ' rubrique(s) nulle(s) masquée(s) par le filtre. <button type="button" class="s" data-x="toutes">Afficher toutes</button></div>' : '';
+      var avisMasquees = nMasquees ? '<div style="margin:4px 0;font-size:12px;color:#555">' + T('{n} rubrique(s) nulle(s) masquée(s) par le filtre.', { n: nMasquees }) + ' <button type="button" class="s" data-x="toutes">' + T('Afficher toutes') + '</button></div>' : '';
       cadre.querySelector('[data-res]').innerHTML = alertes + avisMasquees + bandeauEcarts() + (ocean ? '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(RO.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(RO.cnpsBase) + '</b></span><span>Retenues : <b>' + fmt(RO.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(RO.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(RO.net) + '</b></span></div>' : recapSage(R));
       refreshCat();
+      if (root.PaieI18n && root.PaieI18n.noeuds) root.PaieI18n.noeuds(cadre);
       if (etat.focus != null) {
         var fi = cadre.querySelector('[data-l="' + etat.focus + '"][data-k="code"]');
         etat.focus = null;

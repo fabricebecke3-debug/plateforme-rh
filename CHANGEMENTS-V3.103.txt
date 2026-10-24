@@ -1,0 +1,13 @@
+VERSION 3.103 : DROITS PAR RÔLE ET FORMULES FIGÉES DANS LES MOIS CLÔTURÉS (paie-grille.js, paie-hok.js, index.html)
+DROITS
+- Administrateur et éditeur : clôturer, ouvrir, rouvrir, modifier, importer, télécharger et réimprimer.
+- Lecteur : consulter et télécharger un mois clôturé, sans rien modifier. Les boutons réservés n'apparaissent pas et les écritures sont refusées.
+FORMULES
+- Chaque mois clôturé garde une copie des formules de l'Hôtel de l'Océan (taux, barèmes, paramètres).
+- En consultation d'un mois clôturé, les bulletins sont calculés avec ces formules d'origine.
+- Une modification de formule ne touche que le mois en cours.
+- Au retour sur le mois en cours, les formules actuelles sont de nouveau utilisées.
+- Une réouverture d'un mois clôturé utilise les formules actuelles (le mois redevient modifiable avec les paramètres en vigueur).
+LIMITES CONNUES
+- Les formules des modèles Sage (rubriques, taux) et les salaires de base des fiches ne sont pas encore figés dans les mois clôturés.
+Service worker : terh-v134.

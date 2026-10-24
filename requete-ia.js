@@ -32,7 +32,7 @@
       user_first: opts.userFirst || '',
       client_hour: typeof opts.heure === 'number' ? opts.heure : 12,
       lang: opts.lang || 'fr',
-      max_tokens: 800
+      max_tokens: (opts.mode === 'formation' || /\d|combien|montant|calcul|analys|pourquoi|expliqu/i.test(opts.question || '')) ? 1500 : 800
     };
     if (opts.mode) corps.mode = opts.mode;
     return corps;

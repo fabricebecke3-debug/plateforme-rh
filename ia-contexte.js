@@ -12,7 +12,8 @@
     return String(texte || '')
       .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[adresse]')
       .replace(/\b\d{3}-\d{7}-\d\b/g, '[n° CNPS]')
-      .replace(/\+?\d[\d ]{7,}\d/g, '[numéro]')
+      .replace(/\+\d{1,3}[\d ]{7,}\d/g, '[numéro]')
+      .replace(/\b[62]\d{2}[ .]?\d{3}[ .]?\d{3}\b/g, '[numéro]')
       .replace(/\b\d{9,}\b/g, '[numéro]');
   }
   function sujetsPertinents(question) {

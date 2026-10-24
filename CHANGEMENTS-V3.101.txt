@@ -1,0 +1,4 @@
+VERSION 3.101 : LISTE DES RUBRIQUES DE L'HÔTEL OCÉAN CORRIGÉE (paie-detail.js)
+- La liste « Rechercher une rubrique » ne propose plus les rubriques déjà calculées par le modèle : prestations familiales (y compris la rubrique Sage « Prestations Famiales »), communard, rappels, transport, logement, assiduité, IRPP, CNPS, CAC, etc.
+- Les propositions gardent des codes libres (premier code non utilisé) ; choisir une proposition ne modifie pas les rubriques déjà saisies.
+Service worker : terh-v132.

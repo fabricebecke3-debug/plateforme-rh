@@ -1,0 +1,5 @@
+VERSION 3.104 : IA — CAVIARDAGE DES MONTANTS CORRIGÉ, REQUÊTE AVANCÉE (ia-contexte.js, requete-ia.js)
+- Les montants de paie écrits avec des espaces (« 1 500 000 FCFA ») ne sont plus masqués comme des numéros de téléphone : ils sont transmis à l'IA.
+- Les téléphones (indicatif +237, numéros camerounais à 9 chiffres) et les N° CNPS restent masqués, ainsi que les adresses e-mail.
+- Requête IA : version avancée (jetons de réponse relevés à 1 500 pour les calculs, analyses et la formation ; 800 pour les questions simples). Le fichier requete-ia.js à la racine est aligné sur cette version.
+Service worker : terh-v135.
