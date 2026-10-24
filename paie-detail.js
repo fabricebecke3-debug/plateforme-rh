@@ -321,7 +321,6 @@
       '<label style="font-size:12px">Matricule interne<input data-f="mat" value="' + echapper(etat.mat) + '" style="width:120px"></label>' +
       '<label style="font-size:12px">Période<input data-f="periode" value="' + echapper(etat.periode) + '" placeholder="ex. 01/07/26 au 31/07/26"></label>' +
       '<label style="font-size:12px">Employeur<input data-f="employeur" value="' + echapper(etat.employeur) + '"></label></div>' +
-      '<div style="margin:6px 0"><select data-filtre style="font-size:12px;min-width:260px"><option value="toutes">Toutes</option><option value="imprimables">Rubriques imprimables</option><option value="non-nulles">Rubriques imprimables non nulles</option></select></div>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px" data-tbl></table></div>' +
       '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="s" data-x="add">+ Ajouter une rubrique vide</button>' +
       '<input data-catq list="pd-cat-list" placeholder="+ Rechercher une rubrique (code ou nom)…" style="width:340px"><datalist id="pd-cat-list"></datalist></div>' +
@@ -670,8 +669,6 @@
     // Filtre d'affichage (comme Sage) : « non nulles » masque les rubriques dont tous les montants sont à zéro
     function ligneVisible(l, g) {
       if (l.ajoutee || l.grille) return true;   // rubrique ajoutée ou issue de la grille : toujours visible en bas   // rubrique ajoutée à la main : jamais masquée par le filtre
-      var f = etat.filtre || 'non-nulles';
-      if (f === 'toutes' || f === 'imprimables') return true;
       return !!(g || l.nombre || l.base || l.taux || l.gain);
     }
     // Pied de page : Ok et Annuler ferment la fenêtre ; Préc. et Suiv. passent au salarié voisin
@@ -723,8 +720,6 @@
       }
       // Boutons propres à Sage masqués pour le modèle Hôtel Océan (les rubriques Océan se gèrent dans Paramètres Hôtel Océan)
       cadre.querySelectorAll('[data-x="cst"],[data-x="rub"],[data-x="liste"],[data-x="exemple"],[data-x="anc"]').forEach(function (b) { b.style.display = ocean ? 'none' : ''; });
-      etat.filtre = etat.filtre || 'non-nulles';
-      var fl = cadre.querySelector('[data-filtre]'); if (fl) fl.value = etat.filtre;
       var mq = cadre.querySelector('[data-modele]');
       if (mq) { var mm = (root.PaieModeles && root.PaieModeles.pourSalarie) ? root.PaieModeles.pourSalarie(etat.fiche, etat.employeur) : null; mq.textContent = mm ? mm.nom : ''; }
       var entete = ocean
@@ -810,9 +805,7 @@
         });
       }
       var alertes = ((etat.mat ? [] : ['Matricule interne manquant : renseignez-le ici ou dans la fiche du salarié.']).concat(controles(ocean ? Object.assign({}, RO, { baseCNPS: RO.cnpsBase }) : R, etat.lignes, etat.cnps)).concat(etat.avis || []).concat(avisReserves).concat(avisDoublons).concat(avisCodes)).map(function (m) { return '<div class="ban" style="margin:4px 0;background:#fff8e6;color:#5c4400;border:1px solid #f0c36d;border-radius:8px;padding:6px 10px;font-size:12px">⚠ ' + echapper(m) + '</div>'; }).join('');
-      var nMasquees = etat.lignes.filter(function (l) { return !ligneVisible(l, PaieMoteur.gainLigne(l)); }).length;
-      var avisMasquees = nMasquees ? '<div style="margin:4px 0;font-size:12px;color:#555">' + T('{n} rubrique(s) nulle(s) masquée(s) par le filtre.', { n: nMasquees }) + ' <button type="button" class="s" data-x="toutes">' + T('Afficher toutes') + '</button></div>' : '';
-      cadre.querySelector('[data-res]').innerHTML = alertes + avisMasquees + bandeauEcarts() + (ocean ? '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(RO.brut) + '</b></span>' +
+      cadre.querySelector('[data-res]').innerHTML = alertes + bandeauEcarts() + (ocean ? '<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px"><span>Brut : <b>' + fmt(RO.brut) + '</b></span>' +
         '<span>Base CNPS : <b>' + fmt(RO.cnpsBase) + '</b></span><span>Retenues : <b>' + fmt(RO.totalRetenues) + '</b></span>' +
         '<span>Patronales : <b>' + fmt(RO.totalPatronales) + '</b></span><span style="font-size:16px">Net à payer : <b>' + fmt(RO.net) + '</b></span></div>' : recapSage(R));
       refreshCat();
@@ -885,7 +878,6 @@
           rendre(); return;
         }
       }
-      if (e.target.dataset.filtre !== undefined) { etat.filtre = e.target.value; rendre(); return; }
       if (e.target.dataset.oq !== undefined) { etat.oq = e.target.value; rendre(); return; }
       if (e.target.dataset.nul !== undefined) { var cc = calculOcean(); root.PaieHok.afficherRubrique(cc.nom, etat.periode, e.target.dataset.nul, e.target.checked); rendre(); return; }
       if (e.target.dataset.k && (e.target.type === 'checkbox')) rendre();
@@ -919,7 +911,6 @@
       var x = b.dataset.x;
       if (x === 'close') ov.remove();
       else if (x === 'add') { etat.lignes.push({ code: estOcean() ? codeLibreSuivant(etat.lignes.concat(calculOcean().lignes)) : '', lib: 'Nouvelle rubrique', nombre: null, base: null, taux: null, gain: 0, cnps: estOcean(), cfc: estOcean(), irpp: true, retenue: false }); nouvelleAffichee(etat.lignes.length - 1); rendre(); }
-      else if (x === 'toutes') { etat.filtre = 'toutes'; rendre(); }
       else if (x === 'del') { etat.lignes.splice(+b.dataset.l, 1); rendre(); }
       else if (x === 'elem') { ouvrirElements(+b.dataset.l); }
       else if (x === 'auto') { ouvrirAuto(b.dataset.c); }

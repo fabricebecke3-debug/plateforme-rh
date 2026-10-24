@@ -1,0 +1,7 @@
+VERSION 3.113 : POINTEUSE — IMPORT DES POINTAGES CSV ET REPORT DES HEURES (paie-pointeuse.js, paie-grille.js)
+- Nouveau bouton « ⏱ Pointeuse (pointages) » dans la grille.
+- Import d'un fichier CSV exporté de la pointeuse (colonnes : matricule, date et heure, ou date_heure ; sens facultatif : entrée / sortie).
+- Calcul des heures travaillées et des jours pointés par salarié pour le mois choisi, avec signalement des anomalies (entrée sans sortie, lignes illisibles, autres mois ignorés).
+- « Reporter les heures dans la grille » : les heures deviennent la saisie du mois (unité heures). Il reste à cliquer sur Enregistrer.
+- Préparé pour plus tard : choix de la source (import, envoi automatique, API) et champs de configuration de la pointeuse, désactivés en attendant les informations du matériel.
+- Les heures supplémentaires par tranche (samedi, nuit, dimanche) ne sont pas encore déduites des pointages.

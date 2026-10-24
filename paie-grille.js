@@ -672,7 +672,8 @@
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';
       return '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' + metaMois +
         '<button type="button" data-g="export" style="' + BTN + '">📊 Exporter au format Excel</button>' +
-        '<button type="button" data-g="lot" style="' + BTN_P + '">🖨️ Bulletins du mois (lot)</button></div>' +
+        '<button type="button" data-g="lot" style="' + BTN_P + '">🖨️ Bulletins du mois (lot)</button>' +
+        '<button type="button" data-g="pointeuse" style="' + BTN + '">⏱ Pointeuse (pointages)</button></div>' +
         (function () {
           // Postes des salariés qu'aucun profil ne reconnaît (ajoutez le mot-clé dans « Postes concernés »)
           var sans = {};
@@ -795,6 +796,28 @@
       cadre.querySelectorAll('[data-act]').forEach(function (b) { b.disabled = lec; });
       var en = cadre.querySelector('[data-g="enregistrer"]'); if (en) en.disabled = lec;
     }
+    // Pointeuse : heures travaillées importées (CSV) reportées dans la grille du mois
+    function matN(m) { var s = String(m == null ? '' : m).trim(); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s.toLowerCase(); }
+    function ouvrirPointeuse() {
+      if (!root.PaiePointeuse) { msg('Le module pointeuse n\'est pas chargé.', true); return; }
+      var moisGrille = st.mois || moisCourant();
+      var fiches = root.PRH_fichesPaie ? root.PRH_fichesPaie() : [];
+      root.PaiePointeuse.ouvrir({ mois: moisGrille, fiches: fiches, onReporter: function (mois, heures) {
+        if (mois !== moisGrille) { msg('Les pointages sont de ' + mois + ' : la grille est sur ' + moisGrille + '. Changez le mois de la grille.', true); return; }
+        if (estClos(moisGrille)) { msg('Mois clôturé : rouvrez-le pour reporter les heures.', true); return; }
+        var n = 0;
+        fiches.forEach(function (f) {
+          var k = matN(f.mat);
+          if (heures[k] === undefined) return;
+          var id = String(f.id);
+          st.saisies[id] = Object.assign({ profil: '', samedi: '', hs120: '', hs130: '', hs140: '', hs_dim: '', hs_nuit: '', hs_ferie: '', base: f.sb || '' }, st.saisies[id] || {}, { unite: 'heures', valeur: String(heures[k]), mois: mois });
+          n++;
+        });
+        enregistrerLocal(st);
+        rendre();
+        msg(n + ' salarié(s) : heures reportées dans la grille. Vérifiez puis cliquez sur Enregistrer.' + (n < Object.keys(heures).length ? ' Certains matricules ne correspondent à aucune fiche.' : ''));
+      } });
+    }
     // Bulletins du mois : choix du premier et du dernier salarié par liste (matricule et nom)
     function lancerLot() {
       if (!root.PaieDetail || !root.PaieDetail.bulletinsEnLot) { msg('Le module des bulletins n\'est pas chargé.', true); return; }
@@ -887,6 +910,7 @@
       if (b.dataset.g === 'fermer') { ov.remove(); return; }
       if (b.dataset.g === 'param' || b.dataset.g === 'grille') { mode = b.dataset.g; rendre(); return; }
       if (b.dataset.g === 'lot') { lancerLot(); return; }
+      if (b.dataset.g === 'pointeuse') { ouvrirPointeuse(); return; }
       if (b.dataset.g === 'export') { try { var nom = exporterXls(st, emps); msg('Fichier téléchargé : ' + nom); } catch (e) { msg('Export impossible : ' + e.message, true); } return; }
       if (b.dataset.g === 'enregistrer') {
         var err = verifier();

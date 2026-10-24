@@ -1,0 +1,4 @@
+VERSION 3.112 : MENU « RUBRIQUES IMPRIMABLES » SUPPRIMÉ (paie-detail.js)
+- Le menu déroulant Toutes / Rubriques imprimables / non nulles est retiré du bulletin détaillé.
+- Les rubriques nulles restent masquées, sauf celles cochées dans la liste « Rubriques nulles (cochez pour les afficher sur le bulletin) ».
+- Le message « rubriques nulles masquées » et son bouton « Afficher toutes » sont retirés.

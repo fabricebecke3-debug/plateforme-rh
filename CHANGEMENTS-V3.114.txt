@@ -1,0 +1,7 @@
+VERSION 3.114 : POINTEUSE — LECTURE EXCEL (.xlsx), COLONNES CORRIGEABLES, FORMAT MÉMORISÉ (paie-pointeuse.js)
+- Lecture des fichiers Excel (.xlsx) en plus du CSV. La bibliothèque Excel est chargée à la demande.
+- Les PDF sont refusés avec un message explicite.
+- Colonnes détectées automatiquement, puis corrigeables dans l'aperçu (menus par rôle : matricule, date, heure, date et heure, sens).
+- « Format correct : mémoriser » : le choix des colonnes est gardé pour les imports suivants.
+- Lecture automatique sans fichier : préparée, désactivée (à activer après vérification sur un export réel).
+- Les heures d'un fichier avec d'autres mois sont signalées et ignorées.
