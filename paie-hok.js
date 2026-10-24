@@ -408,7 +408,7 @@
   var FORMULES_DEFAUT = {
     '1': { lib: 'Salaire de Base', formule: 'sb', note: 'salaire du mois × présence' },
     '2': { lib: 'Indemnité de Logement', formule: 'p_logement*(smens+anc)', note: '25 % (salaire + ancienneté)' },
-    '3': { lib: "Prime d'Assiduité", formule: 'si(pres<1, 0, p_assiduite*sb)', note: '5 % du salaire ; 0 en cas d\'absence' },
+    '3': { lib: "Prime d'Assiduité", formule: 'p_assiduite*sb', note: '5 % du salaire ; au prorata de la présence' },
     '4': { lib: 'Indemnité de Transport', formule: 'p_transport*pres', note: 'montant × présence' },
     '5': { lib: "Prime d'Ancienneté", formule: 'taux_anc*smens', note: 'barème du cours : taux de départ au seuil, + hausse par année (paramètres ci-dessous)' },
     '6': { lib: 'Indemnité de Congé', formule: 'conge', note: 'congé pris ce mois' },
@@ -484,7 +484,7 @@
     // Prime d'assiduité : 0 en cas d'absence (jours ou heures)
     // Taux d'assiduité (5 % par défaut, ou taux corrigé du mois) appliqué au salaire de base
     var tauxAss = (o.tauxAssiduite !== undefined && o.tauxAssiduite !== null && o.tauxAssiduite !== '') ? nb(o.tauxAssiduite) : p.assiduite.taux;
-    var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : (pres < 1 ? 0 : tauxAss * sb);
+    var assiduite = (o.assiduite !== undefined && o.assiduite !== null && o.assiduite !== '') ? nb(o.assiduite) : tauxAss * sb;
     // Transport proratisé : montant × présence
     var transport = (o.transport !== undefined && o.transport !== null && o.transport !== '') ? nb(o.transport) : nb(p.transport.montant) * pres;
     // Congé payé (cours et décret 75/28) : congé principal 1,5 jour par mois sur 12 mois = 18 jours,

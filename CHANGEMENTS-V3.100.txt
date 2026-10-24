@@ -1,0 +1,12 @@
+VERSION 3.100 : ASSIDUITÉ AU PRORATA, CODES PROPOSÉS LIBRES, AVIS LISIBLES (paie-hok.js, paie-detail.js)
+PRIME D'ASSIDUITÉ (Hôtel Océan)
+- Elle reste à 5 % du salaire de base, proratisé comme le reste : une absence la réduit au prorata, elle ne tombe plus à 0.
+LISTE DES RUBRIQUES (Hôtel Océan)
+- Les codes proposés sont calculés au moment de l'affichage : premier code libre, sans conflit avec les lignes du bulletin ni avec le calcul.
+- Les rubriques déjà calculées par le modèle (transport, logement, assiduité, IRPP, CNPS…) ne sont plus proposées, même depuis les rubriques enregistrées.
+- Choisir une proposition donne un code libre frais.
+CONTRÔLES ET AVIS
+- « Brut nul » et autres contrôles utilisent désormais le calcul Océan : fin du faux avertissement.
+- Les avis ont un fond clair et un texte foncé, lisibles.
+- Tableau du haut : en-têtes « Nombre » et « Base ».
+Service worker : terh-v131.
