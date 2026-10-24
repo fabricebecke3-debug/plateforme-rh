@@ -1,0 +1,3 @@
+VERSION 3.115 : PARAMÈTRES DE LA POINTEUSE MODIFIABLES (paie-pointeuse.js)
+- Les champs marque, modèle, adresse, fuseau et notes sont maintenant modifiables et enregistrés sur l'appareil.
+- L'envoi automatique et l'API restent désactivés : ils demandent un point d'accueil sur le serveur, à construire quand le matériel sera connu.

@@ -216,7 +216,7 @@
     }
     function champsHtml() {
       return CHAMPS_RESERVES.map(function (c) {
-        return '<label style="display:block;margin:4px 0;font-size:13px">' + esc(c[1]) + '<input value="' + esc(cfg[c[0]] || '') + '" placeholder="à renseigner" style="width:100%;padding:4px;border:1px solid #9aa5b5;border-radius:4px" disabled></label>';
+        return '<label style="display:block;margin:4px 0;font-size:13px">' + esc(c[1]) + '<input data-cfg="' + c[0] + '" value="' + esc(cfg[c[0]] || '') + '" placeholder="à renseigner" style="width:100%;padding:4px;border:1px solid #9aa5b5;border-radius:4px"></label>';
       }).join('');
     }
     // Colonnes lues : menus pour corriger la détection
@@ -328,6 +328,7 @@
     });
     cadre.addEventListener('change', function (e) {
       if (e.target.name === 'src') { etat.source = e.target.value; cfg.source = etat.source; ecrireCfg(cfg); }
+      if (e.target.dataset && e.target.dataset.cfg) { cfg[e.target.dataset.cfg] = e.target.value; ecrireCfg(cfg); msg('Paramètre enregistré sur cet appareil.'); }
     });
     rendre();
     return { fermer: fermer };
