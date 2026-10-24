@@ -1001,8 +1001,9 @@
     synchroniser();
     var ov = document.createElement('div');
     ov.id = 'hok-overlay';
+    ov.setAttribute('data-fenetre', 'defile');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.55);z-index:2147483600;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;box-sizing:border-box';
-    ov.innerHTML = '<div style="background:#fff;color:#1a1a1a;width:min(760px,100%);border-radius:8px;padding:14px;font:12px Arial,sans-serif;max-height:88vh;display:flex;flex-direction:column;gap:8px">' +
+    ov.innerHTML = '<div style="background:#fff;color:#1a1a1a;width:min(760px,100%);border-radius:8px;padding:14px;font:12px Arial,sans-serif;max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:8px">' +
       '<b style="font-size:14px">Paramètres Hôtel Océan</b>' +
       '<div style="color:#555">Modifiez les taux, barèmes et formules : chaque changement est enregistré aussitôt et les bulletins ouverts se recalculent. Les particularités (données des salariés) restent en JSON.</div>' +
       '<div style="font-weight:700">Prime d\'ancienneté (barème du cours)</div>' +
@@ -1020,7 +1021,7 @@
       '<div style="font-weight:700">Rubriques et formules du bulletin Océan (modifiables, ajoutables, masquables)</div>' +
       '<div data-rub style="overflow:auto;max-height:300px">' + editeurRubriques(charger().lignes) + '</div>' +
       '<div data-msg style="min-height:16px"></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" data-x="reset">Valeurs par défaut</button><button type="button" data-x="ferme">Fermer</button><button type="button" data-x="ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:4px;padding:6px 12px">Enregistrer</button></div></div>';
+      '<div style="display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;padding-top:6px;border-top:1px solid #d5dbe5"><button type="button" data-x="reset">Valeurs par défaut</button><button type="button" data-x="ferme">Fermer</button><button type="button" data-x="ok" style="background:#1f5fbf;color:#fff;border:0;border-radius:4px;padding:6px 12px">Enregistrer</button></div></div>';
     document.body.appendChild(ov);
     // Enregistrement immédiat à chaque modification (sans attendre un bouton)
     var attente = null;
@@ -1037,7 +1038,7 @@
       tr.querySelector('[data-acfc]').checked = b[2];
     });
     ov.addEventListener('click', function (e) {
-      if (e.target === ov) { ov.remove(); return; }
+      if (e.target === ov) return;   // clic à côté : rien ne se ferme (les saisies restent)
       var b = e.target.closest('[data-x]'); if (!b) return;
       var x = b.getAttribute('data-x'), msg = ov.querySelector('[data-msg]');
       if (x === 'ferme') ov.remove();

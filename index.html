@@ -6953,11 +6953,12 @@ function deco(el){
   const host=Q(':scope > .mx',el)||Q(':scope > div',el)||el;
   const b=document.createElement('div');b.className='wbar';
   b.innerHTML='<button class="s" type="button" data-wb>← Retour</button><small></small><button class="s" type="button" data-wx>✕ Tout fermer</button>';
+  if(el.dataset.fenetre==='defile')b.style.cssText='position:sticky;top:0;z-index:5;background:#fff;color:#1a1a1a;padding:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap';
   host.insertBefore(b,host.firstChild);
   Q('[data-wb]',b).onclick=()=>closeEl(el);
   Q('[data-wx]',b).onclick=closeAll;
   Q('small',b).textContent=title(host).slice(0,60);
-  if(!el._bg){el._bg=1;el.addEventListener('mousedown',e=>{if(e.target===el&&stack[stack.length-1]===el)closeEl(el);});}
+  if(!el._bg){el._bg=1;el.addEventListener('mousedown',e=>{if(el.dataset.fenetre==='defile')return;if(e.target===el&&stack[stack.length-1]===el)closeEl(el);});}
 }
 function register(el){
   if(!isOv(el))return;

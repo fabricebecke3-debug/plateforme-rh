@@ -1,0 +1,4 @@
+VERSION 3.107 : DOUBLON DU SALAIRE DE BASE SUPPRIMÉ, AVIS CLARIFIÉ (paie-grille.js, paie-detail.js, paie-i18n.js)
+- Sur le modèle Hôtel Océan, le profil de la grille n'envoie plus au bulletin les codes Sage déjà calculés par le modèle : salaire de base 1000, logement 1435, 1510, 1430, 1202. Le salaire de base est calculé par le modèle (rubrique 1), au prorata des jours.
+- L'avis « Rubrique 1000 … retirée » devient « ignorée » et indique la marche à suivre : supprimer la ligne avec la croix ✕. Il n'apparaît plus pour les lignes issues de la grille.
+Service worker : terh-v138.

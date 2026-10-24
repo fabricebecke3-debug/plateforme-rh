@@ -1,0 +1,7 @@
+VERSION 3.106 : FENÊTRES DE PARAMÈTRES, BULLETIN ET GRILLE — PLUS DE FERMETURE ACCIDENTELLE, DÉFILEMENT (index.html, paie-hok.js, paie-detail.js, paie-grille.js)
+- Un clic à côté de la fenêtre « Paramètres Hôtel Océan », du bulletin détaillé ou de la grille de saisie ne ferme plus la fenêtre : les saisies ne sont plus perdues.
+- La fermeture se fait par « ← Retour » (ferme cette fenêtre seulement, le bulletin reste ouvert) ou par « Fermer ».
+- La fenêtre des paramètres défile : tous les champs sont accessibles, rien n'est coupé.
+- Les boutons Ok / Annuler / Fermer / Valeurs par défaut restent visibles en bas.
+- La barre « ← Retour / Tout fermer » reste en haut pendant le défilement.
+Service worker : terh-v137.

@@ -364,6 +364,8 @@
     var vars0 = variables(st, s2), out = [];
     p.rubriques.forEach(function (r) {
       if (!r.code) return;
+      // Modèle Océan : ces codes Sage (salaire de base 1000, logement 1435, etc.) sont déjà calculés par le modèle, au prorata des jours : pas de doublon
+      if ((p.modele || 'ocean') === 'ocean' && ['1000', '1435', '1510', '1430', '1202'].indexOf(String(r.code).trim()) >= 0) return;
       var m = montantFiche(fiche, r);
       if (r.fiche && !m) return;          // rubrique issue de la fiche sans montant pour ce salarié
       var vars = Object.assign({}, vars0, { m: m });
@@ -464,6 +466,7 @@
 
     var ov = document.createElement('div');
     ov.id = id;
+    ov.setAttribute('data-fenetre', 'defile');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:12px;overflow:auto';
     var cadre = document.createElement('div');
     cadre.style.cssText = 'background:#fff;color:#1a1a1a;width:100%;max-width:1400px;border-radius:10px;padding:14px;font:12px/1.35 Arial,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.3)';

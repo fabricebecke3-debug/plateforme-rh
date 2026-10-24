@@ -85,7 +85,8 @@
     "🖨️ Aperçu / imprimer": "🖨️ Preview / print",
     "‹ Préc.": "‹ Prev.",
     "Suiv. ›": "Next ›",
-    // ----- avis du détail -----,
+    // ----- avis du détail -----
+    "Rubrique {c} « {l} » ignorée : le modèle Hôtel Océan calcule déjà cette rubrique (code {e}), au prorata des jours. Supprimez-la avec la croix ✕.": "Item {c} « {l} » ignored: the Hôtel Océan model already calculates this item (code {e}), pro rata to days. Remove it with the ✕ button.",
     "Rubrique {c} « {l} » retirée : elle est déjà calculée par le modèle Hôtel Océan (code {e}). Corrigez-la avec « Modifier » si besoin.": "Item {c} « {l} » removed: it is already calculated by the Hôtel Océan model (code {e}). Correct it with « Modify » if needed.",
     "Code Sage {a} « {l} » remplacé par le code Océan {c}.": "Sage code {a} « {l} » replaced by Hôtel Océan code {c}.",
     "Code {k} utilisé par {n} rubriques : donnez un autre code à l'une d'elles (modifiez le champ Code).": "Code {k} used by {n} items: give another code to one of them (edit the Code field).",

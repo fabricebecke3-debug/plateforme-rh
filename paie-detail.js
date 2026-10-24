@@ -291,6 +291,7 @@
     if (!etat.employeur) etat.employeur = (bulletinSociete && bulletinSociete.societe) || (opts && opts.employeur) || '';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483400;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain';
+    ov.setAttribute('data-fenetre', 'defile');
     ov.addEventListener('mousedown', function (e) { if (e.target === ov) e.stopImmediatePropagation(); });
     var cadre = document.createElement('div');
     cadre.className = 'pd-cadre';
@@ -704,7 +705,7 @@
       if (ocean) {
         etat.lignes = etat.lignes.filter(function (l) {
           if (!equivOcean(l.code)) return true;
-          var msg = T('Rubrique {c} « {l} » retirée : elle est déjà calculée par le modèle Hôtel Océan (code {e}). Corrigez-la avec « Modifier » si besoin.', { c: l.code, l: l.lib || '', e: (EQUIV_SAGE_OCEAN[String(l.code)] || root.PaieHok.EQUIV_OCEAN[String(l.code)]) });
+          var msg = T('Rubrique {c} « {l} » ignorée : le modèle Hôtel Océan calcule déjà cette rubrique (code {e}), au prorata des jours. Supprimez-la avec la croix ✕.', { c: l.code, l: l.lib || '', e: (EQUIV_SAGE_OCEAN[String(l.code)] || root.PaieHok.EQUIV_OCEAN[String(l.code)]) });
           etat.avis = etat.avis || [];
           if (etat.avis.indexOf(msg) < 0) etat.avis.push(msg);
           return false;
