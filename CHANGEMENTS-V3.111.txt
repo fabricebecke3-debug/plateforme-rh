@@ -1,0 +1,4 @@
+VERSION 3.111 : LOT DE BULLETINS PAR LISTES, EXCEL IDENTIQUE AU PDF, CODE 1000 RETIRÉ DES PROFILS OCÉAN (paie-grille.js)
+- Le lot ne demande plus de saisir des matricules : deux listes déroulantes (premier et dernier à imprimer) affichent « matricule — nom ».
+- Imprimer / PDF et Excel utilisent la même sélection. L'Excel contient une feuille par salarié avec les mêmes lignes que le bulletin PDF (code, libellé, montant, gain ou retenue), le brut et le net.
+- La rubrique 1000 « Salaire de base (proratisé aux jours) » est retirée des profils du modèle Hôtel de l'Océan à chaque ouverture et à l'affichage des paramètres.

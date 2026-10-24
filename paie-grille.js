@@ -52,13 +52,15 @@
   function rubs(liste, modele) { var base = (modele || 'ocean') === 'ocean' ? [] : [copie(RUB_SALAIRE)]; return base.concat(liste.concat(RUB_HS.map(copie))); }
   // Une fois : retire la rubrique 1000 saisie automatiquement dans les profils du modèle Hôtel de l'Océan
   function retirerSalaireOcean(st) {
-    if (!st || !Array.isArray(st.profils) || st.salaire_ocean_retire) return false;
+    if (!st || !Array.isArray(st.profils)) return false;
+    var chg = false;
     st.profils.forEach(function (p) {
       if ((p.modele || 'ocean') !== 'ocean' || !Array.isArray(p.rubriques)) return;
-      p.rubriques = p.rubriques.filter(function (r) { return !(String(r.code) === '1000' && /^base\*fraction$/.test(String(r.expr || '').trim())); });
+      var avant = p.rubriques.length;
+      p.rubriques = p.rubriques.filter(function (r) { return !(String(r.code).trim() === '1000' && /fraction/.test(String(r.expr || ''))); });
+      if (p.rubriques.length !== avant) chg = true;
     });
-    st.salaire_ocean_retire = true;
-    return true;
+    return chg;
   }
 
   // Valeurs de départ : montants de vos fichiers Excel ; heures sup. selon le cours
@@ -461,26 +463,42 @@
     return nomFichier;
   }
 
-  // Excel des bulletins du lot : matricule, nom, période, rubriques (montants), brut, net
+  // Excel des bulletins du lot : une feuille par salarié, mêmes lignes que le bulletin PDF
   function xlsLot(bons, mois) {
-    var codes = [], libs = {};
-    bons.forEach(function (r) { ((r.resultat && r.resultat.rubriques) || []).forEach(function (x) { var c = String(x.code); if (codes.indexOf(c) < 0) { codes.push(c); libs[c] = (x.retenue ? '- ' : '') + (x.lib || ''); } }); });
-    codes.sort(function (x, y) { return (+x || 0) - (+y || 0); });
-    var cel = function (v, st2) { var num = typeof v === 'number' && isFinite(v); return '<Cell' + (st2 ? ' ss:StyleID="' + st2 + '"' : '') + '><Data ss:Type="' + (num ? 'Number' : 'String') + '">' + esc(num ? String(v) : (v == null ? '' : String(v))) + '</Data></Cell>'; };
-    var ligneH = '<Row>' + cel('Matricule', 'h') + cel('Nom', 'h') + cel('Période', 'h') + codes.map(function (c) { return cel(c + ' ' + libs[c], 'h'); }).join('') + cel('Brut', 'h') + cel('Net', 'h') + '</Row>';
-    var lignes = bons.map(function (r) {
-      var f = r.fiche || {}, R = r.resultat || {}, par = {};
-      ((R.rubriques) || []).forEach(function (x) { par[String(x.code)] = Number(x.gain) || 0; });
-      return '<Row>' + cel(f.mat || '') + cel(f.nom || r.nom || '') + cel(r.periode || per0(mois)) + codes.map(function (c) { return cel(par[c] != null ? Math.round(par[c]) : '', 'n'); }).join('') + cel(Math.round(R.brut || 0), 'n') + cel(Math.round(R.net || 0), 'n') + '</Row>';
+    var used = {};
+    var feuilles = bons.map(function (r) {
+      var f = r.fiche || {}, R = r.resultat || {};
+      var base = String((f.mat || '') + ' ' + (f.nom || '')).replace(/[\\\/\?\*\[\]:]/g, ' ').trim().slice(0, 31) || 'Bulletin';
+      var nomF = base, k = 2;
+      while (used[nomF]) { nomF = base.slice(0, 27) + ' ' + k++; }
+      used[nomF] = true;
+      var cel = function (v, st2) {
+        var num = typeof v === 'number' && isFinite(v);
+        return '<Cell' + (st2 ? ' ss:StyleID="' + st2 + '"' : '') + '><Data ss:Type="' + (num ? 'Number' : 'String') + '">' + esc(v == null ? '' : String(v)) + '</Data></Cell>';
+      };
+      var rows = [];
+      rows.push('<Row>' + cel('BULLETIN DE PAIE', 'b') + '</Row>');
+      rows.push('<Row>' + cel('Salarié') + cel(f.nom || r.nom || '') + '</Row>');
+      rows.push('<Row>' + cel('Matricule') + cel(f.mat || '') + '</Row>');
+      rows.push('<Row>' + cel('Période') + cel(r.periode || per0(mois)) + '</Row>');
+      rows.push('<Row/>');
+      rows.push('<Row>' + cel('Code', 'h') + cel('Libellé', 'h') + cel('Montant', 'h') + cel('Sens', 'h') + '</Row>');
+      (R.rubriques || []).forEach(function (x) {
+        rows.push('<Row>' + cel(String(x.code || '')) + cel(x.lib || '') + cel(Math.round(Number(x.gain) || 0), 'n') + cel(x.retenue ? 'Retenue' : 'Gain') + '</Row>');
+      });
+      rows.push('<Row/>');
+      rows.push('<Row>' + cel('Brut', 'b') + cel('') + cel(Math.round(Number(R.brut) || 0), 'n') + cel('') + '</Row>');
+      rows.push('<Row>' + cel('Net à payer', 'b') + cel('') + cel(Math.round(Number(R.net) || 0), 'n') + cel('') + '</Row>');
+      return '<Worksheet ss:Name="' + esc(nomF) + '"><Table>' + rows.join('') + '</Table></Worksheet>';
     }).join('');
     var xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
-      '<Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F5FBF" ss:Pattern="Solid"/><Alignment ss:WrapText="1"/></Style><Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style></Styles>' +
-      '<Worksheet ss:Name="Bulletins"><Table>' + ligneH + lignes + '</Table></Worksheet></Workbook>';
+      '<Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F5FBF" ss:Pattern="Solid"/></Style>' +
+      '<Style ss:ID="b"><Font ss:Bold="1"/></Style><Style ss:ID="n"><NumberFormat ss:Format="#,##0"/></Style></Styles>' + feuilles + '</Workbook>';
     var nom = nomFichierPaie(mois, 'xls');
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([xml], { type: 'application/vnd.ms-excel' }));
-    a.download = nom; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    var lien = document.createElement('a');
+    lien.href = URL.createObjectURL(new Blob([xml], { type: 'application/vnd.ms-excel' }));
+    lien.download = nom; document.body.appendChild(lien); lien.click();
+    setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
     return nom;
   }
   function per0(mois) { var m = /^(\d{4})-(\d{2})$/.exec(String(mois || '')); if (!m) return ''; var last = new Date(+m[1], +m[2], 0).getDate(); return '01/' + m[2] + '/' + m[1] + ' au ' + String(last).padStart(2, '0') + '/' + m[2] + '/' + m[1]; }
@@ -654,8 +672,7 @@
         '<span>Heures du mois : <b data-heures-mois>' + heuresDuMois(st, st.mois) + '</b></span>';
       return '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' + metaMois +
         '<button type="button" data-g="export" style="' + BTN + '">📊 Exporter au format Excel</button>' +
-        '<button type="button" data-g="lot" style="' + BTN_P + '">🖨️ Bulletins du mois (lot) : imprimer / PDF</button>' +
-        '<button type="button" data-g="lotxls" style="' + BTN + '">📊 Bulletins du mois (lot) : Excel</button></div>' +
+        '<button type="button" data-g="lot" style="' + BTN_P + '">🖨️ Bulletins du mois (lot)</button></div>' +
         (function () {
           // Postes des salariés qu'aucun profil ne reconnaît (ajoutez le mot-clé dans « Postes concernés »)
           var sans = {};
@@ -685,6 +702,7 @@
       bloc += '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:12px;background:#f7f9fc">' +
         '<b>Profils automatiques par poste</b> : chaque salarié prend le profil de son poste (le mot-clé « Postes concernés » peut aussi servir). ' +
         'Un profil créé automatiquement est vide : remplissez ses rubriques, ou copiez celles d\'un autre profil ci-dessous.</div>';
+      retirerSalaireOcean(st);
       bloc += st.profils.map(function (p, pi) {
         return '<div style="border:1px solid #cdd5e0;border-radius:8px;padding:10px;margin-bottom:12px">' +
           '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b>Profil :</b>' +
@@ -777,31 +795,50 @@
       cadre.querySelectorAll('[data-act]').forEach(function (b) { b.disabled = lec; });
       var en = cadre.querySelector('[data-g="enregistrer"]'); if (en) en.disabled = lec;
     }
-    // Bulletins de tout le mois : salariés dont la saisie est complète ; plage de matricules facultative
-    function lancerLot(format) {
+    // Bulletins du mois : choix du premier et du dernier salarié par liste (matricule et nom)
+    function lancerLot() {
       if (!root.PaieDetail || !root.PaieDetail.bulletinsEnLot) { msg('Le module des bulletins n\'est pas chargé.', true); return; }
       var mois = st.mois || moisCourant(), per = periodeDe(mois);
       var toutes = (root.PRH_fichesPaie ? root.PRH_fichesPaie() : []).filter(function (f) { return saisieValide(st.saisies[String(f.id)]); });
-      var de = prompt('Matricule de (vide = premier) :', ''); if (de === null) return;
-      var a = prompt('Matricule à (vide = dernier) :', ''); if (a === null) return;
-      var fiches = toutes.filter(function (f) {
-        var m = String(f.mat || '').trim();
-        if (de.trim() && m < de.trim()) return false;
-        if (a.trim() && m > a.trim()) return false;
-        return true;
-      });
-      if (!fiches.length) { msg('Aucun bulletin à générer : saisie incomplète ou plage vide.', true); return; }
-      if (!root.confirm(fiches.length + ' bulletin(s) pour ' + libMois(mois) + '. Continuer ?')) return;
-      var ops = (typeof root.PRH_bulletinOpts === 'function') ? root.PRH_bulletinOpts() : {};
-      msg('Génération de ' + fiches.length + ' bulletin(s)…');
-      root.PaieDetail.bulletinsEnLot({ fiches: fiches, periode: per, bulletin: ops.bulletin, employeur: ops.employeur, taux: ops.taux, rubriques: ops.rubriques }).then(function (res) {
-        var bons = res.filter(function (r) { return r && r.html; }), mauvais = res.length - bons.length;
-        if (!bons.length) { msg('Aucun bulletin généré.', true); return; }
-        if (format === 'xls') { var nomX = xlsLot(bons, mois); msg('Fichier téléchargé : ' + nomX + (mauvais ? ' — ' + mauvais + ' bulletin(s) en erreur' : '')); return; }
-        var corps = bons.map(function (r) { return '<div style="page-break-after:always">' + r.html + '</div>'; }).join('');
-        root.printHTML('Bulletins de paie — ' + libMois(mois), corps, bons[0].css, { apercu: true });
-        msg(bons.length + ' bulletin(s) envoyés à l\'impression' + (mauvais ? ' — ' + mauvais + ' en erreur' : '') + '.');
-      }).catch(function (e) { msg('Lot impossible : ' + ((e && e.message) || e), true); });
+      toutes.sort(function (x, y) { return String(x.mat || '').localeCompare(String(y.mat || ''), 'fr', { numeric: true }); });
+      if (!toutes.length) { msg('Aucun salarié à imprimer : saisie incomplète.', true); return; }
+      var choix = toutes.map(function (f, i) { return '<option value="' + i + '">' + esc(String(f.mat || '—')) + ' — ' + esc(f.nom || '') + '</option>'; }).join('');
+      var fond = document.createElement('div');
+      fond.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,.6);z-index:2147483500;display:flex;align-items:center;justify-content:center;padding:16px';
+      fond.innerHTML = '<div style="background:#fff;color:#1a1a1a;border-radius:10px;padding:16px;width:min(520px,100%);font:14px system-ui,sans-serif">' +
+        '<h3 style="margin:0 0 10px">Bulletins du mois : ' + esc(libMois(mois)) + '</h3>' +
+        '<label style="display:block;margin:6px 0">Premier à imprimer<select data-de style="' + IN + ';width:100%">' + choix + '</select></label>' +
+        '<label style="display:block;margin:6px 0">Dernier à imprimer<select data-a style="' + IN + ';width:100%">' + choix + '</select></label>' +
+        '<p data-info style="color:#555;margin:8px 0;min-height:18px"></p>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px"><button type="button" data-annul style="' + BTN + '">Annuler</button><button type="button" data-xls style="' + BTN + '">📊 Excel</button><button type="button" data-pdf style="' + BTN_P + '">🖨️ Imprimer / PDF</button></div></div>';
+      document.body.appendChild(fond);
+      var selDe = fond.querySelector('[data-de]'), selA = fond.querySelector('[data-a]'), info = fond.querySelector('[data-info]');
+      selA.value = String(toutes.length - 1);
+      function plage() {
+        var i = +selDe.value, j = +selA.value;
+        if (i > j) { info.textContent = 'Le premier salarié est après le dernier.'; info.style.color = '#c0392b'; return null; }
+        info.textContent = (j - i + 1) + ' bulletin(s) : ' + toutes[i].mat + ' à ' + toutes[j].mat + '.'; info.style.color = '#555';
+        return toutes.slice(i, j + 1);
+      }
+      selDe.onchange = plage; selA.onchange = plage; plage();
+      function lancer(format) {
+        var fiches = plage(); if (!fiches) return;
+        fond.remove();
+        var ops = (typeof root.PRH_bulletinOpts === 'function') ? root.PRH_bulletinOpts() : {};
+        msg('Génération de ' + fiches.length + ' bulletin(s)…');
+        root.PaieDetail.bulletinsEnLot({ fiches: fiches, periode: per, bulletin: ops.bulletin, employeur: ops.employeur, taux: ops.taux, rubriques: ops.rubriques }).then(function (res) {
+          var bons = res.filter(function (r) { return r && r.html; }), mauvais = res.length - bons.length;
+          if (!bons.length) { msg('Aucun bulletin généré.', true); return; }
+          var fin = mauvais ? ' — ' + mauvais + ' bulletin(s) en erreur' : '';
+          if (format === 'xls') { var nomX = xlsLot(bons, mois); msg('Fichier téléchargé : ' + nomX + fin); return; }
+          var corps = bons.map(function (r) { return '<div style="page-break-after:always">' + r.html + '</div>'; }).join('');
+          root.printHTML('Bulletins de paie : ' + libMois(mois), corps, bons[0].css, { apercu: true });
+          msg(bons.length + ' bulletin(s) envoyés à l\'impression' + fin + '.');
+        }).catch(function (e) { msg('Lot impossible : ' + ((e && e.message) || e), true); });
+      }
+      fond.querySelector('[data-annul]').onclick = function () { fond.remove(); };
+      fond.querySelector('[data-pdf]').onclick = function () { lancer('pdf'); };
+      fond.querySelector('[data-xls]').onclick = function () { lancer('xls'); };
     }
     function telechargerMois() {
       return exporterMois(st.mois).then(function (txt) {
@@ -849,7 +886,7 @@
       if (b.dataset.det !== undefined) { ouvrirDetail(b.dataset.det); return; }
       if (b.dataset.g === 'fermer') { ov.remove(); return; }
       if (b.dataset.g === 'param' || b.dataset.g === 'grille') { mode = b.dataset.g; rendre(); return; }
-      if (b.dataset.g === 'lot' || b.dataset.g === 'lotxls') { lancerLot(b.dataset.g === 'lotxls' ? 'xls' : 'pdf'); return; }
+      if (b.dataset.g === 'lot') { lancerLot(); return; }
       if (b.dataset.g === 'export') { try { var nom = exporterXls(st, emps); msg('Fichier téléchargé : ' + nom); } catch (e) { msg('Export impossible : ' + e.message, true); } return; }
       if (b.dataset.g === 'enregistrer') {
         var err = verifier();
